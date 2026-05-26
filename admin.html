@@ -917,9 +917,22 @@ document.addEventListener('click', function(e){
 });
 
 // ── INIT ──
-renderDashboard();
-syncFromSupabase();
-setInterval(syncFromSupabase,15000);
+// Charger depuis Supabase en priorite
+(async function(){
+  try{
+    var data=await supaFetch('GET','commandes?order=created_at.desc');
+    if(Array.isArray(data)&&data.length){
+      var mapped=data.map(function(r){
+        var items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}
+        return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
+      });
+      save('terrasse_orders',mapped);
+      orders=mapped;
+    }
+  }catch(e){}
+  renderDashboard();
+}());
+setInterval(syncFromSupabase,10000);
 
 // ── MOT DE PASSE ADMIN ──
 var ADMIN_PWD = 'elzer2026';
