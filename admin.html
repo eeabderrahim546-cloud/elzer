@@ -879,15 +879,29 @@ function exportPDF(id){
 async function syncFromSupabase(){
   try{
     var data=await supaFetch('GET','commandes?order=created_at.desc');
-    console.log('Supabase data:',data);
-    if(Array.isArray(data)&&data.length){
+    if(Array.isArray(data)){
       var mapped=data.map(function(r){
         var items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}
         return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
-      save('terrasse_orders',mapped);orders=mapped;
-      document.getElementById('nb-new').textContent=orders.filter(function(o){return o.status==='nouvelle';}).length;
-      renderDashboard();
+      var oldCount=orders.length;
+      save('terrasse_orders',mapped);
+      orders=mapped;
+      var newCount=orders.filter(function(o){return o.status==='nouvelle';}).length;
+      document.getElementById('nb-new').textContent=newCount;
+      // Mettre a jour l'affichage
+      var activePanel=document.querySelector('.panel.active');
+      if(activePanel){
+        var panelId=activePanel.id.replace('panel-','');
+        if(panelId==='dashboard') renderDashboard();
+        else if(panelId==='commandes') renderCommandes();
+      } else {
+        renderDashboard();
+      }
+      // Notifier nouvelles commandes
+      if(mapped.length>oldCount && oldCount>0){
+        toast('Nouvelle commande recue!');
+      }
     }
   }catch(e){console.error('Sync error:',e);}
 }
