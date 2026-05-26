@@ -1,0 +1,1 @@
+{"name": "ELZER Admin", "short_name": "Admin", "description": "Administration ELZER Distribution", "start_url": "/admin.html", "display": "standalone", "background_color": "#0f2d0a", "theme_color": "#0f2d0a", "orientation": "any", "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]}

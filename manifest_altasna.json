@@ -1,0 +1,1 @@
+{"name": "ELZER - Altasna Legumes", "short_name": "Altasna Legu", "description": "Commandes ELZER Distribution", "start_url": "/client_altasna.html", "scope": "/", "display": "standalone", "background_color": "#0f2d0a", "theme_color": "#0f2d0a", "orientation": "portrait", "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ELZER — La Terrasse des Epices</title>
+<link rel="manifest" href="manifest_terrasse.json"/>
+<meta name="theme-color" content="#0f2d0a"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="La Terrasse des Epices"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+</head>
+<body style="background:#0f2d0a;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:Arial,sans-serif;">
+<div style="text-align:center;color:white;">
+  <div style="font-size:24px;font-weight:700;color:#e67e22;">ELZER</div>
+  <div style="font-size:9px;color:#6cb84a;margin-top:4px;letter-spacing:2px;">DISTRIBUTION</div>
+  <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:12px;">La Terrasse des Epices</div>
+  <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;">Chargement...</div>
+</div>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(function(){
+    window.location.replace('index.html?client=terrasse');
+  }).catch(function(){
+    window.location.replace('index.html?client=terrasse');
+  });
+} else {
+  window.location.replace('index.html?client=terrasse');
+}
+</script>
+</body>
+</html>

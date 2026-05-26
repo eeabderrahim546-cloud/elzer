@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<title>ELZER — Commande</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0f2d0a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="ELZER"/>
+<link rel="apple-touch-icon" href="icon.svg"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:"DM Sans",Arial,sans-serif;background:#f0f4ec;min-height:100vh;font-size:15px;}
+.hdr{background:#0f2d0a;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.25);}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;}
+.hdr-left{display:flex;align-items:center;gap:10px;}
+.logo-img{height:44px;object-fit:contain;background:#fff;border-radius:8px;padding:3px 8px;}
+.bl-badge{background:#e67e22;color:#fff;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;letter-spacing:0.3px;}
+.hdr-right{text-align:right;}
+.cli-name{font-size:14px;font-weight:600;color:#fff;}
+.cli-date{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px;}
+.hdr-btm{display:flex;gap:8px;padding:8px 14px 12px;}
+.date-inp{flex:1;padding:10px 12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;outline:none;color-scheme:dark;}
+.art-badge{background:#2d6a1f;color:#fff;border-radius:8px;padding:10px 14px;font-size:12px;font-weight:600;white-space:nowrap;}
+.srch{padding:10px 14px;background:#fff;border-bottom:1px solid #e0e8d8;position:sticky;top:96px;z-index:40;}
+.srch-inner{display:flex;align-items:center;gap:8px;background:#f0f4ec;border-radius:22px;padding:0 14px;border:1.5px solid transparent;transition:border-color .2s;}
+.srch-inner:focus-within{border-color:#2d6a1f;background:#fff;}
+.srch-inner input{flex:1;padding:11px 0;border:none;background:transparent;font-size:15px;font-family:inherit;outline:none;color:#222;}
+.srch-inner input::placeholder{color:#ccc;}
+.modes{display:flex;gap:6px;padding:10px 14px;background:#fff;border-bottom:1px solid #e0e8d8;overflow-x:auto;scrollbar-width:none;}
+.modes::-webkit-scrollbar{display:none;}
+.mpill{flex-shrink:0;padding:7px 16px;border-radius:22px;border:1.5px solid #e0e8d8;background:#fff;font-size:12px;font-weight:500;color:#666;cursor:pointer;font-family:inherit;}
+.mpill.on{background:#2d6a1f;border-color:#2d6a1f;color:#fff;}
+.content{padding:10px 14px 130px;}
+.sec-blk{margin-bottom:12px;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.sec-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f2d0a;cursor:pointer;user-select:none;}
+.sec-hd-l{display:flex;align-items:center;gap:10px;}
+.sec-ttl{font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.6px;}
+.sec-cnt{font-size:10px;background:rgba(255,255,255,.15);color:#fff;padding:2px 8px;border-radius:10px;}
+.sec-chv{color:rgba(255,255,255,.45);font-size:15px;transition:transform .2s;}
+.sec-blk.closed .sec-chv{transform:rotate(-90deg);}
+.sec-blk.closed .sec-body{display:none;}
+.sec-body{background:#fff;}
+.col-hd{display:grid;background:#e8f5d8;border-bottom:1px solid #c5e8b0;}
+.col-hd.s{grid-template-columns:1fr 52px 60px 56px;}
+.col-hd.t{grid-template-columns:1fr 52px 54px 50px 66px 58px 50px;}
+.ch{padding:6px 3px;font-size:8.5px;font-weight:700;color:#2d6a1f;text-transform:uppercase;letter-spacing:.4px;text-align:center;}
+.ch.l{text-align:left;padding-left:12px;}
+.ch.cui{background:#e8f5d8;}
+.ch.bar{background:#e8f4ff;color:#1a5c9e;}
+.ch.per{background:#fff3e0;color:#c47a00;}
+.prow{display:grid;border-bottom:1px solid #f2f7ee;align-items:stretch;}
+.prow.s{grid-template-columns:1fr 52px 60px 56px;}
+.prow.t{grid-template-columns:1fr 52px 54px 50px 66px 58px 50px;}
+.prow:last-child{border-bottom:none;}
+.prow.ok{background:#f0fbe5;}
+.prow.hidden{display:none;}
+.pnc{padding:9px 12px;display:flex;align-items:center;}
+.pn{font-size:12.5px;color:#333;line-height:1.3;}
+.prow.ok .pn{color:#0f2d0a;font-weight:600;}
+.pc{display:flex;align-items:center;justify-content:center;border-left:1px solid #f0f5ea;padding:3px;}
+.pc.pr{font-size:9.5px;color:#2d6a1f;font-weight:600;justify-content:flex-end;padding-right:7px;}
+.pc select{width:100%;border:none;background:transparent;font-size:10px;color:#666;cursor:pointer;text-align:center;outline:none;font-family:inherit;}
+.qi{width:100%;height:36px;border:2px solid #e0e0e0;border-radius:7px;background:#fff;font-size:16px;font-weight:700;color:#222;text-align:center;outline:none;transition:all .15s;-webkit-appearance:none;}
+.qi:focus{border-color:#2d6a1f;background:#f4fbed;}
+.qi.vc{border-color:#2d6a1f;background:#f0fbe5;color:#2d6a1f;}
+.qi.vb{border-color:#1a5c9e;background:#e8f4ff;color:#1a5c9e;}
+.qi.vp{border-color:#c47a00;background:#fff3e0;color:#c47a00;}
+.tc{font-size:13px;font-weight:700;color:#2d6a1f;text-align:center;display:flex;align-items:center;justify-content:center;border-left:1px solid #f0f5ea;}
+.elzer-foot{background:#fff;border-top:1px solid #e0e8d8;padding:10px 14px;text-align:center;font-size:9.5px;color:#aaa;line-height:1.7;}
+.ftr{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:2px solid #e0e8d8;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:50;box-shadow:0 -4px 20px rgba(0,0,0,.1);}
+.f-tot{display:flex;flex-direction:column;}
+.f-lbl{font-size:10px;color:#888;}
+.f-amt{font-size:26px;font-weight:700;color:#2d6a1f;line-height:1.1;}
+.f-btns{display:flex;gap:8px;}
+.btn-r{padding:12px 16px;border:2px solid #e0e8d8;border-radius:8px;background:#fff;font-size:14px;color:#888;cursor:pointer;font-family:inherit;}
+.btn-v{padding:12px 28px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;justify-content:center;}
+.ov.on{display:flex;}
+.sht{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;animation:su .25s ease-out;}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sh-hdl{width:40px;height:4px;background:#ddd;border-radius:2px;margin:12px auto 0;flex-shrink:0;}
+.sh-hd{padding:12px 20px 14px;border-bottom:1px solid #f0f0f0;flex-shrink:0;}
+.sh-ttl{font-size:18px;font-weight:700;}
+.sh-sub{font-size:12px;color:#888;margin-top:3px;}
+.sh-body{padding:16px 20px;overflow-y:auto;flex:1;}
+.rs{margin-bottom:14px;}
+.rs-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #f0f0f0;}
+.rl{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:.5px solid #f8f8f8;font-size:14px;}
+.rl:last-child{border:none;}
+.rq{font-weight:700;font-size:12px;padding:3px 10px;border-radius:7px;}
+.rq-g{background:#e8f5d8;color:#2d6a1f;}
+.rq-b{background:#e8f4ff;color:#1a5c9e;}
+.rq-a{background:#fff3e0;color:#c47a00;}
+.sh-tot{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:2px solid #e8f5d8;background:#f4fbed;flex-shrink:0;}
+.sh-tot-l{font-size:13px;color:#888;}
+.sh-tot-v{font-size:22px;font-weight:700;color:#2d6a1f;}
+.sh-btns{display:flex;gap:10px;padding:12px 20px 20px;flex-shrink:0;}
+.sh-btns button{flex:1;padding:14px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.sh-bk{background:#fff;border:2px solid #e0e8d8;color:#888;}
+.sh-ok{background:#2d6a1f;color:#fff;border:none;}
+.merci{display:none;position:fixed;inset:0;background:#f4fbed;z-index:200;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;}
+.merci.on{display:flex;}
+.m-ico{width:90px;height:90px;background:#2d6a1f;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:42px;margin-bottom:24px;box-shadow:0 8px 30px rgba(45,106,31,.3);}
+.m-ttl{font-size:26px;font-weight:700;color:#0f2d0a;margin-bottom:10px;}
+.m-bl{background:#e67e22;color:#fff;border-radius:8px;padding:6px 16px;font-size:14px;font-weight:700;margin-bottom:8px;display:inline-block;}
+.m-sub{font-size:14px;color:#666;max-width:320px;line-height:1.6;margin-bottom:24px;}
+.m-btn{padding:14px 32px;background:#2d6a1f;color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;}
+.locked{text-align:center;padding:60px 20px;color:#888;}
+.locked .ico{font-size:56px;margin-bottom:16px;}
+.locked h2{font-size:18px;font-weight:600;margin-bottom:8px;color:#555;}
+.locked p{font-size:14px;line-height:1.7;}
+.locked a{color:#2d6a1f;font-weight:600;}
+</style>
+</head>
+<body>
+<div style="background:#0f2d0a;position:sticky;top:0;z-index:50;box-shadow:0 2px 12px rgba(0,0,0,.25);font-family:Arial,sans-serif;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.1);">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <div style="background:white;border-radius:7px;padding:5px 12px;flex-shrink:0;">
+        <div style="font-size:16px;font-weight:700;color:#e67e22;letter-spacing:-0.3px;line-height:1.1;">ELZER</div>
+        <div style="font-size:7px;color:#2d6a1f;letter-spacing:1.5px;text-transform:uppercase;">DISTRIBUTION</div>
+      </div>
+      <div style="border-left:1px solid rgba(255,255,255,0.15);padding-left:10px;">
+        <div style="font-size:9.5px;color:rgba(255,255,255,0.55);line-height:1.8;">
+          N°15 Imm 12 Lot Sine Av Allal Fassi, Marrakech<br/>
+          +212 6 73 95 83 37 &nbsp;·&nbsp; elzerdist@gmail.com<br/>
+          RC:52057 &nbsp;·&nbsp; IF:06526715 &nbsp;·&nbsp; ICE:000073472000003
+        </div>
+      </div>
+    </div>
+    <div style="text-align:right;border-left:1px solid rgba(255,255,255,0.15);padding-left:12px;min-width:150px;">
+      <div id="cname" style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;"></div>
+      <div id="ccords" style="font-size:9px;color:rgba(255,255,255,0.5);line-height:1.8;"></div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;">
+    <span id="bl-num" style="background:#e67e22;color:white;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;">BL #001</span>
+    <span id="cdtxt" style="font-size:11px;color:rgba(255,255,255,0.5);white-space:nowrap;"></span>
+    <input type="date" id="dd" style="flex:1;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:white;font-size:12px;padding:7px 10px;outline:none;color-scheme:dark;font-family:inherit;"/>
+    <div id="bc" style="background:#2d6a1f;color:white;border-radius:7px;padding:7px 12px;font-size:11px;font-weight:600;white-space:nowrap;">0 article</div>
+  </div>
+</div>
+<div class="srch">
+  <div class="srch-inner">
+    <span style="color:#ccc;font-size:17px;">⌕</span>
+    <input type="text" id="srch" placeholder="Rechercher un produit..." oninput="fp()"/>
+  </div>
+</div>
+<div class="modes">
+  <button class="mpill on" id="ps" onclick="sm('s')">Simple</button>
+  <button class="mpill" id="pt" onclick="sm('t')">Cuisine · Bar · Personnel</button>
+</div>
+<div class="content" id="ct"></div>
+<div class="elzer-foot">
+  ELZER DISTRIBUTION &nbsp;·&nbsp; N°15 Imm 12 Lot Sine Av Allal Fassi, Marrakech<br/>
+  Tél : +212 6 73 95 83 37 &nbsp;·&nbsp; elzerdist@gmail.com &nbsp;·&nbsp; RC:52057 · IF:06526715 · ICE:000073472000003
+</div>
+<div class="ftr">
+  <div class="f-tot"><span class="f-lbl">Total estimé</span><span class="f-amt" id="gt">0 Dh</span></div>
+  <div class="f-btns">
+    <button class="btn-r" onclick="ca()">↺</button>
+    <button class="btn-v" onclick="om()">✓ Valider</button>
+  </div>
+</div>
+<div class="ov" id="ov">
+  <div class="sht">
+    <div class="sh-hdl"></div>
+    <div class="sh-hd"><div class="sh-ttl">Récapitulatif</div><div class="sh-sub" id="ss"></div></div>
+    <div class="sh-body" id="sb"></div>
+    <div class="sh-tot"><span class="sh-tot-l">Total estimé</span><span class="sh-tot-v" id="st"></span></div>
+    <div class="sh-btns">
+      <button class="sh-bk" onclick="cm()">← Modifier</button>
+      <button class="sh-ok" onclick="co()">✅ Confirmer & envoyer</button>
+    </div>
+  </div>
+</div>
+<div class="merci" id="mc">
+  <div class="m-ico">✓</div>
+  <div class="m-ttl">Commande confirmée !</div>
+  <div class="m-bl" id="m-bl-num"></div>
+  <div class="m-sub" id="mtxt"></div>
+  <div style="background:#e8f5d8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#2d6a1f;max-width:320px;line-height:1.6;">
+    📱 Un message de confirmation a été envoyé à ELZER Distribution
+  </div>
+  <button class="m-btn" onclick="no()">Nouvelle commande</button>
+</div>
+<script>
+
+const SUPA_URL='https://qiwttaimocrbxvjxfetv.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFpd3R0YWltb2NyYnh2anhmZXR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjEwNDAsImV4cCI6MjA5NTAzNzA0MH0.iBLepGthQJXRLjCTQB0ZNIp1215DFouJK4KFqdzgZP0';
+async function supaFetch(method,path,body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(method==='GET')return r.json();return r.ok;}
+async function saveOrderToSupabase(order){try{await supaFetch('POST','commandes',{id:order.id,client:order.client,deliver_date:order.delivDate,items:JSON.stringify(order.items),total:order.total||0,status:order.status||'nouvelle',mode:order.mode||'simple',created_at:order.createdAt||new Date().toISOString()});}catch(e){console.log('Supa error:',e);}}
+async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}return{id:r.id,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
+async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
+
+const P=new URLSearchParams(window.location.search);
+const CID=P.get('client')||P.get('c')||'';
+const NETLIFY=window.location.origin;
+const PHONE='212628664142';
+// Clients par défaut
+const DEFAULT_CLIENTS={
+  terrasse:{name:'La Terrasse des Épices',wa:PHONE},
+  altasna:{name:'Altasna Légumes',wa:PHONE},
+  claude:{name:'CLAUDE',wa:PHONE},
+  meda:{name:'MEDA',wa:PHONE},
+  mida:{name:'MIDA',wa:PHONE},
+  elzer:{name:'ELZER DIS',wa:PHONE}
+};
+
+// Charger aussi les clients ajoutés dans l'admin
+function getAllClients(){
+  const saved=JSON.parse(localStorage.getItem('admin_clients')||'[]');
+  const dynamic={};
+  saved.forEach(c=>{
+    const uid=c.urlId||(c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20));
+    dynamic[uid]={name:c.name,wa:c.wa||PHONE};
+  });
+  return{...DEFAULT_CLIENTS,...dynamic};
+}
+const CLIENTS=getAllClients();
+const CLI=CLIENTS[CID]||null;
+const UNITS=['kg','bt','pc','g','L','caisse','plt','brq','boite'];
+const CAT=[
+  {title:'🥦 Légumes',items:[
+    {n:'Ail',u:'kg'},{n:'Ail épluché 1kg',u:'kg',p:'85dh'},{n:'Artichaut',u:'kg'},
+    {n:'Asperges vertes',u:'kg'},{n:'Aubergine',u:'kg',p:'4dh'},
+    {n:'Bébé carotte',u:'brq'},{n:'Bébé navet',u:'brq'},{n:'Betterave',u:'kg',p:'5,3dh'},
+    {n:'Brocoli',u:'kg',p:'25dh'},{n:'Carotte',u:'kg',p:'4,5dh'},
+    {n:'Céleri branche',u:'bt',p:'12dh'},{n:'Céleri rave',u:'kg'},
+    {n:'Champignon paris',u:'caisse',p:'68dh'},{n:'Champignon plateau',u:'kg'},
+    {n:'Chou blanc',u:'kg',p:'5,3dh'},{n:'Chou de Bruxelles',u:'kg'},
+    {n:'Chou fleur',u:'kg'},{n:'Chou rouge',u:'kg'},{n:'Chou vert',u:'pc'},
+    {n:'Concombre',u:'kg',p:'9dh'},{n:'Courgette noire',u:'kg'},
+    {n:'Courgette ronde',u:'kg',p:'13,5dh'},{n:'Courgette verte',u:'kg',p:'6dh'},
+    {n:'Courge potiron',u:'bl'},{n:'Échalote',u:'kg',p:'55dh'},
+    {n:'Épinard',u:'bt',p:'10dh'},{n:'Fenouil',u:'kg'},{n:'Fève',u:'kg'},
+    {n:'Gombos',u:'kg'},{n:'Haricot vert',u:'kg'},{n:'Kharchouf',u:'kg'},
+    {n:'Micro pousse',u:'bt'},{n:'Navet',u:'kg',p:'9dh'},{n:'Navet jaune',u:'kg'},
+    {n:'Oignon',u:'kg',p:'6,5dh'},{n:'Oignon blanc',u:'kg'},
+    {n:'Oignon cébette',u:'bt',p:'13dh'},{n:'Oignon nouveau',u:'kg'},{n:'Oignon rouge',u:'kg'},
+    {n:'Patate douce',u:'kg'},{n:'Petit pois',u:'kg'},{n:'Petit pois surgelé',u:'kg'},
+    {n:'Piment fort Nora',u:'g',p:'12dh'},{n:'Piment rouge',u:'kg'},{n:'Piment vert',u:'kg'},
+    {n:'Poireaux',u:'bt',p:'9,5dh'},{n:'Poivron jaune',u:'kg',p:'14dh'},
+    {n:'Poivron rouge',u:'kg',p:'14dh'},{n:'Poivron vert',u:'kg'},
+    {n:'Pomme de terre',u:'kg',p:'9,5dh'},{n:'Pomme de terre frite',u:'kg'},
+    {n:'Pomme de terre grenaille',u:'kg',p:'10dh'},{n:'Potiron',u:'pc',p:'8dh'},
+    {n:'Pousse d\u2019épinard',u:'kg',p:'15dh'},{n:'Radis rouge',u:'bt',p:'8dh'},
+    {n:'Roquette',u:'kg',p:'15dh'},{n:'Salade fraise',u:'pc'},
+    {n:'Salade mâche',u:'bt',p:'15dh'},{n:'Salade mesclun',u:'bt',p:'13,5dh'},
+    {n:'Salade romaine',u:'bt',p:'6dh'},{n:'Slaoui',u:'kg'},{n:'Sucrine',u:'pc'},
+    {n:'Tomate',u:'kg',p:'6,5dh'},{n:'Tomate cerise jaune',u:'kg'},
+    {n:'Tomate cerise rouge',u:'kg',p:'10dh'},{n:'Tomate fraîche',u:'kg'},
+    {n:'Tomate ronde',u:'kg'},{n:'Laitue',u:'pc'},{n:'Lolo rouge',u:'pc'},{n:'Lolo vert',u:'pc'}
+  ]},
+  {title:'🍊 Fruits',items:[
+    {n:'Abricot',u:'kg'},{n:'Ananas',u:'pc',p:'28dh'},
+    {n:'Avocat',u:'kg',p:'40dh'},{n:'Avocat mur vert',u:'kg'},
+    {n:'Banane',u:'kg',p:'12dh'},{n:'Banane importée',u:'kg'},{n:'Banane locale',u:'kg'},
+    {n:'Cassis',u:'brq'},{n:'Cerise',u:'kg'},{n:'Clementine',u:'kg'},
+    {n:'Citron confit',u:'kg',p:'16dh'},{n:'Citron jaune',u:'kg',p:'11dh'},
+    {n:'Citron vert',u:'kg',p:'14dh'},{n:'Figue fraîche',u:'kg',p:'85,5dh'},
+    {n:'Fraise',u:'plt',p:'12dh'},{n:'Framboise',u:'brq',p:'12dh'},
+    {n:'Fruit de la passion',u:'kg',p:'148dh'},{n:'Kiwi',u:'plt'},
+    {n:'Mangue avion',u:'pc',p:'115dh'},{n:'Mangue bien mûre',u:'plt'},
+    {n:'Melon cantalou',u:'pc'},{n:'Melon jaune local',u:'pc'},{n:'Melon vert local',u:'pc'},
+    {n:'Mûres',u:'brq'},{n:'Myrtille',u:'brq'},{n:'Nectarine',u:'plt'},
+    {n:'Nèfle',u:'kg'},{n:'Noix de coco',u:'pc'},{n:'Noix décortiquée',u:'kg',p:'85dh'},
+    {n:'Orange à jus',u:'kg',p:'8,5dh'},{n:'Orange de table',u:'kg',p:'8,5dh'},
+    {n:'Pamplemousse',u:'kg',p:'12dh'},{n:'Pastèque',u:'pc'},{n:'Pêche',u:'plt'},
+    {n:'Poire grande',u:'kg',p:'26dh'},{n:'Poire importée',u:'kg'},
+    {n:'Pomme golden',u:'kg',p:'26dh'},{n:'Pomme granny',u:'kg',p:'34dh'},
+    {n:'Raisin noir local',u:'kg'},{n:'Raisin vert local',u:'kg'}
+  ]},
+  {title:'🌿 Herbes & Aromates',items:[
+    {n:'Basilic',u:'bt',p:'14dh'},{n:'Bouton rose séché',u:'paquet'},
+    {n:'Ciboulette',u:'bt'},{n:'Citronnelle',u:'bt',p:'120dh'},
+    {n:'Coriandre',u:'bt',p:'10dh'},{n:'Estragon',u:'bt'},
+    {n:'Feuille de citron',u:'paquet',p:'0,50dh'},{n:'Fleur comestible',u:'bt',p:'45dh'},
+    {n:'Géranium petite',u:'bt',p:'2dh'},{n:'Gingembre confit',u:'kg',p:'132dh'},
+    {n:'Gingembre frais',u:'kg',p:'65dh'},{n:'Mélange tkhalette',u:'bt'},
+    {n:'Menthe fraîche',u:'bt'},{n:'Menthe floula',u:'bt'},
+    {n:'Persil',u:'bt',p:'10dh'},{n:'Persil/Coriandre',u:'kg'},
+    {n:'Romarin',u:'bt',p:'14dh'},{n:'Safran bio',u:'g',p:'33dh'},
+    {n:'Thym',u:'bt',p:'14dh'},{n:'Verveine',u:'bt'}
+  ]},
+  {title:'🫙 Épicerie & Autres',items:[
+    {n:'Amande bldi',u:'kg',p:'103dh'},{n:'Amande entière',u:'kg',p:'103dh'},
+    {n:'Harissa',u:'kg',p:'11dh'},{n:'Harissa service',u:'kg'},
+    {n:'Huile argane',u:'L',p:'800dh'},{n:'Huile olive',u:'L'},
+    {n:'Olive marinée',u:'kg'},{n:'Olive mauve',u:'kg'},{n:'Olive noire',u:'kg'},
+    {n:'Olive verte',u:'kg',p:'33dh'},{n:'Olive verte dénoyautée',u:'kg'}
+  ]}
+];
+
+// Init
+// Afficher nom client immédiatement
+document.getElementById('cname').textContent = CLI ? CLI.name : 'Acces non autorise';
+document.getElementById('cdtxt').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+
+// Protection mot de passe client
+(function(){
+  if(!CLI) return;
+  var urlParams=new URLSearchParams(window.location.search);
+  var urlPwd=urlParams.get('k')||'';
+  var sessionKey='elzer-auth-'+CID;
+  
+  // Si deja authentifie
+  if(localStorage.getItem(sessionKey)==='1') return;
+  
+  // Si pas de mot de passe dans l'URL - acces libre
+  if(!urlPwd) return;
+  
+  // Sauvegarder le mot de passe attendu (persiste entre sessions)
+  localStorage.setItem('elzer-pwd-'+CID, urlPwd);
+  
+  // Afficher l'ecran de connexion
+  var overlay=document.createElement('div');
+  overlay.id='cli-login';
+  overlay.style.cssText='position:fixed;inset:0;background:#0f2d0a;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;';
+  overlay.innerHTML='<div style="background:#fff;border-radius:16px;padding:32px 28px;width:300px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:13px;font-weight:600;margin:12px 0 6px;">'+CLI.name+'</div><div style="font-size:12px;color:#888;margin-bottom:16px;">Entrez votre mot de passe</div><input type="password" id="cpwd-inp" placeholder="Mot de passe" style="width:100%;padding:12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;box-sizing:border-box;"/><button id="cpwd-btn" style="width:100%;padding:12px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;">Connexion</button><div id="cpwd-err" style="color:#d32f2f;font-size:12px;margin-top:8px;display:none;">Mot de passe incorrect</div></div>';
+  document.body.appendChild(overlay);
+  
+  function checkPwd(){
+    var val=document.getElementById('cpwd-inp').value;
+    var expected=localStorage.getItem('elzer-pwd-'+CID)||urlPwd;
+    if(val===expected){
+      localStorage.setItem(sessionKey,'1');
+      overlay.remove();
+    } else {
+      document.getElementById('cpwd-err').style.display='block';
+      document.getElementById('cpwd-inp').value='';
+      document.getElementById('cpwd-inp').focus();
+    }
+  }
+  
+  document.getElementById('cpwd-btn').addEventListener('click',checkPwd);
+  document.getElementById('cpwd-inp').addEventListener('keypress',function(e){if(e.key==='Enter')checkPwd();});
+  setTimeout(function(){document.getElementById('cpwd-inp').focus();},100);
+}());
+document.getElementById('dd').value=new Date().toISOString().split('T')[0];
+
+// Lire numéro BL depuis localStorage admin
+function getBLNum(){
+  const n=parseInt(localStorage.getItem('elzer_next_bl')||'1');
+  return n;
+}
+function formatBL(n){
+  return String(n).padStart(3,'0');
+}
+document.getElementById('bl-num').textContent='BL #'+formatBL(getBLNum());
+
+// Afficher nom client immédiatement
+const cnameEl=document.getElementById('cname');
+const ccordsEl=document.getElementById('ccords');
+if(cnameEl && CLI){cnameEl.textContent=CLI.name;cnameEl.style.color='white';cnameEl.style.fontWeight='700';}
+if(!CLI){
+  if(cnameEl)cnameEl.textContent='Accès non autorisé';
+  document.getElementById('ct').innerHTML='<div class="locked"><div class="ico">🔒</div><h2>Accès non autorisé</h2><p>Vous avez besoin d\'un lien personnel.<br/>Contactez ELZER Distribution :<br/><br/><a href="tel:+212673958337">+212 6 73 95 83 37</a><br/><a href="mailto:elzerdist@gmail.com">elzerdist@gmail.com</a></p></div>';
+  document.querySelector('.ftr').style.display='none';
+  document.querySelector('.modes').style.display='none';
+  document.querySelector('.srch').style.display='none';
+}else{
+  // nom déjà affiché
+  // Afficher coordonnées client depuis admin_clients
+  try{
+    const savedClients=JSON.parse(localStorage.getItem('admin_clients')||'[]');
+    const cliData=savedClients.find(c=>c.name===CLI.name)||{};
+    const coordParts=[];
+    if(cliData.adresse)coordParts.push(cliData.adresse);
+    if(cliData.tel)coordParts.push(cliData.tel);
+    if(cliData.ice)coordParts.push('ICE:'+cliData.ice);
+    if(cliData.rc)coordParts.push('RC:'+cliData.rc);
+    if(cliData.iff)coordParts.push('IF:'+cliData.iff);
+    const coordEl=ccordsEl||document.getElementById('ccords');
+    if(coordEl&&coordParts.length)coordEl.innerHTML=coordParts.join('<br/>');
+  }catch(e){}
+}
+
+let mode='s',rows=[];
+if(CLI) build();
+
+function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
+
+function build(){
+  rows=[];const ct=document.getElementById('ct');ct.innerHTML='';
+  CAT.forEach((sec,si)=>{
+    const bl=document.createElement('div');bl.className='sec-blk';
+    bl.innerHTML='<div class="sec-hd" onclick="ts(this)"><div class="sec-hd-l"><span class="sec-ttl">'+sec.title+'</span><span class="sec-cnt">'+sec.items.length+'</span></div><span class="sec-chv">▾</span></div><div class="sec-body"><div class="col-hd '+mode+'" id="ch'+si+'"></div><div id="pl'+si+'"></div></div>';
+    ct.appendChild(bl);
+    const ch=document.getElementById('ch'+si);
+    if(mode==='s'){ch.innerHTML='<div class="ch l">Désignation</div><div class="ch">Prix</div><div class="ch">Unité</div><div class="ch">Qté</div>';}
+    else{ch.innerHTML='<div class="ch l">Désignation</div><div class="ch">Prix</div><div class="ch cui">CUISINE</div><div class="ch bar">BAR</div><div class="ch per">PERS.</div><div class="ch">Unité</div><div class="ch">∑</div>';}
+    const pl=document.getElementById('pl'+si);
+    sec.items.forEach(item=>{
+      const row=document.createElement('div');
+      row.className='prow '+mode;row.dataset.name=item.n.toLowerCase();
+      const opts=UNITS.map(u=>'<option'+(u===item.u?' selected':'')+'>'+u+'</option>').join('');
+      if(mode==='s'){
+        row.innerHTML='<div class="pnc"><span class="pn">'+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
+        pl.appendChild(row);
+        const inp=row.querySelector('input'),sel=row.querySelector('select');
+        inp.addEventListener('input',()=>{const v=parseFloat(inp.value)||0;inp.classList.toggle('vc',v>0);row.classList.toggle('ok',v>0);ut();});
+        rows.push({row,ic:inp,ib:null,ip:null,sel,name:item.n,price:item.p||''});
+      }else{
+        row.innerHTML='<div class="pnc"><span class="pn">'+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><select>'+opts+'</select></div><div class="tc">—</div>';
+        pl.appendChild(row);
+        const ins=row.querySelectorAll('input');const iC=ins[0],iB=ins[1],iP=ins[2];
+        const sel=row.querySelector('select');const tc=row.querySelector('.tc');
+        [iC,iB,iP].forEach(i=>i.addEventListener('input',()=>{
+          const c=parseFloat(iC.value)||0,b=parseFloat(iB.value)||0,p=parseFloat(iP.value)||0;
+          iC.classList.toggle('vc',c>0);iB.classList.toggle('vb',b>0);iP.classList.toggle('vp',p>0);
+          const t=c+b+p;tc.textContent=t||'—';row.classList.toggle('ok',t>0);ut();
+        }));
+        rows.push({row,ic:iC,ib:iB,ip:iP,sel,name:item.n,price:item.p||''});
+      }
+    });
+  });
+  fp();ut();
+}
+
+function ts(el){el.closest('.sec-blk').classList.toggle('closed');}
+function fp(){const q=document.getElementById('srch').value.toLowerCase().trim();document.querySelectorAll('.prow').forEach(r=>r.classList.toggle('hidden',q!==''&&!r.dataset.name.includes(q)));}
+function pp(s){if(!s)return 0;const m=s.match(/\d+([,.]\d+)?/);return m?parseFloat(m[0].replace(',','.')):0;}
+function ut(){let t=0,n=0;rows.forEach(({ic,ib,ip,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0){t+=pp(price)*(c+b+p);n++;}});document.getElementById('gt').textContent=Math.round(t).toLocaleString('fr-FR')+' Dh';document.getElementById('bc').textContent=n+' article'+(n>1?'s':'');}
+function ca(){rows.forEach(({ic,ib,ip,row})=>{ic.value='';ic.className='qi';if(ib){ib.value='';ib.className='qi';}if(ip){ip.value='';ip.className='qi';}const tc=row.querySelector('.tc');if(tc)tc.textContent='—';row.classList.remove('ok');});document.getElementById('srch').value='';fp();ut();}
+function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0)l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});});return l;}
+function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
+function cm(){document.getElementById('ov').classList.remove('on');}
+function co(){
+  cm();
+  const dat=document.getElementById('dd').value;
+  const lines=gl();
+  const total=lines.reduce((s,l)=>s+pp(l.price)*l.total,0);
+  const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR');
+  const blNum=getBLNum();
+  const orders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+  const items=[];
+  if(mode==='t'){lines.forEach(l=>{if(l.cuisine>0)items.push({name:l.name,qty:l.cuisine,unit:l.unit,type:'Cuisine'});if(l.bar>0)items.push({name:l.name,qty:l.bar,unit:l.unit,type:'Bar'});if(l.perso>0)items.push({name:l.name,qty:l.perso,unit:l.unit,type:'Personnel'});});}
+  else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit}));}
+  orders.push({id:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode});
+  localStorage.setItem('terrasse_orders',JSON.stringify(orders));
+  saveOrderToSupabase(orders[orders.length-1]);
+  // Incrémenter BL
+  localStorage.setItem('elzer_next_bl',String(blNum+1));
+  document.getElementById('bl-num').textContent='BL #'+formatBL(blNum+1);
+  let msg='🌿 *BL #'+blNum+'*\n👤 '+CLI.name+'\n📅 Livraison : '+ds+'\n\n';
+  if(mode==='t'){const c=lines.filter(l=>l.cuisine>0),b=lines.filter(l=>l.bar>0),p=lines.filter(l=>l.perso>0);if(c.length)msg+='CUISINE\n'+c.map(l=>'• '+l.name+' : '+l.cuisine+' '+l.unit).join('\n')+'\n\n';if(b.length)msg+='BAR\n'+b.map(l=>'• '+l.name+' : '+l.bar+' '+l.unit).join('\n')+'\n\n';if(p.length)msg+='PERSONNEL\n'+p.map(l=>'• '+l.name+' : '+l.perso+' '+l.unit).join('\n')+'\n\n';}
+  else{msg+=lines.map(l=>'• '+l.name+' : '+l.total+' '+l.unit).join('\n')+'\n\n';}
+  if(total)msg+='💰 *Total : '+Math.round(total).toLocaleString('fr-FR')+' Dh*';
+  window.open('https://wa.me/'+CLI.wa+'?text='+encodeURIComponent(msg),'_blank');
+  document.getElementById('m-bl-num').textContent='BL #'+formatBL(blNum);
+  document.getElementById('mtxt').textContent='Votre commande a bien été reçue par ELZER Distribution.\nLivraison prévue le '+ds+'.\n\nNous vous confirmons la réception de votre BL #'+formatBL(blNum)+'.';
+  document.getElementById('mc').classList.add('on');
+  // Envoyer confirmation WhatsApp au client
+  const confMsg='✅ Commande BL #'+formatBL(blNum)+' confirmée !\n\nBonjour '+CLI.name+',\nNous avons bien reçu votre commande.\n📅 Livraison prévue : '+ds+'\n\nMerci de votre confiance.\n\nELZER Distribution\nTél : +212 6 73 95 83 37';
+  // Message envoyé via WhatsApp admin vers client si wa défini
+  if(CLI.wa && CLI.wa !== PHONE){
+    setTimeout(()=>{
+      window.open('https://wa.me/'+CLI.wa+'?text='+encodeURIComponent(confMsg),'_blank');
+    }, 2000);
+  }
+}
+function no(){document.getElementById('mc').classList.remove('on');ca();}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+</script>
+</body>
+</html>

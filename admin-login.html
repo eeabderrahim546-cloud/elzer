@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ELZER Admin</title>
+<link rel="manifest" href="manifest-admin.json"/>
+<meta name="theme-color" content="#0f2d0a"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Admin ELZER"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0f2d0a;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;}
+.card{background:#fff;border-radius:16px;padding:36px 28px;width:300px;text-align:center;}
+.logo{font-size:26px;font-weight:700;color:#e67e22;}
+.sub{font-size:9px;color:#2d6a1f;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;margin-top:2px;}
+input{width:100%;padding:13px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:15px;outline:none;text-align:center;margin-bottom:12px;font-family:Arial,sans-serif;}
+input:focus{border-color:#2d6a1f;}
+button{width:100%;padding:13px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:Arial,sans-serif;}
+button:active{opacity:0.9;}
+.err{color:#d32f2f;font-size:12px;margin-top:8px;display:none;}
+.hint{font-size:10px;color:#bbb;margin-top:16px;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">ELZER</div>
+  <div class="sub">Distribution Admin</div>
+  <input type="password" id="pwd" placeholder="Mot de passe" autofocus/>
+  <button id="btn">Connexion</button>
+  <div class="err" id="err">Mot de passe incorrect</div>
+  <div class="hint">ELZER Distribution · Marrakech</div>
+</div>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+function load(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch(e){return d;}}
+function go(){
+  var val=document.getElementById('pwd').value.trim();
+  if(!val) return;
+  var correct=load('admin_password','elzer2026');
+  if(val===correct){
+    sessionStorage.setItem('elzer-admin-ok','1');
+    window.location.href='admin.html';
+  } else {
+    document.getElementById('err').style.display='block';
+    document.getElementById('pwd').value='';
+    document.getElementById('pwd').focus();
+  }
+}
+document.getElementById('btn').addEventListener('click',go);
+document.getElementById('pwd').addEventListener('keypress',function(e){if(e.key==='Enter')go();});
+</script>
+</body>
+</html>

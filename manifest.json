@@ -1,0 +1,19 @@
+{
+  "name": "ELZER Distribution",
+  "short_name": "ELZER",
+  "description": "Passez vos commandes ELZER Distribution",
+  "start_url": "/accueil.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f2d0a",
+  "theme_color": "#0f2d0a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
