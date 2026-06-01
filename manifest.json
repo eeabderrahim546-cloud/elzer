@@ -1,9 +1,9 @@
 {
   "name": "ELZER Distribution",
   "short_name": "ELZER",
-  "description": "Passez vos commandes ELZER Distribution",
-  "start_url": "/accueil.html",
-  "scope": "/",
+  "description": "Commandes ELZER Distribution",
+  "start_url": "/elzer/accueil.html",
+  "scope": "/elzer/",
   "display": "standalone",
   "background_color": "#0f2d0a",
   "theme_color": "#0f2d0a",
