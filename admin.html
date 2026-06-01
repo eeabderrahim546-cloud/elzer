@@ -934,33 +934,7 @@ document.addEventListener('click', function(e){
 }());
 setInterval(syncFromSupabase,10000);
 
-// ── MOT DE PASSE ADMIN ──
-var ADMIN_PWD = 'elzer2026';
-function initLogin(){
-  var stored = sessionStorage.getItem('elzer-admin-ok');
-  if(stored === '1'){
-    document.getElementById('login-screen').style.display = 'none';
-    return;
-  }
-  document.getElementById('login-screen').style.display = 'flex';
-  document.getElementById('pwd-btn').addEventListener('click', checkPwd);
-  document.getElementById('pwd-input').addEventListener('keypress', function(e){
-    if(e.key === 'Enter') checkPwd();
-  });
-}
-function checkPwd(){
-  var val = document.getElementById('pwd-input').value;
-  var stored = load('admin_password', ADMIN_PWD);
-  if(val === stored){
-    sessionStorage.setItem('elzer-admin-ok','1');
-    document.getElementById('login-screen').style.display = 'none';
-  } else {
-    document.getElementById('pwd-error').style.display = 'block';
-    document.getElementById('pwd-input').value = '';
-    document.getElementById('pwd-input').focus();
-  }
-}
-initLogin();
+// ── MOT DE PASSE ADMIN ── gere par admin-login.html
 
 </script>
 <script>
