@@ -95,7 +95,25 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 .notif.show{transform:translateY(0);opacity:1;}
 .empty{text-align:center;padding:48px 20px;color:var(--gy3);}
 .empty-i{font-size:48px;margin-bottom:12px;}
-@media(max-width:768px){.sb{width:60px;}.sbi span,.sb-logo-t,.sb-logo-s,.sb-badge,.sb-foot{display:none;}.main{margin-left:60px;}.stats{grid-template-columns:repeat(2,1fr);}.cg{grid-template-columns:1fr;}}
+@media(max-width:768px){
+  .sb{width:60px;}
+  .sbi span,.sb-logo-t,.sb-logo-s,.sb-badge,.sb-foot{display:none;}
+  .main{margin-left:60px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .cg{grid-template-columns:1fr;}
+  .tbl th,.tbl td{padding:6px 8px;font-size:12px;}
+}
+@media(max-width:480px){
+  .sb{width:50px;}
+  .main{margin-left:50px;}
+  .stats{grid-template-columns:1fr 1fr;}
+  .content{padding:12px;}
+  .topbar{padding:10px 12px;}
+  .topbar-t{font-size:14px;}
+  .btn{padding:6px 12px;font-size:12px;}
+  .sbi{padding:8px 6px;}
+  .sbi .ico{font-size:18px;width:18px;}
+}
 </style>
 </head>
 <body>
