@@ -210,8 +210,31 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
 
 const SUPA_URL='https://ryfywqcgdvrhtpzfjsns.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Znl3cWNnZHZyaHRwemZqc25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMzU4MDQsImV4cCI6MjA5NTkxMTgwNH0.CBvMyW66erhqfbNCqud4iRUuYXr2DXW6FZMvCYJz9R0';
-async function supaFetch(method,path,body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'}};if(body)opts.body=JSON.stringify(body);const r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(method==='GET')return r.json();return r.ok;}
-async function saveOrderToSupabase(order){try{await supaFetch('POST','commandes',{id:order.id,client:order.client,deliver_date:order.delivDate,items:JSON.stringify(order.items),total:order.total||0,status:order.status||'nouvelle',mode:order.mode||'simple',created_at:order.createdAt||new Date().toISOString()});}catch(e){console.log('Supa error:',e);}}
+async function supaFetch(method,path,body=null){
+  var headers={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'};
+  if(method==='POST') headers['Prefer']='resolution=merge-duplicates,return=minimal';
+  const opts={method,headers};
+  if(body)opts.body=JSON.stringify(body);
+  const r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
+  if(method==='GET')return r.json();return r.ok;}
+async function saveOrderToSupabase(order){
+  console.log('ELZER: Envoi commande vers Supabase...', order.id, order.client);
+  try{
+    var result = await supaFetch('POST','commandes',{
+      id:order.id,
+      client:order.client,
+      deliver_date:order.delivDate,
+      items:JSON.stringify(order.items),
+      total:order.total||0,
+      status:order.status||'nouvelle',
+      mode:order.mode||'simple',
+      created_at:order.createdAt||new Date().toISOString()
+    });
+    console.log('ELZER: Commande envoyee OK', result);
+  }catch(e){
+    console.error('ELZER: Erreur Supabase', e);
+  }
+}
 async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}return{id:r.id,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
