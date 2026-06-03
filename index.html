@@ -263,7 +263,18 @@ function getAllClients(){
   return{...DEFAULT_CLIENTS,...dynamic};
 }
 const CLIENTS=getAllClients();
-const CLI=CLIENTS[CID]||null;
+// Si client non trouve, creer entree temporaire depuis URL
+var CLI=CLIENTS[CID]||null;
+if(!CLI && CID){
+  // Chercher dans admin_clients par urlId
+  var adminClients=JSON.parse(localStorage.getItem('admin_clients')||'[]');
+  var found=adminClients.find(function(c){
+    var uid=c.urlId||(c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20));
+    return uid===CID;
+  });
+  if(found) CLI={name:found.name,wa:found.wa||PHONE};
+  else CLI={name:CID,wa:PHONE}; // Fallback: utiliser l'ID comme nom
+}
 const UNITS=['kg','bt','pc','g','L','caisse','plt','brq','boite'];
 const CAT=[
   {title:'🥦 Légumes',items:[

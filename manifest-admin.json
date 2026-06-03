@@ -2,7 +2,7 @@
   "name": "ELZER Admin",
   "short_name": "Admin ELZER",
   "description": "Administration ELZER Distribution",
-  "start_url": "/elzer/admin-login.html",
+  "start_url": "/elzer/admin-install.html",
   "scope": "/elzer/",
   "display": "standalone",
   "background_color": "#0f2d0a",
