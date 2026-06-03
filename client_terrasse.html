@@ -19,15 +19,11 @@
   <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;">Chargement...</div>
 </div>
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(function(){
-    window.location.replace('index.html?client=terrasse');
-  }).catch(function(){
-    window.location.replace('index.html?client=terrasse');
-  });
-} else {
-  window.location.replace('index.html?client=terrasse');
-}
+// Sauvegarder l'identifiant client dans localStorage
+localStorage.setItem('elzer_default_client', 'terrasse');
+localStorage.setItem('elzer_default_name', 'La Terrasse des Epices');
+// Rediriger vers l'app
+window.location.replace('index.html?client=terrasse');
 </script>
 </body>
 </html>

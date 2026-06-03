@@ -216,7 +216,7 @@ async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','co
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
 const P=new URLSearchParams(window.location.search);
-const CID=P.get('client')||P.get('c')||'';
+const CID=P.get('client')||P.get('c')||localStorage.getItem('elzer_default_client')||'';
 const NETLIFY=window.location.origin;
 const PHONE='212628664142';
 // Clients par défaut

@@ -19,15 +19,11 @@
   <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;">Chargement...</div>
 </div>
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(function(){
-    window.location.replace('index.html?client=altasna');
-  }).catch(function(){
-    window.location.replace('index.html?client=altasna');
-  });
-} else {
-  window.location.replace('index.html?client=altasna');
-}
+// Sauvegarder l'identifiant client dans localStorage
+localStorage.setItem('elzer_default_client', 'altasna');
+localStorage.setItem('elzer_default_name', 'Altasna Legumes');
+// Rediriger vers l'app
+window.location.replace('index.html?client=altasna');
 </script>
 </body>
 </html>
