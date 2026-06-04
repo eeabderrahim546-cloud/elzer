@@ -481,6 +481,8 @@ document.addEventListener('click',function(e){
     toast('Prix achat sauvegarde!');
   }
   else if(a==='show-four-history'){showFournisseurHistory();}
+  else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
+  else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
     else if(a==='export-facture-pdf'){exportFacturePDF();}
     else if(a==='set-status'){setStatus(el.dataset.id,el.dataset.status);}
@@ -903,8 +905,8 @@ function showFournisseurHistory(){
     html+='<div style="padding:10px 14px;border-bottom:1px solid #f0f5ea;display:flex;justify-content:space-between;align-items:center;">';
     html+='<div><div style="font-size:13px;font-weight:500;">'+h.date+'</div><div style="font-size:11px;color:#888;">'+h.items.length+' produits</div></div>';
     html+='<div style="display:flex;gap:6px;">';
-    html+='<button class="btn btn-s btn-sm" onclick="loadFourHistory(''+h.date+'')">Charger</button>';
-    html+='<button class="btn btn-d btn-sm" onclick="deleteFourHistory(''+h.date+'')">Suppr.</button>';
+    html+='<button class="btn btn-s btn-sm" data-action="load-four-history" data-date="'+h.date+'">Charger</button>';
+    html+='<button class="btn btn-d btn-sm" data-action="delete-four-history" data-date="'+h.date+'">Suppr.</button>';
     html+='</div></div>';
   });
   html+='</div>';
