@@ -215,6 +215,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button class="btn btn-p" data-action="render-fournisseur">Actualiser</button>
           <button class="btn btn-b" data-action="export-fournisseur-pdf">PDF</button>
           <button class="btn btn-s" data-action="send-fournisseur-wa">WhatsApp</button>
+          <button class="btn btn-p btn-sm" data-action="save-four-history">💾 Sauvegarder</button>
+          <button class="btn btn-s btn-sm" data-action="show-four-history">📋 Historique</button>
         </div>
       </div>
       <div id="fournisseur-content"></div>
@@ -244,7 +246,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <!-- STATISTIQUES -->
     <div class="panel" id="panel-stats">
       <div class="sec-hd"><div class="sec-t">Statistiques</div></div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"><div style="background:#e8f5d8;border-radius:8px;padding:14px;"><div style="font-size:11px;color:#666;">Chargement...</div></div></div>
       <div class="tw" style="margin-bottom:16px;">
         <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Produits les plus commandes</div>
         <div id="stats-products" style="padding:12px 16px;"></div>
@@ -265,7 +267,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button class="btn btn-s btn-sm" id="cal-next">&#9654;</button>
         </div>
       </div>
-      <div id="calendrier-content"></div>
+      <div id="calendrier-content"><div style="text-align:center;padding:20px;color:#888;font-size:13px;">Chargement du calendrier...</div></div>
     </div>
 
     <!-- DEVIS -->
@@ -274,7 +276,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="sec-t">Devis clients</div>
         <button class="btn btn-p" data-action="new-devis">+ Nouveau devis</button>
       </div>
-      <div id="devis-list"></div>
+      <div id="devis-list"><div style="text-align:center;padding:20px;color:#888;font-size:13px;">Aucun devis. Cliquez sur + Nouveau devis.</div></div>
     </div>
 
 <!-- MODALS -->
@@ -434,6 +436,10 @@ document.getElementById('sb-nav').addEventListener('click',function(e){
 });
 
 function showPanel(id){
+  // Scroll en haut
+  var content=document.querySelector('.content');
+  if(content) content.scrollTop=0;
+  window.scrollTo(0,0);
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.sbi').forEach(function(b){b.classList.remove('active');});
   var panel=document.getElementById('panel-'+id);
@@ -465,6 +471,8 @@ document.addEventListener('click',function(e){
     else if(a==='save-prod'){saveProd();}
     else if(a==='render-fournisseur'){renderFournisseur();}
     else if(a==='export-fournisseur-pdf'){exportFournisseurPDF();}
+  else if(a==='save-four-history'){saveFournisseurHistory();}
+  else if(a==='show-four-history'){showFournisseurHistory();}
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
     else if(a==='export-facture-pdf'){exportFacturePDF();}
     else if(a==='set-status'){setStatus(el.dataset.id,el.dataset.status);}
@@ -801,7 +809,7 @@ function renderFournisseur(){
     html+='<div style="border:1px solid #e0e8d8;margin-top:8px;border-radius:8px;overflow:hidden;">';
     html+='<div style="padding:8px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;display:flex;align-items:center;gap:6px;">'+emoji+' '+secName+'<span style="font-size:10px;font-weight:400;color:#3b6d11;margin-left:auto;">'+items.length+' produits</span></div>';
     html+='<table style="width:100%;border-collapse:collapse;">';
-    html+='<thead><tr style="background:#f4fbed;"><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Designation</th><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Unite</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Total</th></tr></thead><tbody>';
+    html+='<thead><tr style="background:#f4fbed;"><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Designation</th><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Unite</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Total</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Prix achat</th></tr></thead><tbody>';
     items.forEach(function(item,idx){
       var bg=idx%2===0?'#fff':'#f9fdf5';
       var ar=TRAD[item.name]||'';
@@ -810,6 +818,8 @@ function renderFournisseur(){
       html+='<td style="padding:7px 14px;"><div style="font-size:13px;font-weight:500;color:#222;">'+item.name+'</div>'+(ar?'<div style="font-size:10px;color:#aaa;direction:rtl;text-align:right;font-family:Arial,sans-serif;">'+ar+'</div>':'')+'</td>';
       html+='<td style="padding:7px 14px;color:#888;font-size:12px;">'+item.unit+'</td>';
       html+='<td style="padding:7px 14px;text-align:right;"><span style="background:'+(isLarge?'#fff3e0':'#eaf3de')+';color:'+(isLarge?'#c47a00':'#27500a')+';font-weight:700;font-size:16px;padding:3px 14px;border-radius:8px;border:1.5px solid '+(isLarge?'#fac775':'#c0dd97')+';">'+item.total+' '+item.unit+'</span></td>';
+      var prixAchat=load('prix_achat',{})[item.name]||'';
+      html+='<td style="padding:7px 14px;text-align:right;"><input type="text" value="'+prixAchat+'" placeholder="0 Dh" style="width:70px;padding:4px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;text-align:right;" onchange="savePrixAchat(''+item.name.replace(/'/g,'')+ '',this.value)"/></td>';
       html+='</tr>';
     });
     html+='</tbody></table></div>';
@@ -842,6 +852,62 @@ function exportFournisseurPDF(){
   });
   doc.save('bon_fournisseur_'+today.replace(/\//g,'-')+'.pdf');
   toast('PDF exporte!');
+}
+
+function savePrixAchat(prod,val){
+  var pa=load('prix_achat',{});
+  if(val.trim()) pa[prod]=val.trim();
+  else delete pa[prod];
+  save('prix_achat',pa);
+  toast('Prix achat sauvegarde!');
+}
+
+function saveFournisseurHistory(){
+  var res=getFournisseurItems();
+  if(!res.items.length){toast('Aucun produit a sauvegarder.');return;}
+  var date=document.getElementById('four-date').value;
+  var history=load('four_history',[]);
+  // Supprimer si meme date existe deja
+  history=history.filter(function(h){return h.date!==date;});
+  history.unshift({date:date,items:res.items,savedAt:new Date().toISOString()});
+  // Garder les 30 derniers
+  history=history.slice(0,30);
+  save('four_history',history);
+  toast('Bon fournisseur du '+date+' sauvegarde!');
+}
+
+function showFournisseurHistory(){
+  var history=load('four_history',[]);
+  if(!history.length){toast('Aucun historique.');return;}
+  var html='<div style="max-height:400px;overflow-y:auto;">';
+  history.forEach(function(h){
+    html+='<div style="padding:10px 14px;border-bottom:1px solid #f0f5ea;display:flex;justify-content:space-between;align-items:center;">';
+    html+='<div><div style="font-size:13px;font-weight:500;">'+h.date+'</div><div style="font-size:11px;color:#888;">'+h.items.length+' produits</div></div>';
+    html+='<div style="display:flex;gap:6px;">';
+    html+='<button class="btn btn-s btn-sm" onclick="loadFourHistory(''+h.date+'')">Charger</button>';
+    html+='<button class="btn btn-d btn-sm" onclick="deleteFourHistory(''+h.date+'')">Suppr.</button>';
+    html+='</div></div>';
+  });
+  html+='</div>';
+  document.getElementById('modal-cmd-title').textContent='Historique Bon Fournisseur';
+  document.getElementById('modal-cmd-body').innerHTML=html;
+  document.getElementById('modal-cmd-footer').innerHTML='<button class="btn btn-s" data-action="close-modal-cmd">Fermer</button>';
+  openModal('modal-cmd');
+}
+
+function loadFourHistory(date){
+  document.getElementById('four-date').value=date;
+  closeModal('modal-cmd');
+  renderFournisseur();
+  toast('Bon fournisseur du '+date+' charge!');
+}
+
+function deleteFourHistory(date){
+  if(!confirm('Supprimer le bon fournisseur du '+date+'?')) return;
+  var history=load('four_history',[]).filter(function(h){return h.date!==date;});
+  save('four_history',history);
+  showFournisseurHistory();
+  toast('Historique supprime.');
 }
 
 function sendFournisseurWA(){
