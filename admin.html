@@ -472,6 +472,14 @@ document.addEventListener('click',function(e){
     else if(a==='render-fournisseur'){renderFournisseur();}
     else if(a==='export-fournisseur-pdf'){exportFournisseurPDF();}
   else if(a==='save-four-history'){saveFournisseurHistory();}
+  else if(a==='save-prix-achat'){
+    var prod=el.dataset.prod;
+    var val=el.value.trim();
+    var pa=load('prix_achat',{});
+    if(val) pa[prod]=val; else delete pa[prod];
+    save('prix_achat',pa);
+    toast('Prix achat sauvegarde!');
+  }
   else if(a==='show-four-history'){showFournisseurHistory();}
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
     else if(a==='export-facture-pdf'){exportFacturePDF();}
@@ -502,6 +510,17 @@ document.addEventListener('click',function(e){
 document.getElementById('filter-status').addEventListener('change',renderCommandes);
 document.getElementById('filter-client').addEventListener('change',renderCommandes);
 document.getElementById('cat-search').addEventListener('input',renderCatalogue);
+// Listener pour prix achat dans fournisseur
+document.addEventListener('change',function(e){
+  var el=e.target.closest('[data-action="save-prix-achat"]');
+  if(!el) return;
+  var prod=el.dataset.prod;
+  var val=el.value.trim();
+  var pa=load('prix_achat',{});
+  if(val) pa[prod]=val; else delete pa[prod];
+  save('prix_achat',pa);
+  toast('Prix achat: '+val);
+});
 document.getElementById('prix-filter').addEventListener('input',function(){
   var q=this.value.toLowerCase();
   document.querySelectorAll('#prix-tbody tr').forEach(function(tr){
@@ -819,7 +838,7 @@ function renderFournisseur(){
       html+='<td style="padding:7px 14px;color:#888;font-size:12px;">'+item.unit+'</td>';
       html+='<td style="padding:7px 14px;text-align:right;"><span style="background:'+(isLarge?'#fff3e0':'#eaf3de')+';color:'+(isLarge?'#c47a00':'#27500a')+';font-weight:700;font-size:16px;padding:3px 14px;border-radius:8px;border:1.5px solid '+(isLarge?'#fac775':'#c0dd97')+';">'+item.total+' '+item.unit+'</span></td>';
       var prixAchat=load('prix_achat',{})[item.name]||'';
-      html+='<td style="padding:7px 14px;text-align:right;"><input type="text" value="'+prixAchat+'" placeholder="0 Dh" style="width:70px;padding:4px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;text-align:right;" onchange="savePrixAchat(''+item.name.replace(/'/g,'')+ '',this.value)"/></td>';
+      html+='<td style="padding:7px 14px;text-align:right;"><input type="text" value="'+prixAchat+'" placeholder="0 Dh" style="width:70px;padding:4px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;text-align:right;" data-action="save-prix-achat" data-prod="'+item.name.replace(/"/g,'&quot;')+'"/></td>';
       html+='</tr>';
     });
     html+='</tbody></table></div>';
@@ -1556,7 +1575,7 @@ async function syncFromSupabase(){
       orders=mapped;
       var newCount=orders.filter(function(o){return o.status==='nouvelle';}).length;
       document.getElementById('nb-new').textContent=newCount;
-      // Mettre a jour l'affichage
+      // Mettre a jour affichage
       var activePanel=document.querySelector('.panel.active');
       if(activePanel){
         var panelId=activePanel.id.replace('panel-','');
