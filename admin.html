@@ -553,6 +553,7 @@ function renderCommandes(){
     var acts='';
     if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Preparer</button><button class="btn btn-d btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="annulee">Annuler</button>';
     else if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livree</button><button class="btn btn-d btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="annulee">Annuler</button>';
+    acts+='<button class="btn btn-b btn-sm" data-action="edit-bl" data-id="'+o.id+'">Modifier BL</button>';
     // Boutons envoi
     var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
     var waNum=cliInfo.wa||PHONE;
@@ -570,7 +571,27 @@ function renderCommandes(){
 function setStatus(id,status){
   orders=load('terrasse_orders',[]);
   var i=orders.findIndex(function(o){return o.id===id;});
-  if(i>=0){orders[i].status=status;save('terrasse_orders',orders);supaFetch('PATCH','commandes?id=eq.'+id,{status:status});renderCommandes();renderDashboard();toast('Statut: '+status);}
+  if(i>=0){
+    orders[i].status=status;
+    save('terrasse_orders',orders);
+    supaFetch('PATCH','commandes?id=eq.'+id,{status:status});
+    renderCommandes();
+    renderDashboard();
+    toast('Statut: '+status);
+    // WA auto quand livree
+    if(status==='livree'){
+      var o=orders[i];
+      var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
+      if(cliInfo.wa){
+        var msg=encodeURIComponent('Bonjour '+o.client+', votre commande #'+id+' a ete livree! Merci. ELZER Distribution');
+        setTimeout(function(){
+          if(confirm('Envoyer confirmation WhatsApp a '+o.client+'?')){
+            window.open('https://wa.me/'+cliInfo.wa+'?text='+msg,'_blank');
+          }
+        },500);
+      }
+    }
+  }
 }
 
 function openCmdDetail(id){
@@ -1170,8 +1191,11 @@ var DEVIS=load('elzer_devis',[]);
 function renderDevis(){
   DEVIS=load('elzer_devis',[]);
   var container=document.getElementById('devis-list');
+  // Nouveau devis form en haut si ouvert
+  var existingForm=document.getElementById('devis-form-container');
+  var formHTML=existingForm?existingForm.outerHTML:'';
   if(!DEVIS.length){
-    container.innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucun devis. Creez votre premier devis !</p></div>';
+    container.innerHTML=formHTML+'<div class="empty"><div class="empty-i">📋</div><p>Aucun devis. Creez votre premier devis !</p></div>';
     return;
   }
   container.innerHTML=DEVIS.map(function(d){
@@ -1200,7 +1224,9 @@ function renderDevis(){
 
 function openDevisModal(id){
   var d=id?DEVIS.find(function(x){return x.id===id;}):null;
-  var html='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Client</label>'+
+  // Afficher le formulaire EN HAUT du panel devis
+  var formHTML='<div id="devis-form-container" style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:12px;overflow:hidden;"><div style="background:#0f2d0a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#fff;font-size:13px;font-weight:600;">'+(id?'Modifier devis':'Nouveau devis')+'</span><button data-action="close-devis-form" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;line-height:1;">x</button></div><div style="padding:14px;">';
+  formHTML+='<div style="margin-bottom:10px;"><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Client</label>'+
     '<select class="fs" id="dv-client">'+clients.map(function(c){return '<option'+(d&&d.client===c.name?' selected':'')+'>'+c.name+'</option>';}).join('')+'</select></div>'+
     '<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Articles</label>'+
     '<div id="dv-items" style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;">'+
@@ -1250,7 +1276,9 @@ function saveDevis(editId){
     DEVIS.push({id:newId,client:client,date:new Date().toLocaleDateString('fr-FR'),status:status,items:items});
   }
   save('elzer_devis',DEVIS);
-  closeModal('modal-client');
+  // Fermer le formulaire inline
+  var form=document.getElementById('devis-form-container');
+  if(form) form.remove();
   renderDevis();
   toast('Devis enregistre!');
 }
@@ -1353,35 +1381,24 @@ function showNotification(msg){
 // Integrer dans syncFromSupabase
 var _origSync=syncFromSupabase;
 
-// ── WHATSAPP AUTO QUAND LIVREE ──
-var _origSetStatus=setStatus;
-function setStatus(id,status){
-  _origSetStatus(id,status);
-  if(status==='livree'){
-    orders=load('terrasse_orders',[]);
-    var o=orders.find(function(x){return x.id===id;});
-    if(o){
-      var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
-      if(cliInfo.wa){
-        var msg=encodeURIComponent('Bonjour '+o.client+', votre commande #'+id+' a ete livree avec succes! Merci de votre confiance. ELZER Distribution');
-        setTimeout(function(){
-          if(confirm('Envoyer confirmation WhatsApp a '+o.client+'?')){
-            window.open('https://wa.me/'+cliInfo.wa+'?text='+msg,'_blank');
-          }
-        },500);
-      }
-    }
-  }
-}
+
 
 // ── EVENT DELEGATION DEVIS ET BL ──
 document.addEventListener('click',function(e){
   var el=e.target.closest('[data-action]');
   if(!el) return;
   var a=el.dataset.action;
-  if(a==='new-devis') openDevisModal();
+  if(a==='new-devis'){
+    var existing=document.getElementById('devis-form-container');
+    if(existing) existing.remove();
+    else openDevisModal();
+  }
   else if(a==='edit-devis') openDevisModal(el.dataset.id);
   else if(a==='save-devis') saveDevis(el.dataset.id||null);
+  else if(a==='close-devis-form'){
+    var f=document.getElementById('devis-form-container');
+    if(f) f.remove();
+  }
   else if(a==='delete-devis'){
     if(confirm('Supprimer ce devis?')){
       DEVIS=load('elzer_devis',[]).filter(function(d){return d.id!==el.dataset.id;});
@@ -1425,21 +1442,7 @@ document.addEventListener('click',function(e){
   else if(a==='remove-bl-item') el.closest('div[style*="grid"]').remove();
 });
 
-// Ajouter bouton Modifier BL dans les commandes
-var _origRenderCmd=renderCommandes;
-function renderCommandes(){
-  _origRenderCmd();
-  // Ajouter bouton modifier sur chaque commande
-  document.querySelectorAll('[data-action="open-detail"]').forEach(function(btn){
-    var id=btn.dataset.id;
-    var editBtn=document.createElement('button');
-    editBtn.className='btn btn-b btn-sm';
-    editBtn.setAttribute('data-action','edit-bl');
-    editBtn.setAttribute('data-id',id);
-    editBtn.textContent='Modifier BL';
-    btn.parentNode.insertBefore(editBtn,btn.nextSibling);
-  });
-}
+// Bouton Modifier BL integre directement dans renderCommandes
 
 // Initialiser compteur notifications
 setTimeout(function(){
