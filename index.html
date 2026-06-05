@@ -363,7 +363,8 @@ const CAT=[
 // Init
 // Afficher nom client immédiatement
 document.getElementById('cname').textContent = CLI ? CLI.name : 'Acces non autorise';
-document.getElementById('cdtxt').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+var now=new Date();
+document.getElementById('cdtxt').textContent=now.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 // Protection mot de passe client
 (function(){

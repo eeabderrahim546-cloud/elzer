@@ -556,7 +556,7 @@ function renderDashboard(){
     var acts='';
     if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Prep.</button>';
     if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livre</button>';
-    rows+='<tr><td style="font-weight:600;color:var(--g7);">#'+o.id+'</td><td>'+o.client+'</td><td>'+dv+'</td><td style="font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</td><td>'+statusBadge(o.status)+'</td><td><div style="display:flex;gap:4px;"><button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Detail</button>'+acts+'</div></td></tr>';
+    rows+='<tr><td style="font-weight:600;color:var(--g7);">#'+o.id+'</td><td>'+o.client+'</td><td style="font-size:11px;"><div>📥 '+cr+'</div><div>📦 '+dv+'</div></td><td style="font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</td><td>'+statusBadge(o.status)+'</td><td><div style="display:flex;gap:4px;"><button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Detail</button>'+acts+'</div></td></tr>';
   });
   tbody.innerHTML=rows;
 }
@@ -818,9 +818,11 @@ function renderFournisseur(){
     if(!found) grouped['Autres'].push(item);
   });
   
+  var fourDate=document.getElementById('four-date').value;
+  var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
   var html='<div style="background:#0f2d0a;padding:10px 16px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">';
   html+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:5px;padding:3px 8px;"><div style="font-size:12px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#2d6a1f;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);">Marrakech · +212 6 73 95 83 37</div></div>';
-  html+='<div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.5);">BON FOURNISSEUR</div><div style="font-size:12px;font-weight:600;color:#fff;">'+document.getElementById('four-date').value+'</div><div style="font-size:9px;color:rgba(255,255,255,.4);">'+res.items.length+' produits</div></div>';
+  html+='<div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.5);">BON FOURNISSEUR</div><div style="font-size:11px;font-weight:600;color:#fff;">'+fourDateFr+'</div><div style="font-size:9px;color:rgba(255,255,255,.4);">'+res.filtered.length+' commande(s) · '+res.items.length+' produits</div></div>';
   html+='</div>';
   
   Object.entries(grouped).forEach(function(entry){
