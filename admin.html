@@ -223,6 +223,14 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     </div>
     <div class="panel" id="panel-liens">
       <div class="sec-hd"><div class="sec-t">Liens Clients</div></div>
+      <div style="background:#eaf3de;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c0dd97;">
+        <div style="font-size:12px;font-weight:600;color:#27500a;margin-bottom:8px;">📱 Configuration Groupe WhatsApp</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="wa-group-input" placeholder="Ex: 212628664142" style="flex:1;padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
+          <button class="btn btn-p" data-action="save-wa-group">Enregistrer</button>
+        </div>
+        <div style="font-size:11px;color:#3b6d11;margin-top:6px;">Les commandes clients seront envoyees a ce numero de groupe</div>
+      </div>
       <div id="liens-grid"></div>
     </div>
     <div class="panel" id="panel-facturation">
@@ -949,6 +957,9 @@ function sendFournisseurWA(){
 // ── LIENS CLIENTS ──
 function renderLiens(){
   clients=load('admin_clients',clients);
+  // Initialiser le champ groupe WA
+  var waInput=document.getElementById('wa-group-input');
+  if(waInput) waInput.value=load('wa_group',PHONE);
   var grid=document.getElementById('liens-grid');
   var base=[
     {id:'terrasse',name:'La Terrasse des Epices'},
