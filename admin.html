@@ -247,14 +247,11 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div id="facturation-content"></div>
     </div>
-  </div>
-</div>
-</div>
 
     <!-- STATISTIQUES -->
     <div class="panel" id="panel-stats">
       <div class="sec-hd"><div class="sec-t">Statistiques</div></div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"><div style="background:#e8f5d8;border-radius:8px;padding:14px;"><div style="font-size:11px;color:#666;">Chargement...</div></div></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"></div>
       <div class="tw" style="margin-bottom:16px;">
         <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Produits les plus commandes</div>
         <div id="stats-products" style="padding:12px 16px;"></div>
@@ -275,7 +272,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button class="btn btn-s btn-sm" id="cal-next">&#9654;</button>
         </div>
       </div>
-      <div id="calendrier-content"><div style="text-align:center;padding:20px;color:#888;font-size:13px;">Chargement du calendrier...</div></div>
+      <div id="calendrier-content"></div>
     </div>
 
     <!-- DEVIS -->
@@ -284,7 +281,47 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="sec-t">Devis clients</div>
         <button class="btn btn-p" data-action="new-devis">+ Nouveau devis</button>
       </div>
-      <div id="devis-list"><div style="text-align:center;padding:20px;color:#888;font-size:13px;">Aucun devis. Cliquez sur + Nouveau devis.</div></div>
+      <div id="devis-list"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+    <!-- STATISTIQUES -->
+    <div class="panel" id="panel-stats">
+      <div class="sec-hd"><div class="sec-t">Statistiques</div></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"></div>
+      <div class="tw" style="margin-bottom:16px;">
+        <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Produits les plus commandes</div>
+        <div id="stats-products" style="padding:12px 16px;"></div>
+      </div>
+      <div class="tw">
+        <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Clients les plus actifs</div>
+        <div id="stats-clients" style="padding:12px 16px;"></div>
+      </div>
+    </div>
+
+    <!-- CALENDRIER -->
+    <div class="panel" id="panel-calendrier">
+      <div class="sec-hd">
+        <div class="sec-t">Calendrier livraisons</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-s btn-sm" id="cal-prev">&#9664;</button>
+          <span id="cal-month" style="font-size:13px;font-weight:600;min-width:130px;text-align:center;"></span>
+          <button class="btn btn-s btn-sm" id="cal-next">&#9654;</button>
+        </div>
+      </div>
+      <div id="calendrier-content"></div>
+    </div>
+
+    <!-- DEVIS -->
+    <div class="panel" id="panel-devis">
+      <div class="sec-hd">
+        <div class="sec-t">Devis clients</div>
+        <button class="btn btn-p" data-action="new-devis">+ Nouveau devis</button>
+      </div>
+      <div id="devis-list"></div>
     </div>
 
 <!-- MODALS -->
@@ -1366,12 +1403,15 @@ function openDevisModal(id){
     '<div style="margin-bottom:8px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Statut</label>'+
     '<select class="fs" id="dv-status"><option value="attente"'+(d&&d.status==='attente'?' selected':'')+'>En attente</option><option value="envoye"'+(d&&d.status==='envoye'?' selected':'')+'>Envoye</option><option value="accepte"'+(d&&d.status==='accepte'?' selected':'')+'>Accepte</option><option value="refuse"'+(d&&d.status==='refuse'?' selected':'')+'>Refuse</option></select></div>';
   
-  document.getElementById('modal-client-title').textContent=id?'Modifier devis D-'+id:'Nouveau devis';
-  document.getElementById('modal-client').querySelector('.mbd').innerHTML=html;
-  document.getElementById('modal-client').querySelector('.mft').innerHTML=
-    '<button class="btn btn-s" data-close="modal-client">Annuler</button>'+
-    '<button class="btn btn-p" data-action="save-devis" data-id="'+(id||'')+'">Enregistrer</button>';
-  openModal('modal-client');
+  // Injecter le formulaire EN HAUT du panel devis (inline, pas modal)
+  formHTML+='</div></div>';
+  var container=document.getElementById('devis-list');
+  var existing=document.getElementById('devis-form-container');
+  if(existing) existing.remove();
+  container.insertBefore(
+    (function(){var d=document.createElement('div');d.innerHTML=formHTML;return d.firstChild;})(),
+    container.firstChild
+  );
 }
 
 function devisItemRow(name,qty,unit,prix,alt){
