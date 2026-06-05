@@ -234,7 +234,22 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div id="liens-grid"></div>
     </div>
     <div class="panel" id="panel-facturation">
-      <div class="sec-hd"><div class="sec-t">Facturation</div></div>
+      <div style="background:linear-gradient(135deg,#0f2d0a 0%,#1a4d10 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.15);">
+            <div style="font-size:14px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+            <div style="font-size:6px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Facturation</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="fact-header-date"></div>
+          </div>
+        </div>
+        <div style="background:rgba(230,126,34,.15);border-radius:8px;padding:6px 12px;border:1px solid rgba(230,126,34,.3);text-align:right;">
+          <div style="font-size:9px;color:#e67e22;">Facture N°</div>
+          <div style="font-size:15px;font-weight:700;color:#e67e22;" id="fact-header-num">F-2026-001</div>
+        </div>
+      </div>
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:var(--g0);padding:10px;border-radius:8px;border:1px solid var(--g2);">
         <div style="font-size:12px;color:var(--gy5);font-weight:600;">N° Facture:</div>
         <input type="text" id="fact-num-input" placeholder="F-2026-001" style="padding:6px 10px;border:1.5px solid var(--gy3);border-radius:6px;font-size:13px;font-family:var(--mn);width:140px;outline:none;" oninput="save('elzer_fact_num',this.value)"/>
@@ -250,7 +265,22 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- STATISTIQUES -->
     <div class="panel" id="panel-stats">
-      <div class="sec-hd"><div class="sec-t">Statistiques</div></div>
+      <div style="background:linear-gradient(135deg,#0f2d0a 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;" id="stats-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.15);">
+            <div style="font-size:14px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+            <div style="font-size:6px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Statistiques</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="stats-header-date"></div>
+          </div>
+        </div>
+        <div style="text-align:right;" id="stats-header-ca">
+          <div style="font-size:10px;color:rgba(255,255,255,.5);">CA total</div>
+          <div style="font-size:18px;font-weight:600;color:#fff;">—</div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"></div>
       <div class="tw" style="margin-bottom:16px;">
         <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Produits les plus commandes</div>
@@ -277,9 +307,18 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- DEVIS -->
     <div class="panel" id="panel-devis">
-      <div class="sec-hd">
-        <div class="sec-t">Devis clients</div>
-        <button class="btn btn-p" data-action="new-devis">+ Nouveau devis</button>
+      <div style="background:linear-gradient(135deg,#0f2d0a 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.15);">
+            <div style="font-size:14px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+            <div style="font-size:6px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Devis clients</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="devis-header-count"></div>
+          </div>
+        </div>
+        <button class="btn btn-p" data-action="new-devis" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;">+ Nouveau devis</button>
       </div>
       <div id="devis-list"></div>
     </div>
@@ -290,7 +329,22 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- STATISTIQUES -->
     <div class="panel" id="panel-stats">
-      <div class="sec-hd"><div class="sec-t">Statistiques</div></div>
+      <div style="background:linear-gradient(135deg,#0f2d0a 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;" id="stats-header">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.15);">
+            <div style="font-size:14px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+            <div style="font-size:6px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Statistiques</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="stats-header-date"></div>
+          </div>
+        </div>
+        <div style="text-align:right;" id="stats-header-ca">
+          <div style="font-size:10px;color:rgba(255,255,255,.5);">CA total</div>
+          <div style="font-size:18px;font-weight:600;color:#fff;">—</div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;" id="stats-cards"></div>
       <div class="tw" style="margin-bottom:16px;">
         <div style="padding:12px 16px;border-bottom:1px solid #f0f5ea;font-size:13px;font-weight:600;">Produits les plus commandes</div>
@@ -317,9 +371,18 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- DEVIS -->
     <div class="panel" id="panel-devis">
-      <div class="sec-hd">
-        <div class="sec-t">Devis clients</div>
-        <button class="btn btn-p" data-action="new-devis">+ Nouveau devis</button>
+      <div style="background:linear-gradient(135deg,#0f2d0a 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:6px 12px;border:1px solid rgba(255,255,255,.15);">
+            <div style="font-size:14px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+            <div style="font-size:6px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Devis clients</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="devis-header-count"></div>
+          </div>
+        </div>
+        <button class="btn btn-p" data-action="new-devis" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;">+ Nouveau devis</button>
       </div>
       <div id="devis-list"></div>
     </div>
@@ -1177,6 +1240,11 @@ function renderFacturation(){
   var savedNum=load('elzer_fact_num','F-'+new Date().getFullYear()+'-001');
   if(fnInput) fnInput.value=savedNum;
   var factNum=savedNum;
+  // Mettre a jour header facturation
+  var fhDate=document.getElementById('fact-header-date');
+  var fhNum=document.getElementById('fact-header-num');
+  if(fhDate) fhDate.textContent=new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  if(fhNum) fhNum.textContent=savedNum;
   var moisSel=document.getElementById('fact-mois');
   var months={};
   orders.forEach(function(o){
@@ -1495,6 +1563,8 @@ var DEVIS=load('elzer_devis',[]);
 
 function renderDevis(){
   DEVIS=load('elzer_devis',[]);
+  var dhCount=document.getElementById('devis-header-count');
+  if(dhCount) dhCount.textContent=DEVIS.length+' devis enregistre'+(DEVIS.length>1?'s':'');
   var container=document.getElementById('devis-list');
   // Nouveau devis form en haut si ouvert
   var existingForm=document.getElementById('devis-form-container');

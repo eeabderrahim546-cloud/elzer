@@ -25,34 +25,26 @@ button:active{opacity:0.9;}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo">ELZER</div>
-  <div class="sub">Distribution Admin</div>
-  <input type="password" id="pwd" placeholder="Mot de passe" autofocus/>
-  <button id="btn">Connexion</button>
-  <div class="err" id="err">Mot de passe incorrect</div>
-  <div class="hint">ELZER Distribution · Marrakech</div>
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f4ec;padding:20px;box-sizing:border-box;">
+  <div style="width:100%;max-width:380px;">
+    <!-- Logo ELZER -->
+    <div style="background:linear-gradient(160deg,#0f2d0a 0%,#1a4d10 60%,#2d6a1f 100%);border-radius:16px;padding:36px 20px;text-align:center;margin-bottom:16px;box-shadow:0 8px 32px rgba(15,45,10,.3);">
+      <div style="display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);border-radius:14px;padding:14px 24px;border:1px solid rgba(255,255,255,.2);margin-bottom:14px;">
+        <div>
+          <div style="font-size:38px;font-weight:700;color:#e67e22;letter-spacing:4px;line-height:1;font-family:Arial,sans-serif;">ELZER</div>
+          <div style="font-size:10px;color:#6cb84a;letter-spacing:4px;text-transform:uppercase;margin-top:4px;font-family:Arial,sans-serif;">Distribution</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:3px;font-family:Arial,sans-serif;">Marrakech · Fruits &amp; Légumes</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.35);font-family:Arial,sans-serif;">RC:52057 · ICE:000073472000003</div>
+    </div>
+    <!-- Formulaire -->
+    <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+      <div style="font-size:13px;font-weight:500;color:#666;text-align:center;margin-bottom:16px;font-family:Arial,sans-serif;">Administration — Accès réservé</div>
+      <input type="password" id="pwd" placeholder="Mot de passe" style="width:100%;padding:12px 16px;font-size:14px;border-radius:8px;border:1.5px solid #e0e8d8;box-sizing:border-box;margin-bottom:10px;font-family:Arial,sans-serif;outline:none;" onkeydown="if(event.key==='Enter')login()"/>
+      <button onclick="login()" style="width:100%;padding:13px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:Arial,sans-serif;">Connexion</button>
+      <div id="err" style="color:#d32f2f;font-size:12px;text-align:center;margin-top:8px;display:none;">Mot de passe incorrect</div>
+    </div>
+  </div>
 </div>
-<script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(function(){});
-}
-function load(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch(e){return d;}}
-function go(){
-  var val=document.getElementById('pwd').value.trim();
-  if(!val) return;
-  var correct=load('admin_password','elzer2026');
-  if(val===correct){
-    sessionStorage.setItem('elzer-admin-ok','1');
-    window.location.href='admin.html';
-  } else {
-    document.getElementById('err').style.display='block';
-    document.getElementById('pwd').value='';
-    document.getElementById('pwd').focus();
-  }
-}
-document.getElementById('btn').addEventListener('click',go);
-document.getElementById('pwd').addEventListener('keypress',function(e){if(e.key==='Enter')go();});
-</script>
-</body>
 </html>
