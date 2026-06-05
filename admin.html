@@ -23,7 +23,7 @@
 body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 .app{display:flex;height:100vh;overflow:hidden;}
 .sb{width:220px;background:var(--g9);color:#fff;flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;}
-.main{margin-left:220px;flex:1;height:100vh;overflow-y:auto;display:flex;flex-direction:column;}
+.main{margin-left:220px;flex:1;height:100vh;overflow-y:scroll;display:flex;flex-direction:column;scroll-behavior:auto;}
 .sb-logo{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.1);}
 .sb-logo-t{font-size:15px;font-weight:600;}
 .sb-logo-s{font-size:11px;opacity:.5;margin-top:2px;}
@@ -444,10 +444,12 @@ document.getElementById('sb-nav').addEventListener('click',function(e){
 });
 
 function showPanel(id){
-  // Scroll en haut
-  var content=document.querySelector('.content');
-  if(content) content.scrollTop=0;
-  window.scrollTo(0,0);
+  // Scroll en haut - forcer .main a scroller
+  var mainEl=document.querySelector('.main');
+  if(mainEl){
+    mainEl.scrollTop=0;
+    mainEl.scrollTo({top:0,left:0,behavior:'instant'});
+  }
   document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.sbi').forEach(function(b){b.classList.remove('active');});
   var panel=document.getElementById('panel-'+id);
@@ -463,9 +465,9 @@ function showPanel(id){
   if(id==='fournisseur')renderFournisseur();
   if(id==='liens')renderLiens();
   if(id==='facturation')renderFacturation();
-  if(id==='stats')renderStats();
-  if(id==='calendrier')renderCalendrier();
-  if(id==='devis')renderDevis();
+  if(id==='stats'){renderStats();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
+  if(id==='calendrier'){renderCalendrier();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
+  if(id==='devis'){renderDevis();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
 }
 
 // ── GLOBAL EVENT DELEGATION - tout passe par ici ──
@@ -561,6 +563,7 @@ function renderDashboard(){
   var rows='';
   recent.forEach(function(o){
     var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
     var acts='';
     if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Prep.</button>';
     if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livre</button>';
