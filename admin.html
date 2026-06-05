@@ -1372,9 +1372,15 @@ function renderDevis(){
     var statusLabel={attente:'En attente',envoye:'Envoye',accepte:'Accepte',refuse:'Refuse'}[d.status]||d.status;
     var cliInfo=clients.find(function(c){return c.name===d.client;})||{};
     var waMsg=encodeURIComponent('DEVIS #'+d.id+'\nDate: '+d.date+'\n\n'+d.items.map(function(i){return '- '+i.name+' '+i.qty+' '+i.unit+' x '+i.prix+' Dh = '+Math.round(parseFloat(i.prix||0)*parseFloat(i.qty||0))+' Dh';}).join('\n')+'\n\nTOTAL: '+Math.round(total).toLocaleString('fr-FR')+' Dh\n\nELZER Distribution Marrakech');
+    var validityStr='';
+    if(d.dateFrom&&d.dateTo){
+      var fd=new Date(d.dateFrom+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      var td=new Date(d.dateTo+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+      validityStr='<span style="font-size:10px;color:#854f0b;background:#fff3e0;padding:2px 7px;border-radius:5px;margin-left:6px;">📅 '+fd+' → '+td+'</span>';
+    }
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:10px;overflow:hidden;">'+
-      '<div style="padding:10px 14px;background:#f4fbed;border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'+
-      '<div><div style="font-size:13px;font-weight:600;color:#2d6a1f;">D-'+d.id+' — '+d.client+'</div><div style="font-size:11px;color:#666;">'+d.date+' · '+d.items.length+' articles · '+Math.round(total).toLocaleString('fr-FR')+' Dh</div></div>'+
+      '<div style="padding:10px 14px;background:#f4fbed;border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">'+
+      '<div><div style="font-size:13px;font-weight:600;color:#2d6a1f;">D-'+d.id+' — '+d.client+'</div><div style="font-size:11px;color:#666;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+d.date+' · '+d.items.length+' articles'+validityStr+'</div></div>'+
       '<span style="background:'+statusColor+';color:'+statusTextColor+';font-size:10px;padding:2px 8px;border-radius:10px;">'+statusLabel+'</span></div>'+
       '<div style="padding:10px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'+
       d.items.slice(0,4).map(function(i){return '<span style="background:#e8f5d8;border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' '+i.qty+' '+i.unit+'</span>';}).join('')+
@@ -1390,29 +1396,141 @@ function renderDevis(){
 }
 
 function openDevisModal(id){
+  DEVIS=load('elzer_devis',[]);
   var d=id?DEVIS.find(function(x){return x.id===id;}):null;
-  // Afficher le formulaire EN HAUT du panel devis
-  var formHTML='<div id="devis-form-container" style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:12px;overflow:hidden;"><div style="background:#0f2d0a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;"><span style="color:#fff;font-size:13px;font-weight:600;">'+(id?'Modifier devis':'Nouveau devis')+'</span><button data-action="close-devis-form" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;line-height:1;">x</button></div><div style="padding:14px;">';
-  formHTML+='<div style="margin-bottom:10px;"><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Client</label>'+
-    '<select class="fs" id="dv-client">'+clients.map(function(c){return '<option'+(d&&d.client===c.name?' selected':'')+'>'+c.name+'</option>';}).join('')+'</select></div>'+
-    '<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Articles</label>'+
-    '<div id="dv-items" style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;">'+
-    '<div style="display:grid;grid-template-columns:1fr 60px 60px 70px 30px;padding:6px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;gap:4px;"><span>Produit</span><span>Qté</span><span>Unité</span><span>Prix Dh</span><span></span></div>'+
-    (d?d.items.map(function(item,i){return devisItemRow(item.name,item.qty,item.unit,item.prix,i%2===1);}).join(''):'')+'</div>'+
-    '<button class="btn btn-s btn-sm" style="margin-top:6px;" data-action="add-devis-item">+ Ajouter article</button></div>'+
-    '<div style="margin-bottom:8px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Statut</label>'+
-    '<select class="fs" id="dv-status"><option value="attente"'+(d&&d.status==='attente'?' selected':'')+'>En attente</option><option value="envoye"'+(d&&d.status==='envoye'?' selected':'')+'>Envoye</option><option value="accepte"'+(d&&d.status==='accepte'?' selected':'')+'>Accepte</option><option value="refuse"'+(d&&d.status==='refuse'?' selected':'')+'>Refuse</option></select></div>';
-  
-  // Injecter le formulaire EN HAUT du panel devis (inline, pas modal)
+  var today=new Date().toISOString().split('T')[0];
+  var in30=new Date();in30.setDate(in30.getDate()+30);
+  var in30s=in30.toISOString().split('T')[0];
+
+  // Construire le HTML du formulaire
+  var clientOptions=clients.map(function(c){
+    return '<option value="'+c.name+'"'+(d&&d.client===c.name?' selected':'')+'>'+c.name+'</option>';
+  }).join('');
+
+  // Construire le catalogue complet
+  var catHTML='';
+  CATALOGUE.forEach(function(sec){
+    var secKey=sec.title.replace(/[🥦🍊🌿🫙]/g,'').trim();
+    var emoji={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'}[secKey]||'📦';
+    catHTML+='<div style="padding:4px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#2d6a1f;border-top:0.5px solid #e0f0d8;border-bottom:0.5px solid #e0f0d8;">'+emoji+' '+sec.title+'</div>';
+    sec.items.forEach(function(item,idx){
+      // Chercher prix dans devis existant ou prix client ou prix catalogue
+      var existPrix='';
+      if(d) {var ei=d.items.find(function(i){return i.name===item.n;}); if(ei) existPrix=ei.prix;}
+      var cliPrix=currentClientPrices[item.n]||'';
+      var prix=existPrix||cliPrix||(item.p||'');
+      var isExcluded=d&&d.excluded&&d.excluded[item.n];
+      var bg=isExcluded?'#fafafa':(idx%2===0?'#fff':'#f9fdf5');
+      var op=isExcluded?'opacity:.35;':'';
+      catHTML+='<div style="display:grid;grid-template-columns:1fr 55px 70px 30px;gap:4px;padding:5px 10px;border-bottom:0.5px solid #f0f5ea;align-items:center;background:'+bg+';'+op+'" data-name="'+item.n+'" data-unit="'+item.u+'" data-excluded="'+(isExcluded?'1':'0')+'">';
+      catHTML+='<div style="font-size:12px;'+(isExcluded?'text-decoration:line-through;color:#bbb;':'')+'">'+item.n+'</div>';
+      catHTML+='<div style="text-align:center;font-size:11px;color:#888;">'+item.u+'</div>';
+      catHTML+='<input type="text" value="'+prix+'" placeholder="0" class="dv-prix" data-prod="'+item.n+'"'+(isExcluded?' disabled':'')+' style="text-align:right;padding:3px 6px;border:1px solid #e0e8d8;border-radius:4px;font-size:11px;width:100%;"/>';
+      catHTML+='<button data-action="toggle-devis-excl" data-prod="'+item.n+'" style="background:'+(isExcluded?'#e8f5d8':'#ffecec')+';color:'+(isExcluded?'#2d6a1f':'#d32f2f')+';border:none;border-radius:4px;padding:2px 5px;cursor:pointer;font-size:12px;">'+(isExcluded?'↩':'✕')+'</button>';
+      catHTML+='</div>';
+    });
+  });
+
+  var formHTML='<div id="devis-form-container" style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:12px;overflow:hidden;">';
+  // Header
+  formHTML+='<div style="background:#0f2d0a;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">';
+  formHTML+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:4px;padding:2px 7px;"><div style="font-size:11px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#2d6a1f;letter-spacing:1px;">DISTRIBUTION</div></div>';
+  formHTML+='<span style="color:#fff;font-size:13px;font-weight:600;">'+(id?'Modifier devis':'Nouveau devis')+'</span></div>';
+  formHTML+='<button data-action="close-devis-form" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;">✕</button></div>';
+  // Body
+  formHTML+='<div style="padding:14px;">';
+  // Dates validite
+  formHTML+='<div style="background:#fff3e0;border:1px solid #fac775;border-radius:8px;padding:10px 12px;margin-bottom:12px;">';
+  formHTML+='<div style="font-size:11px;font-weight:600;color:#854f0b;margin-bottom:6px;">📅 Validité du devis</div>';
+  formHTML+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  formHTML+='<div><label style="font-size:10px;color:#854f0b;display:block;margin-bottom:3px;">Valable du</label><input type="date" id="dv-date-from" value="'+(d&&d.dateFrom||today)+'" style="width:100%;padding:6px;border:1px solid #fac775;border-radius:5px;font-size:11px;" oninput="updateDevisValidity()"/></div>';
+  formHTML+='<div><label style="font-size:10px;color:#854f0b;display:block;margin-bottom:3px;">Jusqu\'au</label><input type="date" id="dv-date-to" value="'+(d&&d.dateTo||in30s)+'" style="width:100%;padding:6px;border:1px solid #fac775;border-radius:5px;font-size:11px;" oninput="updateDevisValidity()"/></div>';
+  formHTML+='</div><div id="dv-validity-label" style="font-size:11px;color:#854f0b;margin-top:5px;text-align:center;font-weight:500;"></div></div>';
+  // Client
+  formHTML+='<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Client</label>';
+  formHTML+='<select id="dv-client" class="fs" onchange="updateDevisClient()" style="width:100%;"><option value="">— Choisir —</option>'+clientOptions+'</select></div>';
+  // Infos client
+  formHTML+='<div id="dv-cli-info" style="display:none;background:#eaf3de;border-radius:8px;padding:8px 12px;margin-bottom:12px;border:1px solid #c0dd97;font-size:11px;color:#27500a;"></div>';
+  // Recherche catalogue
+  formHTML+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+  formHTML+='<label style="font-size:12px;font-weight:600;color:#555;">Catalogue <span id="dv-excl-count" style="font-size:10px;color:#d32f2f;"></span></label>';
+  formHTML+='<input type="text" id="dv-search" placeholder="🔍 Rechercher..." oninput="filterDevisCat()" style="width:140px;padding:5px 8px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;"/></div>';
+  // Catalogue
+  formHTML+='<div style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;margin-bottom:8px;">';
+  formHTML+='<div style="display:grid;grid-template-columns:1fr 55px 70px 30px;padding:6px 10px;background:#f4fbed;font-size:9px;font-weight:600;color:#2d6a1f;text-transform:uppercase;gap:4px;border-bottom:1px solid #e0e8d8;">';
+  formHTML+='<span>Produit</span><span style="text-align:center;">Unité</span><span style="text-align:right;">Prix Dh</span><span style="text-align:center;">✕</span></div>';
+  formHTML+='<div id="dv-cat-list" style="max-height:280px;overflow-y:auto;">'+catHTML+'</div></div>';
+  // Restore + Statut
+  formHTML+='<div style="display:flex;gap:8px;margin-bottom:10px;">';
+  formHTML+='<button data-action="restore-devis-all" style="padding:5px 10px;background:#e8f5d8;border:1px solid #c0dd97;border-radius:5px;font-size:11px;cursor:pointer;color:#2d6a1f;">↩ Tout restaurer</button>';
+  formHTML+='<select id="dv-status" style="flex:1;padding:5px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;">';
+  formHTML+='<option value="attente"'+(d&&d.status==='attente'?' selected':'')+'>En attente</option>';
+  formHTML+='<option value="envoye"'+(d&&d.status==='envoye'?' selected':'')+'>Envoyé</option>';
+  formHTML+='<option value="accepte"'+(d&&d.status==='accepte'?' selected':'')+'>Accepté</option>';
+  formHTML+='<option value="refuse"'+(d&&d.status==='refuse'?' selected':'')+'>Refusé</option>';
+  formHTML+='</select></div>';
+  // Boutons
+  formHTML+='<div style="display:flex;gap:8px;">';
+  formHTML+='<button class="btn btn-p" data-action="save-devis" data-id="'+(id||'')+'" style="flex:1;">💾 Enregistrer</button>';
+  formHTML+='<button class="btn btn-s" data-action="close-devis-form">Annuler</button></div>';
   formHTML+='</div></div>';
+
+  // Injecter en haut du panel devis
   var container=document.getElementById('devis-list');
   var existing=document.getElementById('devis-form-container');
   if(existing) existing.remove();
-  container.insertBefore(
-    (function(){var d=document.createElement('div');d.innerHTML=formHTML;return d.firstChild;})(),
-    container.firstChild
-  );
+  var tmp=document.createElement('div');
+  tmp.innerHTML=formHTML;
+  container.insertBefore(tmp.firstChild, container.firstChild);
+
+  // Init
+  setTimeout(function(){
+    updateDevisValidity();
+    var cliSel=document.getElementById('dv-client');
+    if(cliSel&&cliSel.value) updateDevisClient();
+  },50);
 }
+
+var currentClientPrices={};
+
+function updateDevisValidity(){
+  var f=document.getElementById('dv-date-from');
+  var t=document.getElementById('dv-date-to');
+  var lbl=document.getElementById('dv-validity-label');
+  if(!f||!t||!lbl) return;
+  if(f.value&&t.value){
+    var fd=new Date(f.value+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    var td=new Date(t.value+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+    lbl.textContent='✅ Valable du '+fd+' au '+td;
+  }
+}
+
+function updateDevisClient(){
+  var sel=document.getElementById('dv-client');
+  var box=document.getElementById('dv-cli-info');
+  if(!sel||!box) return;
+  var name=sel.value;
+  if(!name){box.style.display='none';return;}
+  var c=clients.find(function(x){return x.name===name;})||{};
+  currentClientPrices=c.prix||{};
+  box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+  box.innerHTML+='<div><strong>'+name+'</strong>'+(c.type?' — '+c.type:'')+
+    (c.tel?'<br/>📞 '+c.tel:'')+
+    (c.adresse?'<br/>📍 '+c.adresse:'')+'</div>';
+  box.innerHTML+='<div style="text-align:right;font-size:10px;">'+(c.ice?'ICE: '+c.ice+'<br/>':'')+(c.rc?'RC: '+c.rc:'')+'</div></div>';
+  box.style.display='block';
+}
+
+function filterDevisCat(){
+  var q=(document.getElementById('dv-search').value||'').toLowerCase();
+  var rows=document.querySelectorAll('#dv-cat-list [data-name]');
+  var secs=document.querySelectorAll('#dv-cat-list [style*="f4fbed"]');
+  rows.forEach(function(row){
+    var name=(row.dataset.name||'').toLowerCase();
+    row.style.display=(!q||name.includes(q))?'':'none';
+  });
+}
+
 
 function devisItemRow(name,qty,unit,prix,alt){
   var bg=alt?'background:#f9fdf5;':'';
@@ -1428,25 +1546,33 @@ function devisItemRow(name,qty,unit,prix,alt){
 function saveDevis(editId){
   var client=document.getElementById('dv-client').value;
   var status=document.getElementById('dv-status').value;
-  var rows=document.getElementById('dv-items').querySelectorAll('div[style*="grid"]');
+  var dateFrom=document.getElementById('dv-date-from').value;
+  var dateTo=document.getElementById('dv-date-to').value;
+  if(!client){toast('Choisir un client!');return;}
+  
+  // Collecter items depuis le catalogue
   var items=[];
-  rows.forEach(function(row){
-    var inputs=row.querySelectorAll('input,select');
-    if(inputs.length>=4&&inputs[0].value.trim()){
-      items.push({name:inputs[0].value,qty:inputs[1].value,unit:inputs[2].value,prix:inputs[3].value});
-    }
+  var excluded={};
+  document.querySelectorAll('#dv-cat-list [data-name]').forEach(function(row){
+    var name=row.dataset.name;
+    var unit=row.dataset.unit;
+    var isEx=row.dataset.excluded==='1';
+    if(isEx){excluded[name]=true;return;}
+    var inp=row.querySelector('.dv-prix');
+    var prix=inp?inp.value.trim():'';
+    if(prix) items.push({name:name,unit:unit,prix:prix});
   });
-  if(!client||!items.length){toast('Client et articles requis!');return;}
+  
+  if(!items.length){toast('Au moins un article avec prix requis!');return;}
   DEVIS=load('elzer_devis',[]);
   if(editId){
     var i=DEVIS.findIndex(function(d){return d.id===editId;});
-    if(i>=0) DEVIS[i]=Object.assign(DEVIS[i],{client:client,status:status,items:items});
+    if(i>=0) DEVIS[i]=Object.assign(DEVIS[i],{client:client,status:status,items:items,excluded:excluded,dateFrom:dateFrom,dateTo:dateTo});
   } else {
     var newId=String(DEVIS.length+1).padStart(3,'0');
-    DEVIS.push({id:newId,client:client,date:new Date().toLocaleDateString('fr-FR'),status:status,items:items});
+    DEVIS.push({id:newId,client:client,date:new Date().toLocaleDateString('fr-FR'),status:status,items:items,excluded:excluded,dateFrom:dateFrom,dateTo:dateTo});
   }
   save('elzer_devis',DEVIS);
-  // Fermer le formulaire inline
   var form=document.getElementById('devis-form-container');
   if(form) form.remove();
   renderDevis();
@@ -1568,6 +1694,47 @@ document.addEventListener('click',function(e){
   else if(a==='close-devis-form'){
     var f=document.getElementById('devis-form-container');
     if(f) f.remove();
+  }
+  else if(a==='toggle-devis-excl'){
+    var prod=el.dataset.prod;
+    var row=el.closest('[data-name]');
+    var isEx=row.dataset.excluded==='1';
+    if(isEx){
+      row.dataset.excluded='0';
+      row.style.opacity='1';
+      row.querySelector('.dv-prix').disabled=false;
+      row.querySelector('.dv-prix').style.opacity='1';
+      row.querySelector('[data-action="toggle-devis-excl"]').style.background='#ffecec';
+      row.querySelector('[data-action="toggle-devis-excl"]').style.color='#d32f2f';
+      row.querySelector('[data-action="toggle-devis-excl"]').textContent='✕';
+      row.querySelector('[data-name]') ;
+      row.firstChild.style.textDecoration='none';
+      row.firstChild.style.color='';
+    } else {
+      row.dataset.excluded='1';
+      row.style.opacity='0.35';
+      row.querySelector('.dv-prix').disabled=true;
+      row.querySelector('.dv-prix').style.opacity='0.4';
+      row.querySelector('[data-action="toggle-devis-excl"]').style.background='#e8f5d8';
+      row.querySelector('[data-action="toggle-devis-excl"]').style.color='#2d6a1f';
+      row.querySelector('[data-action="toggle-devis-excl"]').textContent='↩';
+    }
+    // Update count
+    var exCount=document.querySelectorAll('#dv-cat-list [data-excluded="1"]').length;
+    var ec=document.getElementById('dv-excl-count');
+    if(ec) ec.textContent=exCount>0?'('+exCount+' exclus)':'';
+  }
+  else if(a==='restore-devis-all'){
+    document.querySelectorAll('#dv-cat-list [data-excluded="1"]').forEach(function(row){
+      row.dataset.excluded='0';
+      row.style.opacity='1';
+      var inp=row.querySelector('.dv-prix');
+      if(inp){inp.disabled=false;inp.style.opacity='1';}
+      var btn=row.querySelector('[data-action="toggle-devis-excl"]');
+      if(btn){btn.style.background='#ffecec';btn.style.color='#d32f2f';btn.textContent='✕';}
+    });
+    var ec=document.getElementById('dv-excl-count');
+    if(ec) ec.textContent='';
   }
   else if(a==='delete-devis'){
     if(confirm('Supprimer ce devis?')){
