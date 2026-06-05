@@ -640,7 +640,27 @@ function renderCommandes(){
     var waGroup=load('wa_group',PHONE);
     sendBtns+='<a class="btn btn-sm" style="background:#128C7E;color:#fff;border:none;text-decoration:none;" href="https://wa.me/'+waGroup+'?text='+cmdMsg+'" target="_blank">👥 Groupe</a>';
     sendBtns+='<a class="btn btn-sm" style="background:#1a73e8;color:#fff;border:none;text-decoration:none;" href="mailto:elzerdist@gmail.com?subject=Commande+%23'+o.id+'&body='+emailBody+'" target="_blank">📧 Email</a>';
-    html+='<div style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:12px;overflow:hidden;"><div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--g0);border-bottom:1px solid var(--g2);flex-wrap:wrap;"><span style="font-weight:700;color:var(--g7);">#'+o.id+'</span><span style="font-weight:600;flex:1;">'+o.client+'</span><span style="font-size:12px;color:var(--gy5);">'+dv+'</span><span style="font-size:11px;color:#ccc;">'+cr+'</span>'+statusBadge(o.status)+(o.total?'<span style="font-weight:700;color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</span>':'')+'</div><div style="padding:12px 16px;"><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'+(o.items||[]).slice(0,8).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:6px;padding:3px 10px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;">'+acts+'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Detail</button><button class="btn btn-s btn-sm" data-action="export-pdf" data-id="'+o.id+'">PDF</button>'+sendBtns+'</div></div></div>';
+    var isLivree=o.status==='livree'||o.status==='annulee';
+    var bgHd=isLivree?'var(--g0)':(o.status==='preparation'?'#f4fbed':'#eaf3de');
+    var bdHd=isLivree?'var(--g2)':(o.status==='preparation'?'#c5e0b0':'#c0dd97');
+    var opStyle=isLivree?'opacity:.75;':'';
+    var totalStr=o.total?(' &middot; <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>'):'';
+    var itemsHTML=(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:6px;padding:3px 10px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('');
+    var actHTML='';
+    if(o.status==='nouvelle') actHTML+='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Preparer</button>';
+    else if(o.status==='preparation') actHTML+='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livrer</button>';
+    if(!isLivree) actHTML+='<button class="btn btn-b btn-sm" data-action="edit-bl" data-id="'+o.id+'">Modifier BL</button>';
+    actHTML+='<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Detail</button>';
+    actHTML+='<button class="btn btn-s btn-sm" data-action="export-pdf" data-id="'+o.id+'">PDF</button>';
+    html+='<div style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:10px;overflow:hidden;'+opStyle+'">'
+      +'<div style="padding:10px 14px;background:'+bgHd+';border-bottom:1px solid '+bdHd+';display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' - '+o.client+'</div>'
+      +'<div style="font-size:10px;color:var(--gy5);margin-top:2px;">Reception: '+cr+' | Livraison: '+dv+totalStr+'</div></div>'
+      +statusBadge(o.status)+'</div>'
+      +'<div style="padding:10px 14px;border-bottom:1px solid var(--g2);">'
+      +'<div style="display:flex;flex-wrap:wrap;gap:5px;">'+itemsHTML+'</div></div>'
+      +'<div style="padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;">'+actHTML+'</div>'
+      ;
   });
   container.innerHTML=html;
 }
@@ -655,18 +675,22 @@ function setStatus(id,status){
     renderCommandes();
     renderDashboard();
     toast('Statut: '+status);
-    // WA auto quand livree
-    if(status==='livree'){
-      var o=orders[i];
-      var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
-      if(cliInfo.wa){
-        var msg=encodeURIComponent('Bonjour '+o.client+', votre commande #'+id+' a ete livree! Merci. ELZER Distribution');
-        setTimeout(function(){
-          if(confirm('Envoyer confirmation WhatsApp a '+o.client+'?')){
-            window.open('https://wa.me/'+cliInfo.wa+'?text='+msg,'_blank');
-          }
-        },500);
-      }
+    var o=orders[i];
+    var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    // WA auto quand Preparation - informer client que commande recue
+    if(status==='preparation'&&cliInfo.wa){
+      var msgPrep=encodeURIComponent('Bonjour '+o.client+' 👋\n\nVotre commande BL #'+id+' a bien été reçue et est en cours de préparation.\n📦 Livraison prévue le: '+dv+'\n\nMerci de votre confiance!\nELZER Distribution Marrakech 🌿');
+      setTimeout(function(){
+        window.open('https://wa.me/'+cliInfo.wa+'?text='+msgPrep,'_blank');
+      },500);
+    }
+    // WA auto quand Livree
+    if(status==='livree'&&cliInfo.wa){
+      var msgLivree=encodeURIComponent('Bonjour '+o.client+' ✅\n\nVotre commande BL #'+id+' a été livrée avec succès!\n\nMerci de votre confiance.\nELZER Distribution Marrakech 🌿');
+      setTimeout(function(){
+        window.open('https://wa.me/'+cliInfo.wa+'?text='+msgLivree,'_blank');
+      },800);
     }
   }
 }
