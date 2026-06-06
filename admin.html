@@ -639,8 +639,16 @@ function showPanel(id){
   if(id==='stats'){renderStats();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
   if(id==='calendrier'){renderCalendrier();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
   if(id==='devis'){renderDevis();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
-  if(id==='stock'){renderStock();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
-  if(id==='historique'){renderHistorique();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
+  if(id==='stock'){
+    var m=document.querySelector('.main');
+    if(m) m.scrollTop=0;
+    setTimeout(function(){renderStock();},10);
+  }
+  if(id==='historique'){
+    var m=document.querySelector('.main');
+    if(m) m.scrollTop=0;
+    setTimeout(function(){renderHistorique();},10);
+  }
 }
 
 // ── GLOBAL EVENT DELEGATION - tout passe par ici ──
