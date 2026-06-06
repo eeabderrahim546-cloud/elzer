@@ -216,6 +216,16 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
     <textarea id="client-note" placeholder="Ajouter une note pour ELZER (optionnel)..." style="width:100%;padding:10px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;resize:vertical;min-height:60px;font-family:Arial,sans-serif;outline:none;box-sizing:border-box;"></textarea>
     <button onclick="saveClientNote()" style="margin-top:4px;padding:6px 14px;background:#2d6a1f;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">Envoyer la note</button>
   </div>
+  <div id="modif-cmd-btn" style="max-width:320px;width:100%;margin-bottom:10px;">
+    <button onclick="toggleModifCmd()" style="width:100%;padding:10px;background:var(--g0);border:1.5px solid var(--g2);border-radius:8px;font-size:13px;color:var(--g7);cursor:pointer;font-family:Arial,sans-serif;">✏️ Modifier cette commande</button>
+  </div>
+  <div id="modif-cmd-panel" style="display:none;max-width:320px;width:100%;background:#fff;border:1.5px solid #e0e8d8;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+    <div style="padding:10px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:12px;font-weight:600;color:#27500a;">Ajouter articles oubliés</div>
+    <div id="modif-items-list" style="max-height:200px;overflow-y:auto;"></div>
+    <div style="padding:8px 14px;">
+      <button onclick="saveModifCmd()" style="width:100%;padding:9px;background:#2d6a1f;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif;">Enregistrer modifications</button>
+    </div>
+  </div>
   <button class="m-btn" onclick="no()">Nouvelle commande</button>
 </div>
 <script>
@@ -565,6 +575,85 @@ function saveClientNote(){
   window.open('https://wa.me/'+waGroup+'?text='+msg,'_blank');
   document.getElementById('client-note').value='';
   toast('Note envoyee!');
+}
+
+function toggleModifCmd(){
+  var panel=document.getElementById('modif-cmd-panel');
+  if(panel.style.display!=='none'){panel.style.display='none';return;}
+  var lastOrder=orders[orders.length-1];
+  if(!lastOrder){panel.style.display='block';return;}
+  if(lastOrder.status&&lastOrder.status!=='nouvelle'){
+    document.getElementById('modif-cmd-btn').innerHTML='<div style="font-size:12px;color:#888;text-align:center;padding:8px;">Commande deja en preparation</div>';
+    return;
+  }
+  var html='';
+  CATALOGUE.forEach(function(sec){
+    html+='<div style="padding:4px 12px;background:#f4fbed;font-size:10px;font-weight:600;color:#2d6a1f;">'+sec.title+'</div>';
+    sec.items.forEach(function(item,idx){
+      var exists=lastOrder.items&&lastOrder.items.find(function(i){return i.name===item.n;});
+      var bg=idx%2===0?'#fff':'#f9fdf5';
+      var safeN=item.n.replace(/[^a-z0-9]/gi,'_');
+      var curQty=exists?exists.qty:0;
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;">';
+      html+='<div><div style="font-size:12px;">'+(exists?'<span style=color:#2d6a1f>&#10003; </span>':'')+item.n+'</div>';
+      html+='<div style="font-size:10px;color:#888;">'+item.u+(item.p?' · '+item.p+' Dh':'')+'</div></div>';
+      html+='<div style="display:flex;align-items:center;gap:6px;">';
+      html+='<button data-adj="1" data-name="'+safeN+'" data-orig="'+item.n+'" data-unit="'+(item.u||'kg')+'" data-d="-1" style="width:26px;height:26px;border-radius:50%;border:0.5px solid #ccc;background:#f5f5f5;cursor:pointer;font-size:14px;">-</button>';
+      html+='<span id="mq-'+safeN+'" style="min-width:24px;text-align:center;font-size:13px;font-weight:500;">'+curQty+'</span>';
+      html+='<button data-adj="1" data-name="'+safeN+'" data-orig="'+item.n+'" data-unit="'+(item.u||'kg')+'" data-d="1" style="width:26px;height:26px;border-radius:50%;border:none;background:#2d6a1f;color:#fff;cursor:pointer;font-size:14px;">+</button>';
+      html+='</div></div>';
+    });
+  });
+  document.getElementById('modif-items-list').innerHTML=html;
+  panel.style.display='block';
+}
+
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('[data-adj]');
+  if(!btn) return;
+  var name=btn.dataset.name;
+  var orig=btn.dataset.orig;
+  var unit=btn.dataset.unit;
+  var d=parseInt(btn.dataset.d)||0;
+  if(!modifQtys[name]) modifQtys[name]={qty:0,unit:unit,name:orig};
+  modifQtys[name].qty=Math.max(0,(modifQtys[name].qty||0)+d);
+  var el=document.getElementById('mq-'+name);
+  if(el) el.textContent=modifQtys[name].qty;
+});
+
+
+function saveModifCmd(){
+  var lastOrder=orders[orders.length-1];
+  if(!lastOrder){return;}
+  var newItems=[];
+  Object.keys(modifQtys).forEach(function(k){
+    if(modifQtys[k].qty>0){
+      newItems.push({name:modifQtys[k].name,qty:modifQtys[k].qty,unit:modifQtys[k].unit});
+    }
+  });
+  if(!newItems.length){document.getElementById('modif-cmd-panel').style.display='none';return;}
+  // Merger avec items existants
+  var existItems=lastOrder.items||[];
+  newItems.forEach(function(ni){
+    var exist=existItems.find(function(i){return i.name===ni.name;});
+    if(exist) exist.qty=ni.qty;
+    else existItems.push(ni);
+  });
+  // Supprimer items qty=0
+  existItems=existItems.filter(function(i){return parseFloat(i.qty)>0;});
+  lastOrder.items=existItems;
+  // Recalculer total
+  lastOrder.total=existItems.reduce(function(s,i){
+    var p=parseFloat((i.prix||'0').toString().replace(',','.').replace(/[^0-9.]/g,''))||0;
+    return s+p*parseFloat(i.qty||0);
+  },0)||lastOrder.total;
+  // Sauvegarder
+  var idx=orders.findIndex(function(o){return o.id===lastOrder.id;});
+  if(idx>=0) orders[idx]=lastOrder;
+  localStorage.setItem(CLI.id+'_orders',JSON.stringify(orders));
+  supaFetch('PATCH','commandes?id=eq.'+lastOrder.id,{items:JSON.stringify(existItems),total:lastOrder.total});
+  document.getElementById('modif-cmd-panel').style.display='none';
+  toast('Commande modifiee!');
 }
 
 function no(){document.getElementById('mc').classList.remove('on');ca();}
