@@ -155,6 +155,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <button class="sbi" data-panel="calendrier"><span class="ico">🗓️</span><span>Calendrier</span></button>
     <button class="sbi" data-panel="devis"><span class="ico">📋</span><span>Devis</span></button>
     <button class="sbi" data-panel="stock"><span class="ico">📦</span><span>Stock</span></button>
+    <button class="sbi" data-panel="historique"><span class="ico">📋</span><span>Historique BL</span></button>
   </div>
   <div class="sb-foot" style="display:flex;flex-direction:column;gap:4px;">
   <button data-action="change-admin-pwd" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.5);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;text-align:left;width:100%;margin-bottom:3px;">Changer mot de passe</button>
@@ -438,6 +439,23 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div id="stock-content"></div>
     </div>
 
+    <!-- HISTORIQUE BL -->
+    <div class="panel" id="panel-historique">
+      <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg viewBox="0 0 52 52" width="40" height="40" role="img"><title>ELZER</title><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M26 10 C35 14 39 22 36 30 C33 37 29 40 26 43Z" fill="#3a8a28"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/><path d="M31 38 L28 45 L26 38Z" fill="#c0581a" opacity=".8"/></svg>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Historique BL</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="histo-header-count"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
+        <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+        <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+      </div>
+      <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
+      <div id="historique-content"></div>
+    </div>
+
 </div>
 
 <!-- MODALS -->
@@ -622,6 +640,7 @@ function showPanel(id){
   if(id==='calendrier'){renderCalendrier();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
   if(id==='devis'){renderDevis();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
   if(id==='stock'){renderStock();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
+  if(id==='historique'){renderHistorique();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
 }
 
 // ── GLOBAL EVENT DELEGATION - tout passe par ici ──
@@ -2081,60 +2100,106 @@ function renderStock(){
   var seuilMap=load('elzer_stock_seuil',{});
   var alertes=[];
   var html='';
-  var secEmoji={'Legumes':'🥦','Fruits':'🍊','Herbes':'🌿','Epicerie':'🫙'};
-  var totalProds=0;
+  var total=0;
+  var EMOJI={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'};
 
   CATALOGUE.forEach(function(sec){
-    var secKey=sec.title.replace(/[🥦🍊🌿🫙]/g,'').trim();
-    var emoji=secEmoji[secKey]||'📦';
-    html+='<div style="margin-bottom:12px;background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;">';
+    var emoji=EMOJI[sec.title]||'📦';
+    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:10px;">';
     html+='<div style="padding:7px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;">'+emoji+' '+sec.title+'</div>';
     html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 50px;padding:6px 14px;background:#f4fbed;font-size:9px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;gap:6px;"><span>Produit</span><span style="text-align:center;">Stock</span><span style="text-align:center;">Seuil</span><span style="text-align:center;">Etat</span></div>';
     sec.items.forEach(function(item,idx){
-      var bg=idx%2===0?'#fff':'#f9fdf5';
       var stk=parseFloat(stock[item.n]||0);
       var seuil=parseFloat(seuilMap[item.n]||5);
       var etat=stk===0?'🔴':stk<seuil?'⚠️':'✅';
       if(stk===0||stk<seuil) alertes.push(item.n+' ('+stk+' '+item.u+')');
-      totalProds++;
+      var bg=idx%2===0?'#fff':'#f9fdf5';
+      total++;
       html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 50px;padding:6px 14px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;align-items:center;gap:6px;">';
       html+='<div style="font-size:12px;">'+item.n+'</div>';
-      html+='<input type="text" value="'+stk+'" data-prod="'+item.n+'" data-type="stock" class="stock-inp" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;" onchange="updateStockVal(this)"/>';
-      html+='<input type="text" value="'+seuil+'" data-prod="'+item.n+'" data-type="seuil" class="seuil-inp" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;color:#888;" onchange="updateStockVal(this)"/>';
-      html+='<div style="text-align:center;font-size:16px;" id="stock-etat-'+item.n.replace(/[^a-z0-9]/gi,'_')+'">'+etat+'</div>';
+      html+='<input type="text" value="'+stk+'" data-prod="'+item.n+'" data-type="stock" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;box-sizing:border-box;" onchange="updateStockVal(this)"/>';
+      html+='<input type="text" value="'+seuil+'" data-prod="'+item.n+'" data-type="seuil" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;color:#888;box-sizing:border-box;" onchange="updateStockVal(this)"/>';
+      html+='<div style="text-align:center;font-size:16px;" id="se-'+item.n.replace(/[^a-z0-9]/gi,'_')+'">'+etat+'</div>';
       html+='</div>';
     });
     html+='</div>';
   });
 
-  document.getElementById('stock-content').innerHTML=html;
+  document.getElementById('stock-content').innerHTML=html||'<div class="empty"><div class="empty-i">📦</div><p>Catalogue vide.</p></div>';
   var info=document.getElementById('stock-header-info');
-  if(info) info.textContent=totalProds+' produits · '+alertes.length+' alerte(s)';
+  if(info) info.textContent=total+' produits · '+alertes.length+' alerte(s)';
   var alertBar=document.getElementById('stock-alertes-bar');
-  if(alertes.length){
-    alertBar.style.display='block';
-    alertBar.innerHTML='⚠️ Alertes stock: <strong>'+alertes.slice(0,5).join(', ')+(alertes.length>5?'...':'')+'</strong>';
-  } else {
-    alertBar.style.display='none';
+  if(alertBar){
+    if(alertes.length){
+      alertBar.style.display='block';
+      alertBar.innerHTML='⚠️ Alertes: <strong>'+alertes.slice(0,6).join(', ')+(alertes.length>6?' ...':'')+'</strong>';
+    } else {
+      alertBar.style.display='none';
+    }
   }
 }
 
-function updateStockVal(inp){
-  var prod=inp.dataset.prod;
-  var type=inp.dataset.type;
-  var val=parseFloat(inp.value)||0;
-  var stock=load('elzer_stock',{});
-  var seuil=load('elzer_stock_seuil',{});
-  if(type==='stock') stock[prod]=val;
-  else seuil[prod]=val;
-  save('elzer_stock',stock);
-  save('elzer_stock_seuil',seuil);
-  // Mettre a jour l'icone etat
-  var s=parseFloat(stock[prod]||0);
-  var se=parseFloat(seuil[prod]||5);
-  var etat=s===0?'🔴':s<se?'⚠️':'✅';
-  var el=document.getElementById('stock-etat-'+prod.replace(/[^a-z0-9]/gi,'_'));
-  if(el) el.textContent=etat;
+
+// ── HISTORIQUE BL ──
+function renderHistorique(){
+  orders=load('terrasse_orders',[]);
+  clients=load('admin_clients',clients);
+
+  // Remplir select clients
+  var cliSel=document.getElementById('histo-client');
+  if(cliSel&&cliSel.options.length<=1){
+    var allClients=[...new Set(orders.map(function(o){return o.client;}))].sort();
+    allClients.forEach(function(c){
+      var opt=document.createElement('option');
+      opt.value=c;opt.textContent=c;
+      cliSel.appendChild(opt);
+    });
+  }
+
+  var cliFilter=document.getElementById('histo-client').value;
+  var monthFilter=document.getElementById('histo-month').value;
+  var q=(document.getElementById('histo-search').value||'').toLowerCase();
+
+  var filtered=orders.filter(function(o){
+    if(cliFilter&&o.client!==cliFilter) return false;
+    if(monthFilter){
+      var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
+      var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(ym!==monthFilter) return false;
+    }
+    if(q&&!o.client.toLowerCase().includes(q)&&!String(o.id).includes(q)) return false;
+    return true;
+  });
+
+  // Trier par date desc
+  filtered.sort(function(a,b){return (b.id>a.id)?1:-1;});
+
+  var hc=document.getElementById('histo-header-count');
+  if(hc) hc.textContent=filtered.length+' BL trouvé(s)';
+  var hcount=document.getElementById('histo-count');
+  if(hcount) hcount.textContent=filtered.length+' bon(s) de livraison trouvé(s)';
+
+  if(!filtered.length){
+    document.getElementById('historique-content').innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucun BL trouvé.</p></div>';
+    return;
+  }
+
+  var html=filtered.map(function(o){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
+    var isLivree=o.status==='livree'||o.status==='annulee';
+    var bg=isLivree?'var(--g0)':'#eaf3de';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:8px;overflow:hidden;'+(isLivree?'opacity:.8;':'')+'">'
+      +'<div style="padding:9px 14px;background:'+bg+';border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
+      +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
+      +statusBadge(o.status)+'</div>'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div></div></div>';
+  }).join('');
+
+  document.getElementById('historique-content').innerHTML=html;
 }
 
 // ── BL PAR CLIENT ──
