@@ -431,17 +431,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <svg viewBox="0 0 52 52" width="40" height="40"><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/></svg>
-          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div></div>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div><div id="stock-header-info" style="font-size:10px;color:rgba(255,255,255,.5);"></div></div>
         </div>
         <button class="btn btn-p" onclick="saveStockNow()">💾 Sauvegarder</button>
       </div>
       <div id="stock-alertes-bar" style="display:none;background:#fff3e0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
-      <div id="stock-content">
-        <table style="width:100%;border-collapse:collapse;">
-          <tr style="background:#eaf3de;"><th style="padding:7px 14px;text-align:left;font-size:10px;color:#27500a;font-weight:600;text-transform:uppercase;">Produit</th><th style="padding:7px;font-size:10px;color:#27500a;font-weight:600;text-transform:uppercase;text-align:center;">Unité</th><th style="padding:7px;font-size:10px;color:#27500a;font-weight:600;text-transform:uppercase;text-align:center;">Stock</th><th style="padding:7px;font-size:10px;color:#27500a;font-weight:600;text-transform:uppercase;text-align:center;">Seuil</th><th style="padding:7px;font-size:10px;color:#27500a;font-weight:600;text-transform:uppercase;text-align:center;">Etat</th></tr>
-          <tbody id="stock-tbody"></tbody>
-        </table>
-      </div>
+      <div id="stock-out"></div>
     </div>
 
     <!-- HISTORIQUE BL -->
@@ -647,29 +642,7 @@ function showPanel(id){
   if(id==='stock'){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
-    var stk=load('elzer_stock',{});
-    var seu=load('elzer_stock_seuil',{});
-    var EMOJI={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'};
-    var rows='';
-    CATALOGUE.forEach(function(sec){
-      var emoji=EMOJI[sec.title]||'📦';
-      rows+='<tr><td colspan="5" style="background:#0f2d0a;color:#fff;font-weight:600;padding:6px 14px;font-size:11px;">'+emoji+' '+sec.title+'</td></tr>';
-      sec.items.forEach(function(item,i){
-        var s=parseFloat(stk[item.n]||0);
-        var se=parseFloat(seu[item.n]||5);
-        var etat=s===0?'🔴':s<se?'⚠️':'✅';
-        var bg=i%2===0?'#fff':'#f9fdf5';
-        var safe=item.n.replace(/[^a-z0-9]/gi,'_');
-        rows+='<tr style="background:'+bg+';border-bottom:0.5px solid #f0f5ea;">';
-        rows+='<td style="padding:6px 14px;font-size:12px;">'+item.n+'</td>';
-        rows+='<td style="padding:6px;text-align:center;font-size:11px;color:#888;">'+item.u+'</td>';
-        rows+='<td style="padding:4px 6px;"><input type="number" value="'+s+'" min="0" data-orig="'+item.n+'" data-prod="'+safe+'" data-type="stock" style="width:65px;text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;"/></td>';
-        rows+='<td style="padding:4px 6px;"><input type="number" value="'+se+'" min="0" data-orig="'+item.n+'" data-prod="'+safe+'" data-type="seuil" style="width:65px;text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;color:#888;"/></td>';
-        rows+='<td style="text-align:center;font-size:16px;">'+etat+'</td>';
-        rows+='</tr>';
-      });
-    });
-    document.getElementById('stock-tbody').innerHTML=rows;
+    renderStockPanel();
   }
   if(id==='historique'){
     var m=document.querySelector('.main');
@@ -2135,61 +2108,58 @@ setTimeout(function(){
 
 
 // ── GESTION STOCK ──
-function renderStock(){
-  console.log("renderStock called");
-  var stockEl=document.getElementById('stock-content');
-  console.log("stockEl:", stockEl ? "found" : "NULL");
-  if(!stockEl){
-    // Panel pas encore visible - reessayer
-    setTimeout(renderStock, 200);
-    return;
-  }
-  
-  var stock=load('elzer_stock',{});
-  var seuilMap=load('elzer_stock_seuil',{});
+function renderStockPanel(){
+  var stk=load('elzer_stock',{});
+  var seu=load('elzer_stock_seuil',{});
   var alertes=[];
+  var EMOJI={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'};
   var html='';
   var total=0;
-  var EMOJI={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'};
 
   CATALOGUE.forEach(function(sec){
     var emoji=EMOJI[sec.title]||'📦';
-    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:10px;">';
-    html+='<div style="padding:7px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;">'+emoji+' '+sec.title+'</div>';
-    html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 50px;padding:6px 14px;background:#f4fbed;font-size:9px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;gap:6px;"><span>Produit</span><span style="text-align:center;">Stock</span><span style="text-align:center;">Seuil</span><span style="text-align:center;">Etat</span></div>';
-    sec.items.forEach(function(item,idx){
-      var stk=parseFloat(stock[item.n]||0);
-      var seuil=parseFloat(seuilMap[item.n]||5);
-      var etat=stk===0?'🔴':stk<seuil?'⚠️':'✅';
-      if(stk===0||stk<seuil) alertes.push(item.n);
-      var bg=idx%2===0?'#fff':'#f9fdf5';
-      var safe=item.n.replace(/[^a-z0-9]/gi,'_');
+    html+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:8px;">';
+    html+='<div style="padding:6px 12px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;">'+emoji+' '+sec.title+'</div>';
+    html+='<table style="width:100%;border-collapse:collapse;">';
+    html+='<tr style="background:#f4fbed;"><th style="padding:5px 12px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:left;text-transform:uppercase;">Produit</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:70px;">Stock</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:70px;">Seuil</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:40px;">Etat</th></tr>';
+    sec.items.forEach(function(item,i){
+      var s=parseFloat(stk[item.n]||0);
+      var se=parseFloat(seu[item.n]||5);
+      var etat=s===0?'🔴':s<se?'⚠️':'✅';
+      if(s===0||s<se) alertes.push(item.n);
+      var bg=i%2===0?'#fff':'#f9fdf5';
+      html+='<tr style="background:'+bg+';border-top:0.5px solid #f0f5ea;">';
+      html+='<td style="padding:6px 12px;font-size:12px;">'+item.n+'</td>';
+      html+='<td style="padding:3px 5px;"><input type="number" value="'+s+'" min="0" data-n="'+item.n+'" data-t="stock" style="width:60px;text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:4px;font-size:11px;box-sizing:border-box;background:#fff;"/></td>';
+      html+='<td style="padding:3px 5px;"><input type="number" value="'+se+'" min="0" data-n="'+item.n+'" data-t="seuil" style="width:60px;text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:4px;font-size:11px;color:#888;box-sizing:border-box;background:#fff;"/></td>';
+      html+='<td style="text-align:center;font-size:14px;">'+etat+'</td>';
+      html+='</tr>';
       total++;
-      html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 50px;padding:6px 14px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;align-items:center;gap:6px;">';
-      html+='<div style="font-size:12px;">'+item.n+'</div>';
-      html+='<input type="number" value="'+stk+'" min="0" data-prod="'+safe+'" data-orig="'+item.n+'" data-type="stock" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;box-sizing:border-box;background:#fff;"/>';
-      html+='<input type="number" value="'+seuil+'" min="0" data-prod="'+safe+'" data-orig="'+item.n+'" data-type="seuil" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;color:#888;box-sizing:border-box;background:#fff;"/>';
-      html+='<div style="text-align:center;font-size:16px;" id="se-'+safe+'">'+etat+'</div>';
-      html+='</div>';
     });
-    html+='</div>';
+    html+='</table></div>';
   });
 
-  stockEl.innerHTML=html;
-  
-  var info=document.getElementById('stock-header-info');
-  if(info) info.textContent=total+' produits · '+alertes.length+' alerte(s)';
-  
-  var alertBar=document.getElementById('stock-alertes-bar');
-  if(alertBar){
-    if(alertes.length){
-      alertBar.style.display='block';
-      alertBar.innerHTML='⚠️ Alertes: <strong>'+alertes.slice(0,8).join(', ')+(alertes.length>8?' ...':'')+'</strong>';
-    } else {
-      alertBar.style.display='none';
-    }
+  document.getElementById('stock-out').innerHTML=html;
+  var hi=document.getElementById('stock-header-info');
+  if(hi) hi.textContent=total+' produits · '+alertes.length+' alerte(s)';
+  var ab=document.getElementById('stock-alertes-bar');
+  if(ab){
+    if(alertes.length){ab.style.display='block';ab.innerHTML='⚠️ Alertes: <strong>'+alertes.slice(0,6).join(', ')+(alertes.length>6?' ...':'')+'</strong>';}
+    else ab.style.display='none';
   }
 }
+
+function saveStockNow(){
+  var stk={}, seu={};
+  document.querySelectorAll('[data-t="stock"]').forEach(function(i){stk[i.dataset.n]=parseFloat(i.value)||0;});
+  document.querySelectorAll('[data-t="seuil"]').forEach(function(i){seu[i.dataset.n]=parseFloat(i.value)||5;});
+  save('elzer_stock',stk);
+  save('elzer_stock_seuil',seu);
+  saveStockToSupabase();
+  toast('Stock sauvegarde!');
+  renderStockPanel();
+}
+
 
 function saveStockNow(){
   var stock={};
