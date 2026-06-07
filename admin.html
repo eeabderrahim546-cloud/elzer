@@ -625,7 +625,7 @@ function showPanel(id){
   document.querySelectorAll('.sbi').forEach(function(b){b.classList.remove('active');});
   var panel=document.getElementById('panel-'+id);
   if(panel)panel.classList.add('active');
-  var map={dashboard:'Tableau de bord',commandes:'Commandes',clients:'Clients & Prix',catalogue:'Catalogue',fournisseur:'Bon Fournisseur',liens:'Liens Clients',facturation:'Facturation'};
+  var map={dashboard:'Tableau de bord',commandes:'Commandes',clients:'Clients & Prix',catalogue:'Catalogue',fournisseur:'Bon Fournisseur',liens:'Liens Clients',facturation:'Facturation',stats:'Statistiques',calendrier:'Calendrier',devis:'Devis',stock:'Stock',historique:'Historique BL'};
   document.getElementById('page-title').textContent=map[id]||id;
   var active=document.querySelector('[data-panel="'+id+'"]');
   if(active)active.classList.add('active');
@@ -642,13 +642,15 @@ function showPanel(id){
   if(id==='stock'){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
-    setTimeout(function(){renderStock();},10);
+    setTimeout(function(){renderStock();},100);
   }
   if(id==='historique'){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
-    setTimeout(function(){renderHistorique();},10);
+    setTimeout(function(){renderHistorique();},100);
   }
+  if(id==='stats') renderStats();
+  if(id==='calendrier') renderCalendrier();
 }
 
 // ── GLOBAL EVENT DELEGATION - tout passe par ici ──
