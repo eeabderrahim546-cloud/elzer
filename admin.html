@@ -430,13 +430,22 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div class="panel" id="panel-stock">
       <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <svg viewBox="0 0 52 52" width="40" height="40" role="img"><title>ELZER</title><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M26 10 C35 14 39 22 36 30 C33 37 29 40 26 43Z" fill="#3a8a28"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/><path d="M31 38 L28 45 L26 38Z" fill="#c0581a" opacity=".8"/></svg>
-          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="stock-header-info"></div></div>
+          <svg viewBox="0 0 52 52" width="40" height="40"><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/></svg>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.5);" id="stock-header-info">Chargement...</div>
+          </div>
         </div>
-        <button class="btn btn-p" data-action="save-stock">Sauvegarder</button>
+        <button class="btn btn-p" onclick="saveStockNow()">Sauvegarder</button>
       </div>
       <div id="stock-alertes-bar" style="display:none;background:#fff3e0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
-      <div id="stock-content"></div>
+      <div id="stock-content">
+        <div style="text-align:center;padding:40px;color:#888;font-size:13px;">
+          Cliquez sur Stock dans la sidebar pour charger...
+        </div>
+      </div>
+    </div>
+
     </div>
 
     <!-- HISTORIQUE BL -->
@@ -642,7 +651,7 @@ function showPanel(id){
   if(id==='stock'){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
-    setTimeout(function(){renderStock();},100);
+    renderStock();
   }
   if(id==='historique'){
     var m=document.querySelector('.main');
@@ -2109,6 +2118,13 @@ setTimeout(function(){
 
 // ── GESTION STOCK ──
 function renderStock(){
+  var stockEl=document.getElementById('stock-content');
+  if(!stockEl){
+    // Panel pas encore visible - reessayer
+    setTimeout(renderStock, 200);
+    return;
+  }
+  
   var stock=load('elzer_stock',{});
   var seuilMap=load('elzer_stock_seuil',{});
   var alertes=[];
@@ -2125,31 +2141,52 @@ function renderStock(){
       var stk=parseFloat(stock[item.n]||0);
       var seuil=parseFloat(seuilMap[item.n]||5);
       var etat=stk===0?'🔴':stk<seuil?'⚠️':'✅';
-      if(stk===0||stk<seuil) alertes.push(item.n+' ('+stk+' '+item.u+')');
+      if(stk===0||stk<seuil) alertes.push(item.n);
       var bg=idx%2===0?'#fff':'#f9fdf5';
+      var safe=item.n.replace(/[^a-z0-9]/gi,'_');
       total++;
       html+='<div style="display:grid;grid-template-columns:1fr 80px 80px 50px;padding:6px 14px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;align-items:center;gap:6px;">';
       html+='<div style="font-size:12px;">'+item.n+'</div>';
-      html+='<input type="text" value="'+stk+'" data-prod="'+item.n+'" data-type="stock" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;box-sizing:border-box;" onchange="updateStockVal(this)"/>';
-      html+='<input type="text" value="'+seuil+'" data-prod="'+item.n+'" data-type="seuil" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;color:#888;box-sizing:border-box;" onchange="updateStockVal(this)"/>';
-      html+='<div style="text-align:center;font-size:16px;" id="se-'+item.n.replace(/[^a-z0-9]/gi,'_')+'">'+etat+'</div>';
+      html+='<input type="number" value="'+stk+'" min="0" data-prod="'+safe+'" data-orig="'+item.n+'" data-type="stock" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;box-sizing:border-box;background:#fff;"/>';
+      html+='<input type="number" value="'+seuil+'" min="0" data-prod="'+safe+'" data-orig="'+item.n+'" data-type="seuil" style="text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;width:100%;color:#888;box-sizing:border-box;background:#fff;"/>';
+      html+='<div style="text-align:center;font-size:16px;" id="se-'+safe+'">'+etat+'</div>';
       html+='</div>';
     });
     html+='</div>';
   });
 
-  document.getElementById('stock-content').innerHTML=html||'<div class="empty"><div class="empty-i">📦</div><p>Catalogue vide.</p></div>';
+  stockEl.innerHTML=html;
+  
   var info=document.getElementById('stock-header-info');
   if(info) info.textContent=total+' produits · '+alertes.length+' alerte(s)';
+  
   var alertBar=document.getElementById('stock-alertes-bar');
   if(alertBar){
     if(alertes.length){
       alertBar.style.display='block';
-      alertBar.innerHTML='⚠️ Alertes: <strong>'+alertes.slice(0,6).join(', ')+(alertes.length>6?' ...':'')+'</strong>';
+      alertBar.innerHTML='⚠️ Alertes: <strong>'+alertes.slice(0,8).join(', ')+(alertes.length>8?' ...':'')+'</strong>';
     } else {
       alertBar.style.display='none';
     }
   }
+}
+
+function saveStockNow(){
+  var stock={};
+  var seuil={};
+  document.querySelectorAll('#stock-content [data-type="stock"]').forEach(function(inp){
+    var orig=inp.dataset.orig||inp.dataset.prod;
+    stock[orig]=parseFloat(inp.value)||0;
+  });
+  document.querySelectorAll('#stock-content [data-type="seuil"]').forEach(function(inp){
+    var orig=inp.dataset.orig||inp.dataset.prod;
+    seuil[orig]=parseFloat(inp.value)||5;
+  });
+  save('elzer_stock',stock);
+  save('elzer_stock_seuil',seuil);
+  saveStockToSupabase();
+  toast('Stock sauvegarde!');
+  renderStock();
 }
 
 
