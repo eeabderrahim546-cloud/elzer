@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Stock Test</title>
+</head>
+<body>
+<h2>Test Stock ELZER</h2>
+<button onclick="loadStock()">Charger Stock</button>
+<div id="out" style="margin-top:20px;"></div>
+<script>
+var CATALOGUE=[
+  {title:'Legumes',items:[{n:'Carotte',u:'kg'},{n:'Tomate',u:'kg'},{n:'Oignon',u:'kg'},{n:'Courgette',u:'kg'}]},
+  {title:'Fruits',items:[{n:'Avocat',u:'kg'},{n:'Citron',u:'kg'},{n:'Fraise',u:'plt'}]},
+  {title:'Herbes',items:[{n:'Persil',u:'bt'},{n:'Basilic',u:'bt'},{n:'Menthe',u:'bt'}]}
+];
+
+function loadStock(){
+  var stock=JSON.parse(localStorage.getItem('elzer_stock')||'{}');
+  var seuil=JSON.parse(localStorage.getItem('elzer_stock_seuil')||'{}');
+  var html='<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;">';
+  html+='<tr style="background:#eaf3de;"><th>Produit</th><th>Unité</th><th>Stock</th><th>Seuil</th><th>Etat</th></tr>';
+  CATALOGUE.forEach(function(sec){
+    html+='<tr><td colspan="5" style="background:#0f2d0a;color:#fff;font-weight:bold;">'+sec.title+'</td></tr>';
+    sec.items.forEach(function(item){
+      var s=parseFloat(stock[item.n]||0);
+      var se=parseFloat(seuil[item.n]||5);
+      var etat=s===0?'🔴':s<se?'⚠️':'✅';
+      html+='<tr><td>'+item.n+'</td><td>'+item.u+'</td>';
+      html+='<td><input type="number" value="'+s+'" data-n="'+item.n+'" data-t="stock" style="width:60px;"/></td>';
+      html+='<td><input type="number" value="'+se+'" data-n="'+item.n+'" data-t="seuil" style="width:60px;"/></td>';
+      html+='<td>'+etat+'</td></tr>';
+    });
+  });
+  html+='</table>';
+  html+='<br/><button onclick="saveStock()">💾 Sauvegarder</button>';
+  document.getElementById('out').innerHTML=html;
+}
+
+function saveStock(){
+  var stock={}, seuil={};
+  document.querySelectorAll('[data-t="stock"]').forEach(function(i){stock[i.dataset.n]=parseFloat(i.value)||0;});
+  document.querySelectorAll('[data-t="seuil"]').forEach(function(i){seuil[i.dataset.n]=parseFloat(i.value)||5;});
+  localStorage.setItem('elzer_stock',JSON.stringify(stock));
+  localStorage.setItem('elzer_stock_seuil',JSON.stringify(seuil));
+  alert('Sauvegardé!');
+  loadStock();
+}
+</script>
+</body>
+</html>
