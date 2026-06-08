@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1780931565</title>
+<title>Admin ELZER v1780943745</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -465,17 +465,19 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <svg viewBox="0 0 52 52" width="40" height="40"><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/></svg>
-          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div></div>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div><div style="font-size:10px;color:rgba(255,255,255,.5);">Mise a jour journaliere</div></div>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-p" onclick="saveStockNow()">💾 Sauvegarder</button>
-          <a href="stock.html" target="_blank" class="btn btn-s" style="text-decoration:none;">Ouvrir en plein écran ↗</a>
-        </div>
+        <a href="stock.html" target="_blank" class="btn btn-p" style="text-decoration:none;">Ouvrir le stock ↗</a>
       </div>
-      <iframe id="stock-iframe" src="stock.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;"></iframe>
+      <div style="background:#eaf3de;border-radius:10px;padding:20px;text-align:center;border:1px solid #c0dd97;">
+        <div style="font-size:40px;margin-bottom:10px;">📦</div>
+        <div style="font-size:14px;font-weight:500;color:#27500a;margin-bottom:6px;">Gestion du stock ELZER</div>
+        <div style="font-size:12px;color:#3b6d11;margin-bottom:16px;">Gérez les quantités et seuils d'alerte de tous vos produits</div>
+        <a href="stock.html" target="_blank" style="background:#2d6a1f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500;display:inline-block;">📦 Ouvrir la gestion du stock</a>
+      </div>
     </div>
 
-    <!-- HISTORIQUE BL -->
+    <!-- HISTORIQUE BL -->    <!-- HISTORIQUE BL -->
     <div class="panel" id="panel-historique">
       <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1139,6 +1141,7 @@ function exportFournisseurPDF(){
     doc.setFont('helvetica','bold');doc.setTextColor(45,106,31);doc.text(String(item.total)+' '+item.unit,150,y);
     y+=11;
   });
+  addPDFFooter(doc,W);
   doc.save('bon_fournisseur_'+today.replace(/\//g,'-')+'.pdf');
   toast('PDF exporte!');
 }
@@ -1309,8 +1312,20 @@ function exportDevisPDF(devisId){
   doc.text('RC:52057 · IF:06526715 · ICE:000073472000003',W/2,282,{align:'center'});
   doc.text('Ce devis est valable jusqu\'au '+(d.dateTo||'—')+' · Prix en Dh TTC',W/2,287,{align:'center'});
   
+  addPDFFooter(doc,W);
   doc.save('Devis-D-'+d.id+'-'+d.client.replace(/[^a-z0-9]/gi,'_')+'.pdf');
   toast('PDF telecharge!');
+}
+
+
+function addPDFFooter(doc, W){
+  var pageH=297;
+  doc.setFillColor(15,45,10);
+  doc.rect(0,pageH-14,W,14,'F');
+  doc.setFontSize(7);
+  doc.setTextColor(255,255,255);
+  doc.text('ELZER DIST S.A.R.L au capital de 100 000 DH - Appt N15 Imm12 lot Sine AV Allal Fassi - Marrakech - MAROC',W/2,pageH-9,{align:'center'});
+  doc.text('RC: 129615 - IF: 06298456 - ICE: 003711905000045 - Tel: +212 6 73 95 83 37',W/2,pageH-4,{align:'center'});
 }
 
 function sendFournisseurWA(){
@@ -1549,6 +1564,7 @@ function exportPDF(id){
     y+=8;
   });
   if(o.total){y+=4;doc.setFillColor(15,45,10);doc.rect(14,y,182,9,'F');doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('TOTAL : '+Math.round(o.total).toLocaleString('fr-FR')+' Dh',105,y+6,{align:'center'});}
+  addPDFFooter(doc,W);
   doc.save('commande_'+o.id+'.pdf');toast('PDF exporte!');
 }
 
