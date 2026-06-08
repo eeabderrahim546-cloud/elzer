@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1780930833</title>
+<title>Admin ELZER v1780931565</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -155,6 +155,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <button class="sbi" data-panel="calendrier"><span class="ico">🗓️</span><span>Calendrier</span></button>
     <button class="sbi" data-panel="devis"><span class="ico">📋</span><span>Devis</span></button>
     <button class="sbi" data-panel="stock"><span class="ico">📦</span><span>Stock</span></button>
+    <button class="sbi" data-panel="suivi"><span class="ico">📊</span><span>Suivi Fact.</span></button>
     <button class="sbi" data-panel="historique"><span class="ico">📋</span><span>Historique BL</span></button>
   </div>
   <div class="sb-foot" style="display:flex;flex-direction:column;gap:4px;">
@@ -426,17 +427,52 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div id="devis-list"></div>
     
+
+    <!-- SUIVI FACTURES -->
+    <div class="panel" id="panel-suivi">
+      <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg viewBox="0 0 52 52" width="40" height="40"><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/></svg>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Suivi Factures</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="suivi-info"></div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-p" data-action="new-suivi-row">+ Ajouter</button>
+          <button class="btn btn-s" onclick="exportSuiviCSV()">📥 Export CSV</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:800px;">
+          <thead>
+            <tr style="background:#0f2d0a;color:#fff;">
+              <th style="padding:8px 12px;text-align:left;white-space:nowrap;">N° Facture</th>
+              <th style="padding:8px 12px;text-align:left;">Client</th>
+              <th style="padding:8px 12px;text-align:right;">MT Facture</th>
+              <th style="padding:8px 12px;text-align:left;">Règlement</th>
+              <th style="padding:8px 12px;text-align:left;">Date</th>
+              <th style="padding:8px 12px;text-align:right;">MT CHQ/LC</th>
+              <th style="padding:8px 12px;text-align:center;">État</th>
+              <th style="padding:8px 12px;text-align:left;">Commentaire</th>
+              <th style="padding:8px 12px;text-align:center;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="suivi-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- STOCK -->
     <div class="panel" id="panel-stock">
       <div style="background:#0f2d0a;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <svg viewBox="0 0 52 52" width="40" height="40"><circle cx="26" cy="26" r="24" fill="#1a4d10"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/></svg>
-          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div><div id="stock-header-info" style="font-size:10px;color:rgba(255,255,255,.5);"></div></div>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Gestion Stock</div></div>
         </div>
-        <button class="btn btn-p" onclick="saveStockNow()">💾 Sauvegarder</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-p" onclick="saveStockNow()">💾 Sauvegarder</button>
+          <a href="stock.html" target="_blank" class="btn btn-s" style="text-decoration:none;">Ouvrir en plein écran ↗</a>
+        </div>
       </div>
-      <div id="stock-alertes-bar" style="display:none;background:#fff3e0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
-      <div id="stock-out"></div>
+      <iframe id="stock-iframe" src="stock.html" style="width:100%;height:600px;border:none;border-radius:8px;background:#fff;"></iframe>
     </div>
 
     <!-- HISTORIQUE BL -->
@@ -643,6 +679,18 @@ function showPanel(id){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
     renderStockPanel();
+  }
+  if(id==='stock'){
+    var m=document.querySelector('.main');
+    if(m) m.scrollTop=0;
+    // Recharger iframe stock
+    var iframe=document.getElementById('stock-iframe');
+    if(iframe) iframe.src='stock.html';
+  }
+  if(id==='suivi'){
+    var m=document.querySelector('.main');
+    if(m) m.scrollTop=0;
+    renderSuivi();
   }
   if(id==='historique'){
     var m=document.querySelector('.main');
@@ -2376,6 +2424,483 @@ async function saveFactureToSupabase(factNum, client, mois, total, bls){
       bls:JSON.stringify(bls||[])
     },'Prefer','resolution=merge-duplicates');
   }catch(e){console.log('Facture sync error:',e);}
+}
+
+
+
+// ── SUIVI FACTURES ──
+var SUIVI_ROWS=[];
+
+function loadSuivi(){
+  SUIVI_ROWS=load('elzer_suivi_factures',[]);
+  return SUIVI_ROWS;
+}
+
+function saveSuiviLocal(){
+  save('elzer_suivi_factures',SUIVI_ROWS);
+}
+
+function getNextFactNum(){
+  loadSuivi();
+  if(!SUIVI_ROWS.length) return 'AFD'+new Date().getFullYear()+'/0001';
+  var nums=SUIVI_ROWS.map(function(r){
+    var m=r.num.match(/([0-9]+)$/);
+    return m?parseInt(m[1]):0;
+  });
+  var max=Math.max.apply(null,nums);
+  return 'AFD'+new Date().getFullYear()+'/'+(String(max+1).padStart(4,'0'));
+}
+
+function renderSuivi(){
+  loadSuivi();
+  var tbody=document.getElementById('suivi-tbody');
+  if(!tbody) return;
+  var info=document.getElementById('suivi-info');
+  var total=SUIVI_ROWS.reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
+  if(info) info.textContent=SUIVI_ROWS.length+' factures · Total: '+Math.round(total).toLocaleString('fr-FR')+' Dh';
+
+  if(!SUIVI_ROWS.length){
+    tbody.innerHTML='<tr><td colspan="9" style="padding:20px;text-align:center;color:#888;">Aucune facture — cliquez + Ajouter</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=SUIVI_ROWS.map(function(row,i){
+    var bg=i%2===0?'#fff':'#f9fdf5';
+    var etatColor={'REGLER':'#eaf3de','EN COURS':'#fff3e0','IMPAYE':'#ffecec','':'#f5f5f5'};
+    var etatText={'REGLER':'#27500a','EN COURS':'#854f0b','IMPAYE':'#d32f2f','':'#888'};
+    var ec=etatColor[row.etat]||'#f5f5f5';
+    var et=etatText[row.etat]||'#888';
+    return '<tr style="background:'+bg+';border-bottom:0.5px solid #f0f0f0;" id="suivi-row-'+i+'">'
+      +'<td style="padding:6px 12px;font-weight:500;color:#0f2d0a;white-space:nowrap;">'+row.num+'</td>'
+      +'<td style="padding:6px 12px;">'+row.client+'</td>'
+      +'<td style="padding:6px 12px;text-align:right;font-weight:500;">'+parseFloat(row.mt||0).toLocaleString('fr-FR')+'</td>'
+      +'<td style="padding:6px 12px;">'+row.reglement+'</td>'
+      +'<td style="padding:6px 12px;white-space:nowrap;">'+row.date+'</td>'
+      +'<td style="padding:6px 12px;text-align:right;">'+row.chqlc+'</td>'
+      +'<td style="padding:6px 12px;text-align:center;"><span style="background:'+ec+';color:'+et+';font-size:10px;padding:2px 8px;border-radius:10px;white-space:nowrap;">'+row.etat+'</span></td>'
+      +'<td style="padding:6px 12px;color:#666;">'+row.comment+'</td>'
+      +'<td style="padding:6px 12px;text-align:center;display:flex;gap:4px;justify-content:center;">'
+      +'<button class="btn btn-s btn-sm" data-action="edit-suivi" data-idx="'+i+'">✏️</button>'
+      +'<button class="btn btn-d btn-sm" data-action="del-suivi" data-idx="'+i+'">🗑️</button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function openSuiviModal(idx){
+  loadSuivi();
+  var row=idx>=0?SUIVI_ROWS[idx]:{num:getNextFactNum(),client:'',mt:'',reglement:'',date:new Date().toLocaleDateString('fr-FR'),chqlc:'',etat:'',comment:''};
+  var html='<div style="display:flex;flex-direction:column;gap:10px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf-num" value="'+row.num+'" class="fs" style="width:100%;"/></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Client</label><input id="sf-client" value="'+row.client+'" class="fs" style="width:100%;"/></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT Facture (Dh)</label><input id="sf-mt" type="number" value="'+row.mt+'" class="fs" style="width:100%;"/></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT CHQ/LC</label><input id="sf-chqlc" type="number" value="'+row.chqlc+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Règlement</label><select id="sf-reg" class="fs" style="width:100%;"><option value="">—</option><option'+(row.reglement==='Espèces'?' selected':'')+'>Espèces</option><option'+(row.reglement==='Chèque'?' selected':'')+'>Chèque</option><option'+(row.reglement==='LC'?' selected':'')+'>LC</option><option'+(row.reglement==='Virement'?' selected':'')+'>Virement</option></select></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Date</label><input id="sf-date" value="'+row.date+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">État</label><select id="sf-etat" class="fs" style="width:100%;"><option value="">—</option><option'+(row.etat==='REGLER'?' selected':'')+'>REGLER</option><option'+(row.etat==='EN COURS'?' selected':'')+'>EN COURS</option><option'+(row.etat==='IMPAYE'?' selected':'')+'>IMPAYE</option></select></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Commentaire</label><input id="sf-comment" value="'+row.comment+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+
+  document.getElementById('modal-client-title').textContent=idx>=0?'Modifier facture':'Nouvelle facture';
+  document.getElementById('modal-client').querySelector('.mbd').innerHTML=html;
+  document.getElementById('modal-client').querySelector('.mft').innerHTML=
+    '<button class="btn btn-s" data-close="modal-client">Annuler</button>'+
+    '<button class="btn btn-p" data-action="save-suivi" data-idx="'+(idx>=0?idx:-1)+'">Enregistrer</button>';
+  openModal('modal-client');
+}
+
+function saveSuiviRow(idx){
+  loadSuivi();
+  var row={
+    num:document.getElementById('sf-num').value.trim(),
+    client:document.getElementById('sf-client').value.trim(),
+    mt:document.getElementById('sf-mt').value,
+    reglement:document.getElementById('sf-reg').value,
+    date:document.getElementById('sf-date').value,
+    chqlc:document.getElementById('sf-chqlc').value,
+    etat:document.getElementById('sf-etat').value,
+    comment:document.getElementById('sf-comment').value
+  };
+  if(!row.num||!row.client){toast('N° et Client requis!');return;}
+  if(idx>=0) SUIVI_ROWS[idx]=row;
+  else SUIVI_ROWS.push(row);
+  saveSuiviLocal();
+  closeModal('modal-client');
+  renderSuivi();
+  toast('Facture sauvegardee!');
+}
+
+function exportSuiviCSV(){
+  loadSuivi();
+  var header='Num,Client,Montant,Reglement,Date,CHQLC,Etat,Commentaire';
+  var rows=SUIVI_ROWS.map(function(r){
+    return [r.num,r.client,r.mt,r.reglement,r.date,r.chqlc,r.etat,r.comment].join(',');
+  });
+  var csv=[header].concat(rows).join(String.fromCharCode(10));
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='suivi-factures.csv';
+  a.click();
+  toast('CSV telecharge!');
+}
+
+function saveStockNow(){
+  var stk={}, seu={};
+  document.querySelectorAll('[data-t="stock"]').forEach(function(i){stk[i.dataset.n]=parseFloat(i.value)||0;});
+  document.querySelectorAll('[data-t="seuil"]').forEach(function(i){seu[i.dataset.n]=parseFloat(i.value)||5;});
+  save('elzer_stock',stk);
+  save('elzer_stock_seuil',seu);
+  saveStockToSupabase();
+  toast('Stock sauvegarde!');
+  renderStockPanel();
+}
+
+
+function saveStockNow(){
+  var stock={};
+  var seuil={};
+  document.querySelectorAll('#stock-content [data-type="stock"]').forEach(function(inp){
+    var orig=inp.dataset.orig||inp.dataset.prod;
+    stock[orig]=parseFloat(inp.value)||0;
+  });
+  document.querySelectorAll('#stock-content [data-type="seuil"]').forEach(function(inp){
+    var orig=inp.dataset.orig||inp.dataset.prod;
+    seuil[orig]=parseFloat(inp.value)||5;
+  });
+  save('elzer_stock',stock);
+  save('elzer_stock_seuil',seuil);
+  saveStockToSupabase();
+  toast('Stock sauvegarde!');
+  renderStock();
+}
+
+
+// ── HISTORIQUE BL ──
+function renderHistorique(){
+  orders=load('terrasse_orders',[]);
+  clients=load('admin_clients',clients);
+
+  // Remplir select clients
+  var cliSel=document.getElementById('histo-client');
+  if(cliSel&&cliSel.options.length<=1){
+    var allClients=[...new Set(orders.map(function(o){return o.client;}))].sort();
+    allClients.forEach(function(c){
+      var opt=document.createElement('option');
+      opt.value=c;opt.textContent=c;
+      cliSel.appendChild(opt);
+    });
+  }
+
+  var cliFilter=document.getElementById('histo-client').value;
+  var monthFilter=document.getElementById('histo-month').value;
+  var q=(document.getElementById('histo-search').value||'').toLowerCase();
+
+  var filtered=orders.filter(function(o){
+    if(cliFilter&&o.client!==cliFilter) return false;
+    if(monthFilter){
+      var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
+      var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      if(ym!==monthFilter) return false;
+    }
+    if(q&&!o.client.toLowerCase().includes(q)&&!String(o.id).includes(q)) return false;
+    return true;
+  });
+
+  // Trier par date desc
+  filtered.sort(function(a,b){return (b.id>a.id)?1:-1;});
+
+  var hc=document.getElementById('histo-header-count');
+  if(hc) hc.textContent=filtered.length+' BL trouvé(s)';
+  var hcount=document.getElementById('histo-count');
+  if(hcount) hcount.textContent=filtered.length+' bon(s) de livraison trouvé(s)';
+
+  if(!filtered.length){
+    document.getElementById('historique-content').innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucun BL trouvé.</p></div>';
+    return;
+  }
+
+  var html=filtered.map(function(o){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
+    var isLivree=o.status==='livree'||o.status==='annulee';
+    var bg=isLivree?'var(--g0)':'#eaf3de';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:8px;overflow:hidden;'+(isLivree?'opacity:.8;':'')+'">'
+      +'<div style="padding:9px 14px;background:'+bg+';border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
+      +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
+      +statusBadge(o.status)+'</div>'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div></div></div>';
+  }).join('');
+
+  document.getElementById('historique-content').innerHTML=html;
+}
+
+// ── BL PAR CLIENT ──
+function renderBLClient(clientName){
+  orders=load('terrasse_orders',[]);
+  var clientOrders=orders.filter(function(o){return o.client===clientName;});
+  clientOrders.sort(function(a,b){return (b.id>a.id)?1:-1;});
+  if(!clientOrders.length) return '<div class="empty"><div class="empty-i">📋</div><p>Aucun BL pour ce client.</p></div>';
+  return clientOrders.map(function(o){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
+    var isLivree=o.status==='livree'||o.status==='annulee';
+    var bg=isLivree?'var(--g0)':'#eaf3de';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:8px;overflow:hidden;'+(isLivree?'opacity:.75;':'')+'">'
+      +'<div style="padding:9px 14px;background:'+bg+';border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'
+      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+'</div>'
+      +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | '+Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</div></div>'
+      +statusBadge(o.status)+'</div>'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div></div></div>';
+  }).join('');
+}
+
+// ── HISTORIQUE FOURNISSEUR AUTO ──
+function autoSaveFournisseur(){
+  var today=new Date().toISOString().split('T')[0];
+  var lastSave=localStorage.getItem('four_last_auto_save');
+  if(lastSave===today) return; // Deja sauvegarde aujourd'hui
+  var res=getFournisseurItems();
+  if(!res.items.length) return;
+  var pa=load('prix_achat',{});
+  var history=load('four_history',[]);
+  history=history.filter(function(h){return h.date!==today;});
+  history.unshift({date:today,items:res.items,prixAchat:pa,savedAt:new Date().toISOString(),auto:true});
+  history=history.slice(0,30);
+  save('four_history',history);
+  localStorage.setItem('four_last_auto_save',today);
+}
+
+// Appeler auto save au chargement
+setTimeout(autoSaveFournisseur, 3000);
+
+
+
+// ── SYNC SUPABASE - DEVIS ──
+async function saveDevisToSupabase(d){
+  try{
+    await supaFetch('POST','devis',{
+      id:d.id, client:d.client, date:d.date, status:d.status,
+      items:JSON.stringify(d.items||[]),
+      excluded:JSON.stringify(d.excluded||{}),
+      date_from:d.dateFrom||'', date_to:d.dateTo||''
+    },'Prefer','resolution=merge-duplicates');
+  }catch(e){console.log('Devis sync error:',e);}
+}
+
+async function loadDevisFromSupabase(){
+  try{
+    var data=await supaFetch('GET','devis?order=created_at.desc');
+    if(data&&data.length){
+      var devis=data.map(function(d){
+        return {
+          id:d.id, client:d.client, date:d.date, status:d.status,
+          items:typeof d.items==='string'?JSON.parse(d.items||'[]'):d.items||[],
+          excluded:typeof d.excluded==='string'?JSON.parse(d.excluded||'{}'):d.excluded||{},
+          dateFrom:d.date_from, dateTo:d.date_to
+        };
+      });
+      save('elzer_devis',devis);
+      return devis;
+    }
+  }catch(e){console.log('Devis load error:',e);}
+  return load('elzer_devis',[]);
+}
+
+// ── SYNC SUPABASE - CLIENTS ──
+async function saveClientsToSupabase(){
+  try{
+    var cls=load('admin_clients',[]);
+    await supaFetch('POST','clients_elzer',{
+      id:'elzer_clients',
+      data:JSON.stringify(cls)
+    },'Prefer','resolution=merge-duplicates');
+  }catch(e){console.log('Clients sync error:',e);}
+}
+
+async function loadClientsFromSupabase(){
+  try{
+    var data=await supaFetch('GET','clients_elzer?id=eq.elzer_clients');
+    if(data&&data.length&&data[0].data){
+      var cls=typeof data[0].data==='string'?JSON.parse(data[0].data):data[0].data;
+      save('admin_clients',cls);
+      return cls;
+    }
+  }catch(e){console.log('Clients load error:',e);}
+  return load('admin_clients',[]);
+}
+
+// ── SYNC SUPABASE - STOCK ──
+async function saveStockToSupabase(){
+  try{
+    var stock=load('elzer_stock',{});
+    var seuil=load('elzer_stock_seuil',{});
+    var rows=Object.keys(stock).map(function(k){
+      return {prod:k, qty:parseFloat(stock[k])||0, seuil:parseFloat(seuil[k]||5)};
+    });
+    if(!rows.length) return;
+    await supaFetch('POST','stock',rows,'Prefer','resolution=merge-duplicates');
+  }catch(e){console.log('Stock sync error:',e);}
+}
+
+async function loadStockFromSupabase(){
+  try{
+    var data=await supaFetch('GET','stock');
+    if(data&&data.length){
+      var stock={}, seuil={};
+      data.forEach(function(r){stock[r.prod]=r.qty; seuil[r.prod]=r.seuil;});
+      save('elzer_stock',stock);
+      save('elzer_stock_seuil',seuil);
+      return {stock:stock,seuil:seuil};
+    }
+  }catch(e){console.log('Stock load error:',e);}
+  return null;
+}
+
+// ── SYNC SUPABASE - FACTURES ──
+async function saveFactureToSupabase(factNum, client, mois, total, bls){
+  try{
+    var key=factNum.replace(/[^a-z0-9]/gi,'_')+'_'+client.replace(/[^a-z0-9]/gi,'_');
+    await supaFetch('POST','factures',{
+      id:key, client:client, mois:mois,
+      numero:factNum, total:total,
+      bls:JSON.stringify(bls||[])
+    },'Prefer','resolution=merge-duplicates');
+  }catch(e){console.log('Facture sync error:',e);}
+}
+
+
+
+// ── SUIVI FACTURES ──
+var SUIVI_ROWS=[];
+
+function loadSuivi(){
+  SUIVI_ROWS=load('elzer_suivi_factures',[]);
+  return SUIVI_ROWS;
+}
+
+function saveSuiviLocal(){
+  save('elzer_suivi_factures',SUIVI_ROWS);
+}
+
+function getNextFactNum(){
+  loadSuivi();
+  if(!SUIVI_ROWS.length) return 'AFD'+new Date().getFullYear()+'/0001';
+  var nums=SUIVI_ROWS.map(function(r){
+    var m=r.num.match(/([0-9]+)$/);
+    return m?parseInt(m[1]):0;
+  });
+  var max=Math.max.apply(null,nums);
+  return 'AFD'+new Date().getFullYear()+'/'+(String(max+1).padStart(4,'0'));
+}
+
+function renderSuivi(){
+  loadSuivi();
+  var tbody=document.getElementById('suivi-tbody');
+  if(!tbody) return;
+  var info=document.getElementById('suivi-info');
+  var total=SUIVI_ROWS.reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
+  if(info) info.textContent=SUIVI_ROWS.length+' factures · Total: '+Math.round(total).toLocaleString('fr-FR')+' Dh';
+
+  if(!SUIVI_ROWS.length){
+    tbody.innerHTML='<tr><td colspan="9" style="padding:20px;text-align:center;color:#888;">Aucune facture — cliquez + Ajouter</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=SUIVI_ROWS.map(function(row,i){
+    var bg=i%2===0?'#fff':'#f9fdf5';
+    var etatColor={'REGLER':'#eaf3de','EN COURS':'#fff3e0','IMPAYE':'#ffecec','':'#f5f5f5'};
+    var etatText={'REGLER':'#27500a','EN COURS':'#854f0b','IMPAYE':'#d32f2f','':'#888'};
+    var ec=etatColor[row.etat]||'#f5f5f5';
+    var et=etatText[row.etat]||'#888';
+    return '<tr style="background:'+bg+';border-bottom:0.5px solid #f0f0f0;" id="suivi-row-'+i+'">'
+      +'<td style="padding:6px 12px;font-weight:500;color:#0f2d0a;white-space:nowrap;">'+row.num+'</td>'
+      +'<td style="padding:6px 12px;">'+row.client+'</td>'
+      +'<td style="padding:6px 12px;text-align:right;font-weight:500;">'+parseFloat(row.mt||0).toLocaleString('fr-FR')+'</td>'
+      +'<td style="padding:6px 12px;">'+row.reglement+'</td>'
+      +'<td style="padding:6px 12px;white-space:nowrap;">'+row.date+'</td>'
+      +'<td style="padding:6px 12px;text-align:right;">'+row.chqlc+'</td>'
+      +'<td style="padding:6px 12px;text-align:center;"><span style="background:'+ec+';color:'+et+';font-size:10px;padding:2px 8px;border-radius:10px;white-space:nowrap;">'+row.etat+'</span></td>'
+      +'<td style="padding:6px 12px;color:#666;">'+row.comment+'</td>'
+      +'<td style="padding:6px 12px;text-align:center;display:flex;gap:4px;justify-content:center;">'
+      +'<button class="btn btn-s btn-sm" data-action="edit-suivi" data-idx="'+i+'">✏️</button>'
+      +'<button class="btn btn-d btn-sm" data-action="del-suivi" data-idx="'+i+'">🗑️</button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function openSuiviModal(idx){
+  loadSuivi();
+  var row=idx>=0?SUIVI_ROWS[idx]:{num:getNextFactNum(),client:'',mt:'',reglement:'',date:new Date().toLocaleDateString('fr-FR'),chqlc:'',etat:'',comment:''};
+  var html='<div style="display:flex;flex-direction:column;gap:10px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf-num" value="'+row.num+'" class="fs" style="width:100%;"/></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Client</label><input id="sf-client" value="'+row.client+'" class="fs" style="width:100%;"/></div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT Facture (Dh)</label><input id="sf-mt" type="number" value="'+row.mt+'" class="fs" style="width:100%;"/></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT CHQ/LC</label><input id="sf-chqlc" type="number" value="'+row.chqlc+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Règlement</label><select id="sf-reg" class="fs" style="width:100%;"><option value="">—</option><option'+(row.reglement==='Espèces'?' selected':'')+'>Espèces</option><option'+(row.reglement==='Chèque'?' selected':'')+'>Chèque</option><option'+(row.reglement==='LC'?' selected':'')+'>LC</option><option'+(row.reglement==='Virement'?' selected':'')+'>Virement</option></select></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Date</label><input id="sf-date" value="'+row.date+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">État</label><select id="sf-etat" class="fs" style="width:100%;"><option value="">—</option><option'+(row.etat==='REGLER'?' selected':'')+'>REGLER</option><option'+(row.etat==='EN COURS'?' selected':'')+'>EN COURS</option><option'+(row.etat==='IMPAYE'?' selected':'')+'>IMPAYE</option></select></div>';
+  html+='<div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Commentaire</label><input id="sf-comment" value="'+row.comment+'" class="fs" style="width:100%;"/></div>';
+  html+='</div>';
+
+  document.getElementById('modal-client-title').textContent=idx>=0?'Modifier facture':'Nouvelle facture';
+  document.getElementById('modal-client').querySelector('.mbd').innerHTML=html;
+  document.getElementById('modal-client').querySelector('.mft').innerHTML=
+    '<button class="btn btn-s" data-close="modal-client">Annuler</button>'+
+    '<button class="btn btn-p" data-action="save-suivi" data-idx="'+(idx>=0?idx:-1)+'">Enregistrer</button>';
+  openModal('modal-client');
+}
+
+function saveSuiviRow(idx){
+  loadSuivi();
+  var row={
+    num:document.getElementById('sf-num').value.trim(),
+    client:document.getElementById('sf-client').value.trim(),
+    mt:document.getElementById('sf-mt').value,
+    reglement:document.getElementById('sf-reg').value,
+    date:document.getElementById('sf-date').value,
+    chqlc:document.getElementById('sf-chqlc').value,
+    etat:document.getElementById('sf-etat').value,
+    comment:document.getElementById('sf-comment').value
+  };
+  if(!row.num||!row.client){toast('N° et Client requis!');return;}
+  if(idx>=0) SUIVI_ROWS[idx]=row;
+  else SUIVI_ROWS.push(row);
+  saveSuiviLocal();
+  closeModal('modal-client');
+  renderSuivi();
+  toast('Facture sauvegardee!');
+}
+
+function exportSuiviCSV(){
+  loadSuivi();
+  var lines=['N Facture,Client,MT Facture,Reglement,Date,MT CHQ/LC,Etat,Commentaire'];
+  SUIVI_ROWS.forEach(function(r){
+    lines.push([r.num,r.client,r.mt,r.reglement,r.date,r.chqlc,r.etat,r.comment].join(','));
+  });
+  var csv=lines.join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='suivi-factures-elzer.csv';a.click();
+  toast('CSV telecharge!');
+}
+
+function saveStockNow(){
+  toast('Stock: utiliser la page stock.html');
 }
 
 

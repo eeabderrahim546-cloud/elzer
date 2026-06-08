@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Stock ELZER</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;padding:16px;background:#f4f6f3;color:#333;}
+h2{color:#0f2d0a;font-size:16px;margin:0 0 12px;}
+.hdr{background:#0f2d0a;color:#fff;border-radius:8px;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.sec{background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:10px;}
+.sec-title{padding:6px 12px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;}
+table{width:100%;border-collapse:collapse;}
+th{padding:5px 12px;background:#f4fbed;font-size:9px;font-weight:600;color:#2d6a1f;text-align:left;text-transform:uppercase;border-bottom:1px solid #e0e8d8;}
+th.r{text-align:center;}
+td{padding:6px 12px;font-size:12px;border-bottom:0.5px solid #f0f5ea;color:#333;}
+td.c{text-align:center;}
+input[type=number]{width:60px;text-align:center;padding:4px;border:1px solid #e0e8d8;border-radius:4px;font-size:11px;color:#333;background:#fff;}
+.btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;}
+.btn-p{background:#2d6a1f;color:#fff;}
+.alerte{background:#fff3e0;border:1px solid #fac775;border-radius:6px;padding:8px 12px;font-size:12px;color:#854f0b;margin-bottom:10px;display:none;}
+.msg{background:#eaf3de;border-radius:6px;padding:8px 12px;font-size:12px;color:#27500a;margin-top:8px;display:none;}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <div style="font-size:16px;font-weight:700;color:#e67e22;letter-spacing:2px;">ELZER</div>
+    <div style="font-size:9px;color:#6cb84a;letter-spacing:2px;">DISTRIBUTION</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span id="stock-info" style="font-size:11px;color:rgba(255,255,255,.6);"></span>
+    <button class="btn btn-p" onclick="saveStock()">💾 Sauvegarder</button>
+  </div>
+</div>
+<div id="alerte" class="alerte"></div>
+<div id="stock-out"></div>
+<div id="msg" class="msg"></div>
+
+<script>
+var CAT=[
+  {t:'Legumes',e:'🥦',items:[
+    'Ail','Ail epluche 1kg','Aubergine','Betterave','Brocoli','Carotte','Celeri branche',
+    'Champignon paris','Chou blanc','Chou fleur','Concombre','Courgette noire','Courgette ronde',
+    'Courgette verte','Echalote','Epinard','Fenouil','Feve','Haricot vert','Navet','Oignon',
+    'Oignon cebette','Oignon rouge','Petit pois','Piment fort Nora','Piment rouge','Piment vert',
+    'Poireaux','Poivron jaune','Poivron rouge','Poivron vert','Pomme de terre',
+    'Pomme de terre grenaille','Potiron','Radis rouge','Roquette','Salade mache',
+    'Salade mesclun','Salade romaine','Slaoui','Tomate','Tomate cerise rouge',
+    'Tomate fraiche','Laitue','Lolo rouge','Lolo vert'
+  ]},
+  {t:'Fruits',e:'🍊',items:[
+    'Ananas','Avocat','Banane','Cerise','Citron jaune','Citron vert','Citron confit',
+    'Figue fraiche','Fraise','Framboise','Fruit de la passion','Kiwi','Mangue avion',
+    'Mangue bien mure','Mures','Myrtille','Nectarine','Noix de coco','Noix decortiquee',
+    'Orange a jus','Orange de table','Pamplemousse','Pasteque locale','Peche',
+    'Poire grande','Pomme golden','Pomme granny','Raisin noir local','Raisin vert local'
+  ]},
+  {t:'Herbes',e:'🌿',items:[
+    'Basilic','Ciboulette','Citronnelle','Coriandre','Feuille de citron','Fleur comestible',
+    'Geranium petite','Gingembre confit','Gingembre frais','Menthe fraiche','Menthe floula',
+    'Persil','Romarin','Safran bio','Thym','Verveine'
+  ]},
+  {t:'Epicerie',e:'🫙',items:[
+    'Amande bldi','Amande entiere','Harissa','Huile argane','Huile olive',
+    'Olive marinee','Olive noire','Olive verte'
+  ]}
+];
+
+function renderStock(){
+  var stk=JSON.parse(localStorage.getItem('elzer_stock')||'{}');
+  var seu=JSON.parse(localStorage.getItem('elzer_stock_seuil')||'{}');
+  var alertes=[];
+  var html='';
+  var total=0;
+  CAT.forEach(function(sec){
+    html+='<div class="sec"><div class="sec-title">'+sec.e+' '+sec.t+'</div>';
+    html+='<table><thead><tr><th>Produit</th><th class="r">Stock</th><th class="r">Seuil</th><th class="r">Etat</th></tr></thead><tbody>';
+    sec.items.forEach(function(name,i){
+      var s=parseFloat(stk[name]||0);
+      var se=parseFloat(seu[name]||5);
+      var etat=s===0?'🔴':s<se?'⚠️':'✅';
+      if(s===0||s<se) alertes.push(name);
+      var bg=i%2===0?'#fff':'#f9fdf5';
+      html+='<tr style="background:'+bg+';">';
+      html+='<td>'+name+'</td>';
+      html+='<td class="c"><input type="number" value="'+s+'" min="0" data-n="'+name+'" data-t="stock"/></td>';
+      html+='<td class="c"><input type="number" value="'+se+'" min="0" data-n="'+name+'" data-t="seuil" style="color:#888;"/></td>';
+      html+='<td class="c" style="font-size:14px;">'+etat+'</td>';
+      html+='</tr>';
+      total++;
+    });
+    html+='</tbody></table></div>';
+  });
+  document.getElementById('stock-out').innerHTML=html;
+  document.getElementById('stock-info').textContent=total+' produits · '+alertes.length+' alertes';
+  var al=document.getElementById('alerte');
+  if(alertes.length){
+    al.style.display='block';
+    al.innerHTML='⚠️ Alertes stock: <strong>'+alertes.slice(0,8).join(', ')+(alertes.length>8?' ...':'')+'</strong>';
+  } else {
+    al.style.display='none';
+  }
+}
+
+function saveStock(){
+  var stk={},seu={};
+  document.querySelectorAll('[data-t="stock"]').forEach(function(i){stk[i.dataset.n]=parseFloat(i.value)||0;});
+  document.querySelectorAll('[data-t="seuil"]').forEach(function(i){seu[i.dataset.n]=parseFloat(i.value)||5;});
+  localStorage.setItem('elzer_stock',JSON.stringify(stk));
+  localStorage.setItem('elzer_stock_seuil',JSON.stringify(seu));
+  var msg=document.getElementById('msg');
+  msg.style.display='block';
+  msg.textContent='✅ Stock sauvegardé avec succès!';
+  setTimeout(function(){msg.style.display='none';},2000);
+  renderStock();
+}
+
+renderStock();
+</script>
+</body>
+</html>
