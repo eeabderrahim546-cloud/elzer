@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781004837</title>
+<title>Admin ELZER v1781004877</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -21,9 +21,9 @@
 :root{--g9:#0f2d0a;--g8:#1a4a10;--g7:#2d6a1f;--g6:#3d8a2a;--g2:#c5e8b0;--g1:#e8f5d8;--g0:#f4fbed;--blue:#1a5c9e;--bl:#e8f4ff;--amb:#c47a00;--aml:#fff3e0;--red:#d32f2f;--rl:#ffecec;--gy9:#111;--gy7:#333;--gy5:#666;--gy3:#ccc;--gy1:#f5f5f5;--wh:#fff;--fn:Arial,sans-serif;--mn:monospace;--sh:0 2px 12px rgba(0,0,0,.08);}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
-.app{display:flex;height:100vh;}
+.app{display:flex;height:100vh;width:100%;overflow:hidden;}
 .sb{width:220px;background:var(--g9);color:#fff;flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;}
-.main{margin-left:220px;flex:1;overflow-y:auto;height:100vh;color:#333;background:#f4f6f3;}
+.main{margin-left:220px;flex:1;min-width:0;overflow-y:auto;height:100vh;color:#333;background:#f4f6f3;}
 .sb-logo{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.1);}
 .sb-logo-t{font-size:15px;font-weight:600;}
 .sb-logo-s{font-size:11px;opacity:.5;margin-top:2px;}
@@ -37,7 +37,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 .topbar{background:var(--wh);border-bottom:1px solid #e0e8d8;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--sh);}
 .topbar-t{font-size:17px;font-weight:600;}
 .top-badge{background:var(--g1);color:var(--g7);font-size:12px;padding:5px 12px;border-radius:20px;font-weight:600;}
-.content{padding:24px;min-height:100%;width:100%;box-sizing:border-box;}
+.content{padding:24px;width:100%;box-sizing:border-box;}
 .panel{display:none;}
 .panel.active{display:block !important;}
 .panel.active table, .panel.active td, .panel.active th, .panel.active input, .panel.active select, .panel.active label, .panel.active div:not([style*="color:#fff"]):not([style*="color:white"]):not([style*="color:rgba(255"]) { color:#333 !important; }
