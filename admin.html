@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781003405</title>
+<title>Admin ELZER v1781004017</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -118,6 +118,18 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   .sbi{padding:10px 6px;}
   .sbi .ico{font-size:18px;}
   .stats{grid-template-columns:1fr 1fr;}
+}
+
+/* Force couleurs panels */
+#panel-stock, #panel-stock *, #panel-suivi, #panel-suivi * {
+  color: #333 !important;
+}
+#panel-stock input, #panel-suivi input, #panel-stock select, #panel-suivi select {
+  color: #333 !important;
+  background: #fff !important;
+}
+#panel-stock table, #panel-suivi table {
+  background: #fff !important;
 }
 </style>
 </head>
@@ -488,7 +500,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <button onclick="saveStockAdmin()" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
       </div>
       <div id="stock-alerte-admin" style="display:none;background:#fff3e0;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
-      <div id="stock-body-admin"></div>
+      <div id="stock-body-admin" style="color:#333 !important;background:#f4f6f3 !important;"></div>
       <div id="stock-msg-admin" style="display:none;background:#eaf3de;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:12px;color:#27500a;"></div>
     </div>
 
