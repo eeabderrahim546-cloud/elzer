@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781003055</title>
+<title>Admin ELZER v1781003405</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -2900,7 +2900,7 @@ function saveStockNow(){
 // ── STOCK ADMIN ──
 function renderStockAdmin(){
   var el=document.getElementById('stock-body-admin');
-  if(!el) return;
+  if(!el){setTimeout(renderStockAdmin,200);return;}
   var stk=load('elzer_stock',{});
   var seu=load('elzer_stock_seuil',{});
   var alertes=[];
@@ -2997,7 +2997,7 @@ function saveSuiviRow2(){
 function renderSuivi2(){
   loadSuivi2();
   var tbody=document.getElementById('suivi-tbody2');
-  if(!tbody) return;
+  if(!tbody){setTimeout(renderSuivi2,200);return;}
   var sc={'REGLER':'#eaf3de','EN COURS':'#fff3e0','IMPAYE':'#ffecec'};
   var tc={'REGLER':'#27500a','EN COURS':'#854f0b','IMPAYE':'#d32f2f'};
   var total=SUIVI2.reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
