@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781130695</title>
+<title>Admin ELZER v1781130923</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -550,10 +550,13 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 // Injecter panels stock et suivi dans .content (fix structure HTML)
 (function(){
-  var content = document.querySelector('.content');
-  if(content){
-    var suiviDiv = document.createElement('div');
-    suiviDiv.innerHTML = `<div class="panel" id="panel-suivi" style="color:#333;background:#f4f6f3;">
+  function injectPanels(){
+    var content = document.querySelector('.content');
+    if(!content){setTimeout(injectPanels,100);return;}
+    // Eviter doublons
+    if(!document.getElementById('panel-suivi')){
+      var suiviDiv = document.createElement('div');
+      suiviDiv.innerHTML = `<div class="panel" id="panel-suivi" style="color:#333;background:#f4f6f3;">
       <div style="background:#0f2d0a;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div style="font-size:14px;font-weight:500;color:#fff;">📊 Suivi Factures</div>
         <div style="display:flex;gap:8px;">
@@ -603,9 +606,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div id="suivi-total2" style="display:none;padding:10px 16px;background:#f4fbed;border-top:1px solid #e0e8d8;text-align:right;font-size:13px;font-weight:600;color:#27500a;"></div>
       </div>
     </div>`;
-    content.appendChild(suiviDiv.firstChild);
-    var stockDiv = document.createElement('div');
-    stockDiv.innerHTML = `<div class="panel" id="panel-stock" style="color:#333;background:#f4f6f3;">
+      var suiviPanel = suiviDiv.querySelector('#panel-suivi');
+      if(suiviPanel) content.appendChild(suiviPanel);
+    }
+    if(!document.getElementById('panel-stock')){
+      var stockDiv = document.createElement('div');
+      stockDiv.innerHTML = `<div class="panel" id="panel-stock" style="color:#333;background:#f4f6f3;">
       <div style="background:#0f2d0a;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:14px;font-weight:500;color:#fff;">📦 Gestion Stock</div>
         <button onclick="saveStockAdmin()" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
@@ -614,7 +620,14 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div id="stock-body-admin" style="color:#333 !important;background:#f4f6f3 !important;"></div>
       <div id="stock-msg-admin" style="display:none;background:#eaf3de;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:12px;color:#27500a;"></div>
     </div>`;
-    content.appendChild(stockDiv.firstChild);
+      var stockPanel = stockDiv.querySelector('#panel-stock');
+      if(stockPanel) content.appendChild(stockPanel);
+    }
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',injectPanels);
+  } else {
+    injectPanels();
   }
 })();
 
