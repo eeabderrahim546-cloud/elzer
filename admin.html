@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781128929</title>
+<title>Admin ELZER v1781130695</title>
 <meta name="theme-color" content="#0f2d0a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -732,7 +732,7 @@ function showPanel(id){
   document.querySelectorAll('.sbi').forEach(function(b){b.classList.remove('active');});
   var panel=document.getElementById('panel-'+id);
   if(panel)panel.classList.add('active');
-  var map={dashboard:'Tableau de bord',commandes:'Commandes',clients:'Clients & Prix',catalogue:'Catalogue',fournisseur:'Bon Fournisseur',liens:'Liens Clients',facturation:'Facturation',stats:'Statistiques',calendrier:'Calendrier',devis:'Devis',stock:'Stock',historique:'Historique BL'};
+  var map={dashboard:'Tableau de bord',commandes:'Commandes',clients:'Clients & Prix',catalogue:'Catalogue',fournisseur:'Bon Fournisseur',liens:'Liens Clients',facturation:'Facturation',stats:'Statistiques',calendrier:'Calendrier',devis:'Devis',stock:'Stock',suivi:'Suivi Factures',historique:'Historique BL'};
   document.getElementById('page-title').textContent=map[id]||id;
   var active=document.querySelector('[data-panel="'+id+'"]');
   if(active)active.classList.add('active');
@@ -755,7 +755,8 @@ function showPanel(id){
     var m=document.querySelector('.main');
     if(m) m.scrollTop=0;
     renderSuivi2();
-    document.getElementById('sf2-date').value=new Date().toISOString().split('T')[0];
+    var sfd=document.getElementById('sf2-date');
+    if(sfd) sfd.value=new Date().toISOString().split('T')[0];
   }
   if(id==='suivi'){
     var m=document.querySelector('.main');
