@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781215073</title>
+<title>Admin ELZER v1781215287</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -148,45 +148,23 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 
 
-/* RESPONSIVE - sidebar cachée sur petit écran */
-.mobile-menu-btn {
-  display: none;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 200;
-  background: #5a7050;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 20px;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,.15);
-}
+/* RESPONSIVE - sidebar etroite sur petit ecran */
 @media (max-width: 900px) {
-  .mobile-menu-btn { display: block; }
-  .sb {
-    transform: translateX(-100%);
-    transition: transform 0.3s;
-    z-index: 150;
-  }
-  .sb.sb-open { transform: translateX(0); }
-  .main { margin-left: 0 !important; width: 100% !important; }
+  .sb { width: 50px !important; }
+  .main { margin-left: 50px !important; width: calc(100% - 50px) !important; }
   .panel.active {
-    left: 0 !important;
-    top: 60px !important;
-    padding: 12px !important;
+    left: 50px !important;
+    padding: 10px !important;
   }
-  .sb-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.4);
-    z-index: 140;
+  .sb-logo-t, .sb-logo-s, .sb-foot, .sb-badge { display: none !important; }
+  .sbi span { display: none !important; }
+  .sbi {
+    justify-content: center !important;
+    padding: 10px !important;
   }
-  .sb-overlay.show { display: block; }
+  .sb-logo {
+    padding: 12px 5px !important;
+  }
 }
 </style>
 </head>
@@ -197,8 +175,6 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div style="margin-top:16px;font-size:10px;color:#bbb;">ELZER Distribution Marrakech</div>
   </div>
 </div>
-<button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
-<div class="sb-overlay" id="sb-overlay"></div>
 <div class="app">
 <div class="sb">
   <div class="sb-logo" style="display:flex;flex-direction:column;align-items:center;padding:10px 6px;">
