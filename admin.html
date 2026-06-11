@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781212905</title>
+<title>Admin ELZER v1781213379</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -403,6 +403,87 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div id="devis-list"></div>
     </div>
+
+    <!-- SUIVI FACTURES -->
+    <div class="panel" id="panel-suivi" style="color:#333;background:#f4f6f3;">
+      <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:14px;font-weight:500;color:#fff;">📊 Suivi Factures</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="openSuiviForm(-1)" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">+ Ajouter</button>
+          <button onclick="exportSuiviCSV()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">📥 CSV</button>
+        </div>
+      </div>
+      <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf2-num" class="fs" placeholder="AFD2026/0001" style="width:100%;"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Client</label><input id="sf2-cli" class="fs" placeholder="Nom client" style="width:100%;"/></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT Facture</label><input id="sf2-mt" type="number" class="fs" placeholder="0" style="width:100%;"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT CHQ/LC</label><input id="sf2-chq" type="number" class="fs" placeholder="0" style="width:100%;"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Date</label><input id="sf2-date" type="date" class="fs" style="width:100%;"/></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Règlement</label>
+            <select id="sf2-reg" class="fs" style="width:100%;"><option value="">—</option><option>Espèces</option><option>Chèque</option><option>LC</option><option>Virement</option></select></div>
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">État</label>
+            <select id="sf2-etat" class="fs" style="width:100%;"><option value="">—</option><option>REGLER</option><option>EN COURS</option><option>IMPAYE</option></select></div>
+          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Commentaire</label><input id="sf2-com" class="fs" placeholder="Note..." style="width:100%;"/></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="saveSuiviRow2()" style="flex:1;background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:9px;cursor:pointer;font-size:13px;font-weight:500;">💾 Enregistrer</button>
+          <button onclick="document.getElementById('suivi-form-inline').style.display='none'" style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:9px 16px;cursor:pointer;font-size:13px;">Annuler</button>
+        </div>
+      </div>
+      <div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;">
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;min-width:700px;">
+            <thead><tr style="background:#5a7050;">
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">N° Facture</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Client</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:right;font-weight:600;text-transform:uppercase;">MT Facture</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Règlement</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Date</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:right;font-weight:600;text-transform:uppercase;">CHQ/LC</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:center;font-weight:600;text-transform:uppercase;">État</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Commentaire</th>
+              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:center;font-weight:600;text-transform:uppercase;">Action</th>
+            </tr></thead>
+            <tbody id="suivi-tbody2"></tbody>
+          </table>
+        </div>
+        <div id="suivi-total2" style="display:none;padding:10px 16px;background:#f4fbed;border-top:1px solid #e0e8d8;text-align:right;font-size:13px;font-weight:600;color:#27500a;"></div>
+      </div>
+    </div>
+
+    <!-- STOCK -->
+    <div class="panel" id="panel-stock" style="color:#333;background:#f4f6f3;">
+      <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:14px;font-weight:500;color:#fff;">📦 Gestion Stock</div>
+        <button onclick="saveStockAdmin()" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
+      </div>
+      <div id="stock-alerte-admin" style="display:none;background:#fff3e0;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
+      <div id="stock-body-admin" style="color:#333 !important;background:#f4f6f3 !important;"></div>
+      <div id="stock-msg-admin" style="display:none;background:#eaf3de;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:12px;color:#27500a;"></div>
+    </div>
+
+    <!-- HISTORIQUE BL -->
+    <div class="panel" id="panel-historique">
+      <div style="background:#5a7050;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg viewBox="0 0 52 52" width="40" height="40" role="img"><title>ELZER</title><circle cx="26" cy="26" r="24" fill="#6b8a5e"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M26 10 C35 14 39 22 36 30 C33 37 29 40 26 43Z" fill="#3a8a28"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/><path d="M31 38 L28 45 L26 38Z" fill="#c0581a" opacity=".8"/></svg>
+          <div><div style="font-size:14px;font-weight:500;color:#fff;">Historique BL</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="histo-header-count"></div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
+        <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+        <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+      </div>
+      <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
+      <div id="historique-content"></div>
+    </div>
+
     </div>
 </div>
 </div>
@@ -462,108 +543,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 <script>
 
-// Injecter panels stock et suivi dans .content (fix structure HTML)
-(function(){
-  function injectPanels(){
-    var content = document.querySelector('.content');
-    if(!content){setTimeout(injectPanels,100);return;}
-    // Eviter doublons
-    if(!document.getElementById('panel-suivi')){
-      var suiviDiv = document.createElement('div');
-      suiviDiv.innerHTML = `<div class="panel" id="panel-suivi" style="color:#333;background:#f4f6f3;">
-      <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:14px;font-weight:500;color:#fff;">📊 Suivi Factures</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="openSuiviForm(-1)" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">+ Ajouter</button>
-          <button onclick="exportSuiviCSV()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">📥 CSV</button>
-        </div>
-      </div>
-      <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf2-num" class="fs" placeholder="AFD2026/0001" style="width:100%;"/></div>
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Client</label><input id="sf2-cli" class="fs" placeholder="Nom client" style="width:100%;"/></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT Facture</label><input id="sf2-mt" type="number" class="fs" placeholder="0" style="width:100%;"/></div>
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">MT CHQ/LC</label><input id="sf2-chq" type="number" class="fs" placeholder="0" style="width:100%;"/></div>
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Date</label><input id="sf2-date" type="date" class="fs" style="width:100%;"/></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Règlement</label>
-            <select id="sf2-reg" class="fs" style="width:100%;"><option value="">—</option><option>Espèces</option><option>Chèque</option><option>LC</option><option>Virement</option></select></div>
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">État</label>
-            <select id="sf2-etat" class="fs" style="width:100%;"><option value="">—</option><option>REGLER</option><option>EN COURS</option><option>IMPAYE</option></select></div>
-          <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Commentaire</label><input id="sf2-com" class="fs" placeholder="Note..." style="width:100%;"/></div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="saveSuiviRow2()" style="flex:1;background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:9px;cursor:pointer;font-size:13px;font-weight:500;">💾 Enregistrer</button>
-          <button onclick="document.getElementById('suivi-form-inline').style.display='none'" style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:9px 16px;cursor:pointer;font-size:13px;">Annuler</button>
-        </div>
-      </div>
-      <div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;">
-        <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;min-width:700px;">
-            <thead><tr style="background:#5a7050;">
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">N° Facture</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Client</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:right;font-weight:600;text-transform:uppercase;">MT Facture</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Règlement</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Date</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:right;font-weight:600;text-transform:uppercase;">CHQ/LC</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:center;font-weight:600;text-transform:uppercase;">État</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:left;font-weight:600;text-transform:uppercase;">Commentaire</th>
-              <th style="padding:9px 12px;color:#fff;font-size:10px;text-align:center;font-weight:600;text-transform:uppercase;">Action</th>
-            </tr></thead>
-            <tbody id="suivi-tbody2"></tbody>
-          </table>
-        </div>
-        <div id="suivi-total2" style="display:none;padding:10px 16px;background:#f4fbed;border-top:1px solid #e0e8d8;text-align:right;font-size:13px;font-weight:600;color:#27500a;"></div>
-      </div>
-    </div>`;
-      var suiviPanel = suiviDiv.querySelector('#panel-suivi');
-      if(suiviPanel) content.appendChild(suiviPanel);
-    }
-    if(!document.getElementById('panel-stock')){
-      var stockDiv = document.createElement('div');
-      stockDiv.innerHTML = `<div class="panel" id="panel-stock" style="color:#333;background:#f4f6f3;">
-      <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:14px;font-weight:500;color:#fff;">📦 Gestion Stock</div>
-        <button onclick="saveStockAdmin()" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
-      </div>
-      <div id="stock-alerte-admin" style="display:none;background:#fff3e0;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
-      <div id="stock-body-admin" style="color:#333 !important;background:#f4f6f3 !important;"></div>
-      <div id="stock-msg-admin" style="display:none;background:#eaf3de;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:12px;color:#27500a;"></div>
-    </div>`;
-      var stockPanel = stockDiv.querySelector('#panel-stock');
-      if(stockPanel) content.appendChild(stockPanel);
-    }
-    if(!document.getElementById('panel-historique')){
-      var histoDiv = document.createElement('div');
-      histoDiv.innerHTML = `<div class="panel" id="panel-historique">
-      <div style="background:#5a7050;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <svg viewBox="0 0 52 52" width="40" height="40" role="img"><title>ELZER</title><circle cx="26" cy="26" r="24" fill="#6b8a5e"/><path d="M26 10 C17 14 13 22 16 30 C19 37 23 40 26 43 C29 40 33 37 36 30 C39 22 35 14 26 10Z" fill="#4a9a35"/><path d="M26 10 C35 14 39 22 36 30 C33 37 29 40 26 43Z" fill="#3a8a28"/><path d="M21 38 L24 45 L26 38Z" fill="#e67e22"/><path d="M31 38 L28 45 L26 38Z" fill="#c0581a" opacity=".8"/></svg>
-          <div><div style="font-size:14px;font-weight:500;color:#fff;">Historique BL</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="histo-header-count"></div></div>
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-        <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
-        <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
-        <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
-      </div>
-      <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
-      <div id="historique-content"></div>
-    </div>`;
-      var histoPanel = histoDiv.querySelector('#panel-historique');
-      if(histoPanel) content.appendChild(histoPanel);
-    }
-  }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',injectPanels);
-  } else {
-    injectPanels();
-  }
-})();
+
 
 
 // SECURITE: verifier authentification
