@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781168951</title>
+<title>Admin ELZER v1781185653</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -650,6 +650,33 @@ var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 var TRAD = {"Ail": "آيل", "Ail épluché 1kg": "آيل مقشر", "Carotte": "كاروت", "Tomate": "طوماطيم", "Courgette verte": "كورجيت فيرت", "Oignon": "أونيون", "Pomme de terre": "بوم دو تير", "Poivron rouge": "بوافرون روج", "Poivron jaune": "بوافرون جون", "Aubergine": "أوبيرجين", "Concombre": "كونكومبر", "Poireaux": "بوارو", "Épinard": "إبينار", "Brocoli": "بروكولي", "Salade romaine": "سالاد رومين", "Salade mesclun": "سالاد ميسكلون", "Salade mâche": "سالاد ماش", "Roquette": "روكيت", "Avocat": "أفوكا", "Ananas": "أناناس", "Banane": "بانان", "Fraise": "فريز", "Framboise": "فرامبواز", "Citron jaune": "سيترون جون", "Citron vert": "سيترون فير", "Orange à jus": "أورانج أ جو", "Mangue avion": "مانغ أفيون", "Pastèque locale": "باستيك لوكال", "Pamplemousse": "بامبلموس", "Basilic": "بازيليك", "Coriandre": "كوريوندر", "Persil": "بيرسي", "Thym": "تيم", "Romarin": "روزماران", "Menthe fraîche": "مانت فريش", "Gingembre frais": "جانجامبر فري", "Safran bio": "سافران بيو"};
 
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+// ── NUMEROS BL CONTINUS ──
+function getMaxBLNum(){
+  var orders=load('terrasse_orders',[]);
+  var max=0;
+  orders.forEach(function(o){
+    var n=parseInt(o.id)||0;
+    if(n>max) max=n;
+  });
+  return max;
+}
+function getNextBLNum(){
+  var maxLocal=parseInt(localStorage.getItem('elzer_next_bl')||'0');
+  var maxOrders=getMaxBLNum();
+  var next=Math.max(maxLocal,maxOrders)+1;
+  localStorage.setItem('elzer_next_bl',String(next));
+  return next;
+}
+// Synchroniser le compteur BL au demarrage
+(function(){
+  var maxOrders=getMaxBLNum();
+  var current=parseInt(localStorage.getItem('elzer_next_bl')||'0');
+  if(maxOrders>=current){
+    localStorage.setItem('elzer_next_bl',String(maxOrders+1));
+  }
+})();
+
 function load(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch(e){return d;}}
 function toast(m){var n=document.getElementById('notif');n.textContent=m;n.classList.add('show');setTimeout(function(){n.classList.remove('show');},3000);}
 function openModal(id){document.getElementById(id).classList.add('show');}
@@ -1648,7 +1675,130 @@ function renderFacturation(){
   document.getElementById('facturation-content').innerHTML=html;
 }
 
-function exportFacturePDF(){toast('PDF Facture - bientot disponible');}
+function exportFacturePDF(){
+  // Générer la facture et l'ajouter au suivi
+  var sel=document.getElementById('fact-mois');
+  if(!sel||!sel.value){toast('Selectionnez un mois');return;}
+  var month=sel?sel.value:'';
+  var cliSel=document.getElementById('fact-client');
+  var cliName=cliSel?cliSel.value:'';
+  if(!cliName){toast('Selectionnez un client');return;}
+  
+  // Calculer le total des commandes du mois pour ce client
+  orders=load('terrasse_orders',[]);
+  var cliList=load('admin_clients',[]);
+  var cli=(cliList||[]).find(function(c){return c.name===cliName;})||{};
+  var prix=cli.prix||{};
+  var monthOrders=orders.filter(function(o){
+    return o.client===cliName && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';
+  });
+  
+  if(!monthOrders.length){toast('Aucune commande pour ce mois');return;}
+  
+  var totalMois=0;
+  monthOrders.forEach(function(o){
+    (o.items||[]).forEach(function(i){
+      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var qty=parseFloat(i.qty)||0;
+      totalMois+=pu*qty;
+    });
+  });
+  
+  // Generer numero facture continu
+  var numFact=getNextNum2();
+  
+  // Ajouter au Suivi Factures automatiquement
+  loadSuivi2();
+  SUIVI2.push({
+    num:numFact,
+    client:cliName,
+    mt:totalMois.toFixed(2),
+    regl:'EN COURS',
+    date:new Date().toISOString().split('T')[0],
+    mtchq:'',
+    etat:'Non regle',
+    comment:'Facture '+month+' - '+monthOrders.length+' BL',
+    blIds:monthOrders.map(function(o){return o.id;})
+  });
+  saveSuivi2();
+  
+  // Generer le PDF
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF();
+  var W=210;
+  
+  // Header vert sauge
+  doc.setFillColor(90,112,80);
+  doc.rect(0,0,W,32,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica','bold');
+  doc.text('ELZER DISTRIBUTION',14,18);
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.text('LA QUALITE A PORTEE DE MAIN',14,25);
+  
+  // Numero facture
+  doc.setFontSize(14);
+  doc.text('FACTURE '+numFact,W-14,16,{align:'right'});
+  doc.setFontSize(10);
+  doc.text(new Date().toLocaleDateString('fr-FR'),W-14,24,{align:'right'});
+  
+  // Info fournisseur / client
+  doc.setTextColor(100,100,100);
+  var y=42;
+  doc.setFontSize(9);doc.text('FOURNISSEUR',14,y);doc.text('CLIENT',W/2+10,y);
+  y+=6;
+  doc.setTextColor(0,0,0);doc.setFontSize(10);doc.setFont('helvetica','bold');
+  doc.text('ELZER DISTRIBUTION',14,y);doc.text(cliName,W/2+10,y);
+  y+=5;doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(100);
+  doc.text('Appt N15 Imm12 lot Sine, Marrakech',14,y);
+  if(cli.adresse) doc.text(cli.adresse,W/2+10,y);
+  y+=4;
+  doc.text('ICE: 003711905000045',14,y);
+  if(cli.ice) doc.text('ICE: '+cli.ice,W/2+10,y);
+  
+  // Periode
+  y+=10;doc.setFontSize(10);doc.setTextColor(0);
+  doc.text('Periode: '+month+' | '+monthOrders.length+' bon(s) de livraison',14,y);
+  
+  // Tableau des BL
+  y+=8;
+  doc.setFillColor(247,250,244);doc.rect(14,y,W-28,8,'F');
+  doc.setFontSize(8);doc.setTextColor(90,112,80);
+  doc.text('BL N',16,y+5.5);doc.text('Date',50,y+5.5);doc.text('Articles',80,y+5.5);doc.text('Total',W-16,y+5.5,{align:'right'});
+  y+=10;
+  
+  doc.setTextColor(0);
+  monthOrders.forEach(function(o){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var blTotal=0;
+    (o.items||[]).forEach(function(i){
+      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      blTotal+=pu*(parseFloat(i.qty)||0);
+    });
+    doc.text('BL-'+o.id,16,y);
+    doc.text(dv,50,y);
+    doc.text((o.items||[]).length+' articles',80,y);
+    doc.text(blTotal.toFixed(2)+' Dh',W-16,y,{align:'right'});
+    y+=6;
+    if(y>270){doc.addPage();y=20;}
+  });
+  
+  // Total
+  y+=4;
+  doc.setDrawColor(90,112,80);doc.setLineWidth(0.5);doc.line(14,y,W-14,y);
+  y+=8;
+  doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(90,112,80);
+  doc.text('TOTAL: '+totalMois.toFixed(2)+' Dh',W-16,y,{align:'right'});
+  
+  // Footer
+  addPDFFooter(doc,W);
+  
+  doc.save('Facture_'+numFact.replace('/','-')+'_'+cliName.replace(/ /g,'_')+'.pdf');
+  toast('Facture '+numFact+' generee et ajoutee au suivi!');
+  renderSuivi2();
+}
 
 // ── PDF COMMANDE ──
 
@@ -1721,42 +1871,53 @@ function buildBLHtml(o){
     var qty=parseFloat(i.qty)||0;
     var lineTotal=pu*qty;
     total+=lineTotal;
-    return '<tr style="background:'+(idx%2===0?"#fff":"#f7faf4")+';">'
-      +'<td style="padding:5px 10px;border:1px solid #ccc;font-size:11px;">'+i.name+'</td>'
-      +'<td style="padding:5px 10px;border:1px solid #ccc;text-align:center;font-size:11px;">'+i.unit+'</td>'
-      +'<td style="padding:5px 10px;border:1px solid #ccc;text-align:center;font-size:11px;">'+qty.toFixed(2).replace(".",",")+'</td>'
-      +'<td style="padding:5px 10px;border:1px solid #ccc;text-align:right;font-size:11px;">'+(pu>0?pu.toFixed(2).replace(".",","):"")+'</td>'
-      +'<td style="padding:5px 10px;border:1px solid #ccc;text-align:right;font-size:11px;font-weight:600;">'+(lineTotal>0?lineTotal.toFixed(2).replace(".",","):"")+'</td>'
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';">'
+      +'<td style="padding:9px 24px;font-size:12px;color:#333;">'+i.name+'</td>'
+      +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#777;">'+i.unit+'</td>'
+      +'<td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:600;color:#333;">'+qty.toFixed(2).replace('.',',')+'</td>'
+      +'<td style="padding:9px 12px;text-align:right;font-size:12px;color:#777;">'+(pu>0?pu.toFixed(2).replace('.',','):'')+'</td>'
+      +'<td style="padding:9px 24px;text-align:right;font-size:12px;font-weight:600;color:#5a7050;">'+(lineTotal>0?lineTotal.toFixed(2).replace('.',','):'')+'</td>'
       +'</tr>';
   }).join('');
-
-  return '<div style="font-family:Arial,sans-serif;color:#000;padding:10px;">'
-    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">'
-    +'<div style="display:flex;align-items:center;gap:6px;">'
-    +'<svg viewBox="0 0 40 40" width="34" height="34"><circle cx="20" cy="20" r="18" fill="#6b8a5e"/><path d="M20 7 C13 11 10 17 13 23 C15 28 18 30 20 32 C22 30 25 28 27 23 C30 17 27 11 20 7Z" fill="#4a9a35"/><path d="M16 28 L18 33 L20 28Z" fill="#e67e22"/></svg>'
-    +'<div><span style="font-size:18px;font-weight:bold;color:#5a7050;">ELZER</span><span style="font-size:18px;font-weight:bold;color:#e67e22;">DISTRIBUTION</span><div style="font-size:7px;color:#888;letter-spacing:1px;">LA QUALITÉ À PORTÉE DE MAIN</div></div>'
+  var cliIce=cli.ice||'';
+  var cliAdresse=cli.adresse||'';
+  return '<div style="font-family:Arial,sans-serif;color:#333;">'
+    +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;">'
+    +'<div style="display:flex;align-items:center;gap:12px;">'
+    +'<div style="width:46px;height:46px;border-radius:50%;background:#6b8a5e;display:flex;align-items:center;justify-content:center;">'
+    +'<svg viewBox=\"0 0 40 40\" width=\"30\" height=\"30\"><path d=\"M20 7 C13 11 10 17 13 23 C15 28 18 30 20 32 C22 30 25 28 27 23 C30 17 27 11 20 7Z\" fill=\"#a8d98a\"/><path d=\"M16 28 L18 33 L20 28Z\" fill=\"#e8954a\"/></svg>'
     +'</div>'
-    +'<table style="border-collapse:collapse;font-size:9px;"><tr><td style="border:1px solid #999;padding:3px 8px;background:#f0f0f0;">FORMULAIRE</td><td style="border:1px solid #999;padding:3px 8px;font-weight:bold;font-size:12px;" rowspan="3">'+o.client+'</td></tr>'
-    +'<tr><td style="border:1px solid #999;padding:3px 8px;background:#f0f0f0;">BON DE LIVRAISON</td></tr>'
-    +'<tr><td style="border:1px solid #999;padding:3px 8px;font-size:8px;">Page 1/1<br>Date: '+dv+'</td></tr></table>'
+    +'<div><div style="font-size:20px;font-weight:bold;color:#fff;letter-spacing:1px;">ELZER</div>'
+    +'<div style="font-size:9px;color:#d4e0cc;letter-spacing:2px;">DISTRIBUTION</div></div>'
     +'</div>'
-    +'<div style="font-weight:bold;font-size:13px;margin:6px 0;">BON DE LIVRAISON N° BL-'+o.id+'</div>'
-    +'<div style="font-style:italic;font-size:10px;margin-bottom:4px;">Nature d Achat</div>'
-    +'<table style="width:100%;border-collapse:collapse;margin-bottom:2px;font-size:9px;">'
-    +'<tr><td style="border:1px solid #999;padding:3px 8px;background:#f0f0f0;width:50%;">PRODUITS / PRESTATION DE SERVICE<br>Fruits et légumes</td>'
-    +'<td style="border:1px solid #999;padding:3px 8px;">FOURNISSEUR: SM ELZER DIST<br>DEMANDEUR: '+o.client+'<br>LA DIRECTION</td></tr></table>'
-    +'<table style="width:100%;border-collapse:collapse;margin-bottom:10px;">'
-    +'<thead><tr style="background:#e8e8e8;">'
-    +'<th style="border:1px solid #999;padding:5px 10px;text-align:left;font-size:10px;">DESIGNATION</th>'
-    +'<th style="border:1px solid #999;padding:5px 10px;font-size:10px;">UNITE</th>'
-    +'<th style="border:1px solid #999;padding:5px 10px;font-size:10px;">QUANTITE</th>'
-    +'<th style="border:1px solid #999;padding:5px 10px;font-size:10px;">PRIX UNIT HT</th>'
-    +'<th style="border:1px solid #999;padding:5px 10px;font-size:10px;">TOTAL</th></tr></thead>'
-    +'<tbody>'+itemRows+'</tbody>'
-    +'<tfoot><tr style="background:#f0f0f0;"><td colspan="4" style="border:1px solid #999;padding:7px 10px;font-weight:bold;text-align:right;">TOTAL</td>'
-    +'<td style="border:1px solid #999;padding:7px 10px;font-weight:bold;text-align:right;font-size:13px;">'+total.toFixed(2).replace(".",",")+'</td></tr></tfoot>'
-    +'</table>'
-    +'</div>';
+    +'<div style="text-align:right;color:#fff;">'
+    +'<div style="font-size:11px;color:#d4e0cc;text-transform:uppercase;letter-spacing:1px;">Bon de livraison</div>'
+    +'<div style="font-size:22px;font-weight:bold;color:#fff;">N\u00b0 BL-'+o.id+'</div>'
+    +'<div style="font-size:11px;color:#d4e0cc;margin-top:2px;">'+dv+'</div></div></div>'
+    +'<div style="display:flex;border-bottom:1px solid #eee;">'
+    +'<div style="flex:1;padding:16px 24px;border-right:1px solid #eee;">'
+    +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Fournisseur</div>'
+    +'<div style="font-size:14px;font-weight:600;color:#5a7050;">ELZER DISTRIBUTION</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">Appt N\u00b015 Imm12 lot Sine<br>Av Allal Fassi, Marrakech</div></div>'
+    +'<div style="flex:1;padding:16px 24px;">'
+    +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Client</div>'
+    +'<div style="font-size:14px;font-weight:600;color:#333;">'+o.client+'</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">'+(cliAdresse?cliAdresse+'<br>':'')+(cliIce?'ICE: '+cliIce:'')+'</div></div></div>'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#f7faf4;">'
+    +'<th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">D\u00e9signation</th>'
+    +'<th style="padding:10px 12px;text-align:center;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Unit\u00e9</th>'
+    +'<th style="padding:10px 12px;text-align:center;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Qt\u00e9</th>'
+    +'<th style="padding:10px 12px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">P.U HT</th>'
+    +'<th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Total</th></tr></thead>'
+    +'<tbody>'+itemRows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;">'
+    +'<div style="text-align:right;"><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span>'
+    +'<span style="font-size:22px;font-weight:bold;color:#5a7050;">'+total.toFixed(2).replace('.',',')+' Dh</span></div></div>'
+    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;">'
+    +'<div style="font-size:8px;color:#d4e0cc;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH \u00b7 Marrakech \u00b7 MAROC<br>'
+    +'RC: 129615 \u00b7 IF: 06298456 \u00b7 ICE: 003711905000045 \u00b7 T\u00e9l: +212 6 73 95 83 37</div></div></div>';
 }
 
 function getBLFooter(){
@@ -3148,6 +3309,7 @@ function renderStockAdmin(){
   var el=document.getElementById('stock-body-admin');
   if(!el){setTimeout(renderStockAdmin,200);return;}
   var stk=load('elzer_stock',{});
+  var pa=load('prix_achat',{});
   var seu=load('elzer_stock_seuil',{});
   var alertes=[];
   var html='';
@@ -3187,7 +3349,25 @@ function saveStockAdmin(){
   save('elzer_stock',stk);
   save('elzer_stock_seuil',seu);
   saveStockToSupabase();
-  toast('Stock sauvegarde!');
+  // Sauvegarder prix achat
+    var pa=load('prix_achat',{});
+    var paHisto=load('prix_achat_histo',{});
+    var today=new Date().toISOString().split('T')[0];
+    document.querySelectorAll('[data-pa]').forEach(function(i){
+      var name=i.dataset.pa;
+      var val=parseFloat(i.value)||0;
+      if(val>0){
+        pa[name]=String(val);
+        if(!paHisto[name]) paHisto[name]=[];
+        var last=paHisto[name][paHisto[name].length-1];
+        if(!last||last.date!==today||last.prix!==val){
+          paHisto[name].push({date:today,prix:val});
+        }
+      }
+    });
+    save('prix_achat',pa);
+    save('prix_achat_histo',paHisto);
+    toast('Stock et prix achat sauvegardes!');
   renderStockAdmin();
 }
 
