@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781213379</title>
+<title>Admin ELZER v1781213669</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -39,7 +39,19 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 .top-badge{background:var(--g1);color:var(--g7);font-size:12px;padding:5px 12px;border-radius:20px;font-weight:600;}
 .content{padding:24px;width:100%;min-width:0;display:block;box-sizing:border-box;}
 .panel{display:none;}
-.panel.active{display:block !important;}
+.panel.active{
+  display:block !important;
+  position:fixed !important;
+  top:56px !important;
+  left:220px !important;
+  right:0 !important;
+  bottom:0 !important;
+  overflow-y:auto !important;
+  padding:20px !important;
+  background:#f4f6f3 !important;
+  color:#333 !important;
+  z-index:50 !important;
+}
 .panel.active table, .panel.active td, .panel.active th, .panel.active input, .panel.active select, .panel.active label, .panel.active div:not([style*="color:#fff"]):not([style*="color:white"]):not([style*="color:rgba(255"]) { color:#333 !important; }
 .panel.active input { background:#fff !important; }
 .panel.active table { background:#fff !important; }
@@ -131,33 +143,10 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 }
 
 /* FIX DEFINITIF: position fixed contourne le parent casse */
-#panel-stock.active, #panel-suivi.active {
-  position: fixed !important;
-  top: 56px !important;
-  left: 220px !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: auto !important;
-  height: auto !important;
-  overflow-y: auto !important;
-  padding: 20px !important;
-  background: #f4f6f3 !important;
-  color: #333 !important;
-  z-index: 50 !important;
-  display: block !important;
-}
-#panel-stock.active *, #panel-suivi.active * {
-  color: #333 !important;
-}
-#panel-stock.active input, #panel-suivi.active input,
-#panel-stock.active select, #panel-suivi.active select {
-  color: #333 !important;
-  background: #fff !important;
-}
-#panel-stock.active div[style*="0f2d0a"], #panel-suivi.active div[style*="0f2d0a"],
-#panel-stock.active th, #panel-suivi.active th {
-  color: #fff !important;
-}
+
+
+
+
 </style>
 </head>
 <body>
