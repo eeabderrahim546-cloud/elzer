@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781213669</title>
+<title>Admin ELZER v1781214372</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -147,6 +147,17 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 
 
+
+/* MOBILE - sidebar plus etroite */
+@media (max-width: 768px) {
+  .sb { width: 60px !important; }
+  .main { margin-left: 60px !important; width: calc(100% - 60px) !important; }
+  .panel.active {
+    left: 60px !important;
+    padding: 12px !important;
+  }
+  .sbi span { display: none; }
+}
 </style>
 </head>
 <body>
