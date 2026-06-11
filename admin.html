@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781164762</title>
+<title>Admin ELZER v1781164886</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -820,6 +820,8 @@ document.addEventListener('click',function(e){
     else if(a==='set-status-close'){setStatus(el.dataset.id,el.dataset.status);closeModal('modal-cmd');}
     else if(a==='open-detail'){openCmdDetail(el.dataset.id);}
     else if(a==='export-pdf'){exportPDF(el.dataset.id);}
+    else if(a==='pdf-bl'){exportPDF(el.dataset.id);}
+    else if(a==='print-bl'){printBL(el.dataset.id);}
     else if(a==='client-link'){genClientLink(el.dataset.id);}
     else if(a==='client-edit'){editClient(el.dataset.id);}
     else if(a==='client-del'){deleteClient(el.dataset.id);}
@@ -1636,6 +1638,47 @@ function renderFacturation(){
 function exportFacturePDF(){toast('PDF Facture - bientot disponible');}
 
 // ── PDF COMMANDE ──
+
+// ── IMPRIMER BL ──
+function printBL(id){
+  orders=load('terrasse_orders',[]);
+  var o=orders.find(function(x){return x.id===id;});
+  if(!o) return;
+  var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+  var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
+  var itemRows=(o.items||[]).map(function(i,idx){
+    return '<tr style="background:'+(idx%2===0?'#fff':'#f7faf4')+';"><td style="padding:7px 12px;border-bottom:1px solid #eee;">'+i.name+'</td><td style="padding:7px 12px;border-bottom:1px solid #eee;text-align:center;">'+i.unit+'</td><td style="padding:7px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:600;">'+i.qty+'</td></tr>';
+  }).join('');
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BL '+o.id+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#333;}'
+    +'@media print{@page{margin:1cm;}}'
+    +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #5a7050;padding-bottom:12px;margin-bottom:6px;}'
+    +'.coord{font-size:9px;color:#666;border-bottom:1px solid #ddd;padding-bottom:8px;margin-bottom:16px;display:flex;justify-content:space-between;}'
+    +'table{width:100%;border-collapse:collapse;margin-bottom:20px;}'
+    +'th{background:#5a7050;color:#fff;padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;}'
+    +'th.c{text-align:center;}'
+    +'.ft{position:fixed;bottom:0;left:0;right:0;background:#5a7050;color:#fff;font-size:8px;text-align:center;padding:6px;}'
+    +'</style></head><body>'
+    +'<div class="hdr">'
+    +'<div><div style="font-size:24px;font-weight:bold;color:#e67e22;letter-spacing:3px;">ELZER</div>'
+    +'<div style="font-size:10px;color:#6b8a5e;letter-spacing:2px;">DISTRIBUTION</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:16px;font-weight:bold;">BON DE LIVRAISON</div>'
+    +'<div style="font-size:14px;color:#e67e22;font-weight:bold;">N° BL-'+o.id+'</div>'
+    +'<div style="font-size:11px;color:#666;">'+dv+'</div></div></div>'
+    +'<div class="coord"><div>N°15 Imm 12 Lot Sine, Av Allal Fassi, Marrakech</div>'
+    +'<div>RC:129615 · IF:06298456 · ICE:003711905000045</div></div>'
+    +'<div style="margin-bottom:14px;"><strong style="font-size:15px;">Client: '+o.client+'</strong>'
+    +'<div style="font-size:11px;color:#666;">Réception: '+cr+' | Livraison: '+dv+'</div></div>'
+    +'<table><thead><tr><th>Désignation</th><th class="c">Unité</th><th class="c">Quantité</th></tr></thead>'
+    +'<tbody>'+itemRows+'</tbody></table>'
+    +(o.total?'<div style="text-align:right;font-size:16px;font-weight:bold;color:#5a7050;">TOTAL: '+Math.round(o.total).toLocaleString('fr-FR')+' Dh</div>':'')
+    +'<div class="ft">ELZER DIST S.A.R.L au capital de 100 000 DH · Appt N°15 Imm12 lot Sine AV Allal Fassi · Marrakech · MAROC · RC:129615 · IF:06298456 · ICE:003711905000045 · Tél: +212 6 73 95 83 37</div>'
+    +'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},300);
+}
+
 function exportPDF(id){
   orders=load('terrasse_orders',[]);
   var o=orders.find(function(x){return x.id===id;});if(!o)return;
@@ -2359,8 +2402,12 @@ function renderHistorique(){
       +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
       +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
       +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
       +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
+      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
+      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
       +'</div></div></div>';
   }).join('');
 
@@ -2383,8 +2430,12 @@ function renderBLClient(clientName){
       +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+'</div>'
       +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | '+Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</div></div>'
       +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
       +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
+      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
+      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
       +'</div></div></div>';
   }).join('');
 }
@@ -2711,8 +2762,12 @@ function renderHistorique(){
       +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
       +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
       +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
       +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
+      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
+      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
       +'</div></div></div>';
   }).join('');
 
@@ -2735,8 +2790,12 @@ function renderBLClient(clientName){
       +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+'</div>'
       +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | '+Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</div></div>'
       +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'
+      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
       +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
+      +'</div>'
+      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
+      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
+      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
       +'</div></div></div>';
   }).join('');
 }
