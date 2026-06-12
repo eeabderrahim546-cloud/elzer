@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781259607</title>
+<title>Admin ELZER v1781276060</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -980,7 +980,20 @@ function renderClients(){
   grid.innerHTML=clients.map(function(c){
     var initials=c.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
     var cOrders=orders.filter(function(o){return o.client===c.name;});
-    return '<div class="cc"><div class="cc-hd"><div class="cc-av">'+initials+'</div><div><div class="cc-nm">'+c.name+'</div><div class="cc-tp">'+c.type+'</div></div></div><div class="cc-bd"><div class="cc-st"><span class="cc-sl">Commandes</span><span class="cc-sv">'+cOrders.length+'</span></div><div class="cc-st"><span class="cc-sl">WhatsApp</span><span class="cc-sv">'+(c.wa||'—')+'</span></div></div><div class="cc-ac"><button class="btn btn-p btn-sm" data-action="client-link" data-id="'+c.id+'">Lien app</button><button class="btn btn-b btn-sm" data-action="client-edit" data-id="'+c.id+'">Modifier</button><button class="btn btn-d btn-sm" data-action="client-del" data-id="'+c.id+'">Suppr.</button></div></div>';
+    var coords='';
+    if(c.tel||c.email||c.adresse||c.ice){
+      coords='<div style="background:#f7faf4;padding:8px 12px;border-radius:6px;margin-top:8px;font-size:11px;color:#5a7050;line-height:1.6;">';
+      if(c.tel) coords+='📞 '+c.tel+'<br>';
+      if(c.email) coords+='✉️ '+c.email+'<br>';
+      if(c.adresse) coords+='📍 '+c.adresse+'<br>';
+      if(c.ice) coords+='ICE: '+c.ice;
+      if(c.rc) coords+=' · RC: '+c.rc;
+      if(c.iff) coords+=' · IF: '+c.iff;
+      coords+='</div>';
+    } else {
+      coords='<div style="background:#fff3e0;padding:8px 12px;border-radius:6px;margin-top:8px;font-size:11px;color:#c47a00;">⚠️ Coordonnées manquantes - cliquez Modifier</div>';
+    }
+    return '<div class="cc"><div class="cc-hd"><div class="cc-av">'+initials+'</div><div><div class="cc-nm">'+c.name+'</div><div class="cc-tp">'+c.type+'</div></div></div><div class="cc-bd"><div class="cc-st"><span class="cc-sl">Commandes</span><span class="cc-sv">'+cOrders.length+'</span></div><div class="cc-st"><span class="cc-sl">WhatsApp</span><span class="cc-sv">'+(c.wa||'—')+'</span></div>'+coords+'</div><div class="cc-ac"><button class="btn btn-p btn-sm" data-action="client-link" data-id="'+c.id+'">Lien app</button><button class="btn btn-b btn-sm" data-action="client-edit" data-id="'+c.id+'">Modifier</button><button class="btn btn-d btn-sm" data-action="client-del" data-id="'+c.id+'">Suppr.</button></div></div>';
   }).join('');
 }
 
@@ -2776,7 +2789,13 @@ function renderHistorique(){
   });
 
   // Trier par date desc
-  filtered.sort(function(a,b){return (b.id>a.id)?1:-1;});
+  filtered.sort(function(a,b){
+    // Trier par date de création décroissante (récents en haut)
+    var da=new Date(a.createdAt||a.delivDate||0);
+    var db=new Date(b.createdAt||b.delivDate||0);
+    if(db-da!==0) return db-da;
+    return (b.id>a.id)?1:-1;
+  });
 
   var hc=document.getElementById('histo-header-count');
   if(hc) hc.textContent=filtered.length+' BL trouvé(s)';
@@ -3138,7 +3157,13 @@ function renderHistorique(){
   });
 
   // Trier par date desc
-  filtered.sort(function(a,b){return (b.id>a.id)?1:-1;});
+  filtered.sort(function(a,b){
+    // Trier par date de création décroissante (récents en haut)
+    var da=new Date(a.createdAt||a.delivDate||0);
+    var db=new Date(b.createdAt||b.delivDate||0);
+    if(db-da!==0) return db-da;
+    return (b.id>a.id)?1:-1;
+  });
 
   var hc=document.getElementById('histo-header-count');
   if(hc) hc.textContent=filtered.length+' BL trouvé(s)';
