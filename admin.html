@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781276060</title>
+<title>Admin ELZER v1781299400</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -874,7 +874,13 @@ function renderCommandes(){
   var cur=fc;
   var cls=[].concat([...new Set(orders.map(function(o){return o.client;}))]);
   fcSel.innerHTML='<option value="">Tous les clients</option>'+cls.map(function(c){return '<option value="'+c+'"'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
-  var list=[].concat(orders).reverse();
+  var list=[].concat(orders).sort(function(a,b){
+    // Nouvelles d'abord, puis preparation, puis livrees
+    var sa=({nouvelle:0,preparation:1,livree:2,annulee:3})[a.status]||9;
+    var sb=({nouvelle:0,preparation:1,livree:2,annulee:3})[b.status]||9;
+    if(sa!==sb) return sa-sb;
+    return new Date(b.createdAt||0)-new Date(a.createdAt||0);
+  });
   if(fs)list=list.filter(function(o){return o.status===fs;});
   if(fc)list=list.filter(function(o){return o.client===fc;});
   var container=document.getElementById('commandes-list');
