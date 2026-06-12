@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781258885</title>
+<title>Admin ELZER v1781259607</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -276,7 +276,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div style="display:flex;gap:8px;">
           <input type="date" class="fi" style="width:160px;" id="four-date"/>
           <button class="btn btn-p" data-action="render-fournisseur">Actualiser</button>
-          <button class="btn btn-b" data-action="export-fournisseur-pdf">PDF</button>
+          <button class="btn btn-s" data-action="print-fournisseur">🖨️ Imprimer</button>
+          <button class="btn btn-b" data-action="export-fournisseur-pdf">📄 PDF</button>
           <button class="btn btn-s" data-action="send-fournisseur-wa">WhatsApp</button>
           <button class="btn btn-p btn-sm" data-action="save-four-history">💾 Sauvegarder</button>
           <button class="btn btn-s btn-sm" data-action="show-four-history">📋 Historique</button>
@@ -329,7 +330,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <select class="fs" style="width:200px;" id="fact-mois"></select>
         <select class="fs" style="width:200px;" id="fact-client"><option value="">Tous les clients</option></select>
-        <button class="btn btn-p" data-action="export-facture-pdf">PDF</button>
+        <button class="btn btn-s" data-action="print-facture">🖨️ Imprimer</button>
+      <button class="btn btn-p" data-action="export-facture-pdf">PDF</button>
       </div>
       <div id="facturation-content"></div>
     </div>
@@ -763,6 +765,9 @@ document.addEventListener('click',function(e){
     else if(a==='export-pdf'){exportPDF(el.dataset.id);}
     else if(a==='pdf-bl'){exportPDF(el.dataset.id);}
     else if(a==='print-bl'){printBL(el.dataset.id);}
+    else if(a==='print-devis'){printDevis(el.dataset.id);}
+    else if(a==='print-fournisseur'){printFournisseur();}
+    else if(a==='print-facture'){printFacture();}
     else if(a==='view-bl'){viewBL(el.dataset.id);}
     else if(a==='edit-bl-items'){editBLItems(el.dataset.id);}
     else if(a==='save-bl-items'){saveBLItems(el.dataset.id);}
@@ -1817,7 +1822,14 @@ function buildBLHtml(o){
     +'<div style="flex:1;padding:16px 24px;">'
     +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Client</div>'
     +'<div style="font-size:14px;font-weight:600;color:#333;">'+o.client+'</div>'
-    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">'+(cliAdresse?cliAdresse+'<br>':'')+(cliIce?'ICE: '+cliIce:'')+'</div></div></div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">'
+    +(cli.adresse?cli.adresse+'<br>':'')
+    +(cli.tel?'Tel: '+cli.tel+'<br>':'')
+    +(cli.email?cli.email+'<br>':'')
+    +(cli.ice?'ICE: '+cli.ice+'<br>':'')
+    +(cli.rc?'RC: '+cli.rc+'<br>':'')
+    +(cli.iff?'IF: '+cli.iff:'')
+    +'</div></div></div>'
     +'<table style="width:100%;border-collapse:collapse;">'
     +'<thead><tr style="background:#f7faf4;">'
     +'<th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">D\u00e9signation</th>'
@@ -1848,6 +1860,145 @@ function printBL(id){
     +'<style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'
     +buildBLHtml(o)+getBLFooter()
     +'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
+}
+
+
+// ── IMPRIMER DEVIS ──
+function printDevis(id){
+  var devisList=load('elzer_devis',[]);
+  var d=devisList.find(function(x){return String(x.id)===String(id);});
+  if(!d){toast('Devis introuvable');return;}
+  var cliList=load('admin_clients',[]);
+  var cli=(cliList||[]).find(function(c){return c.name===d.client;})||{};
+  var dateStr=d.date?new Date(d.date).toLocaleDateString('fr-FR'):'';
+  var validStr='';
+  if(d.dateFrom&&d.dateTo){
+    validStr='Du '+new Date(d.dateFrom).toLocaleDateString('fr-FR')+' au '+new Date(d.dateTo).toLocaleDateString('fr-FR');
+  }
+  var total=0;
+  var rows=(d.items||[]).map(function(i,idx){
+    var pu=parseFloat(i.prix)||0;
+    var qty=parseFloat(i.qty)||1;
+    var lt=pu*qty;
+    total+=lt;
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';"><td style="padding:9px 24px;font-size:12px;">'+i.name+'</td><td style="padding:9px 12px;text-align:center;font-size:12px;color:#777;">'+(i.unit||'kg')+'</td><td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:600;">'+qty+'</td><td style="padding:9px 12px;text-align:right;font-size:12px;color:#777;">'+pu.toFixed(2).replace('.',',')+'</td><td style="padding:9px 24px;text-align:right;font-size:12px;font-weight:600;color:#5a7050;">'+lt.toFixed(2).replace('.',',')+'</td></tr>';
+  }).join('');
+  var html='<div style="font-family:Arial,sans-serif;color:#333;">'
+    +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;color:#fff;">'
+    +'<div><div style="font-size:20px;font-weight:bold;">ELZER</div><div style="font-size:9px;letter-spacing:2px;">DISTRIBUTION</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;">Devis</div><div style="font-size:22px;font-weight:bold;">N° '+(d.numero||d.id)+'</div><div style="font-size:11px;margin-top:2px;">'+dateStr+'</div></div></div>'
+    +'<div style="display:flex;border-bottom:1px solid #eee;">'
+    +'<div style="flex:1;padding:16px 24px;border-right:1px solid #eee;">'
+    +'<div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:6px;">Fournisseur</div>'
+    +'<div style="font-size:14px;font-weight:600;color:#5a7050;">ELZER DISTRIBUTION</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;">Appt N°15 Imm12 lot Sine<br>Av Allal Fassi, Marrakech<br>ICE: 003711905000045<br>RC: 129615 - IF: 06298456<br>Tel: +212 6 73 95 83 37</div></div>'
+    +'<div style="flex:1;padding:16px 24px;">'
+    +'<div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:6px;">Client</div>'
+    +'<div style="font-size:14px;font-weight:600;">'+d.client+'</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;">'
+    +(cli.adresse?cli.adresse+'<br>':'')
+    +(cli.tel?'Tel: '+cli.tel+'<br>':'')
+    +(cli.email?cli.email+'<br>':'')
+    +(cli.ice?'ICE: '+cli.ice+'<br>':'')
+    +(cli.rc?'RC: '+cli.rc+'<br>':'')
+    +(cli.iff?'IF: '+cli.iff:'')
+    +'</div></div></div>'
+    +(validStr?'<div style="padding:10px 24px;background:#f7faf4;font-size:11px;color:#5a7050;">📅 Validité: '+validStr+'</div>':'')
+    +'<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f7faf4;"><th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">Désignation</th><th style="padding:10px;font-size:10px;color:#5a7050;text-transform:uppercase;">Unité</th><th style="padding:10px;font-size:10px;color:#5a7050;text-transform:uppercase;">Qté</th><th style="padding:10px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;">P.U HT</th><th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;"><div><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span><span style="font-size:22px;font-weight:bold;color:#5a7050;">'+total.toFixed(2).replace('.',',')+' Dh</span></div></div>'
+    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Devis '+(d.numero||d.id)+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
+}
+
+// ── IMPRIMER BON FOURNISSEUR ──
+function printFournisseur(){
+  var orders=load('terrasse_orders',[]);
+  var today=new Date().toISOString().split('T')[0];
+  var todayOrders=orders.filter(function(o){return (o.delivDate===today)&&o.status!=='annulee';});
+  if(!todayOrders.length){toast('Aucune commande pour aujourd hui');return;}
+  // Agregation produits
+  var prods={};
+  todayOrders.forEach(function(o){
+    (o.items||[]).forEach(function(i){
+      var k=i.name;
+      if(!prods[k]) prods[k]={name:i.name,unit:i.unit,qty:0};
+      prods[k].qty+=parseFloat(i.qty)||0;
+    });
+  });
+  var rows=Object.values(prods).map(function(p,idx){
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';"><td style="padding:9px 24px;font-size:12px;">'+p.name+'</td><td style="padding:9px;text-align:center;font-size:12px;color:#777;">'+p.unit+'</td><td style="padding:9px 24px;text-align:right;font-size:14px;font-weight:bold;color:#5a7050;">'+p.qty.toFixed(2).replace('.',',')+'</td></tr>';
+  }).join('');
+  var html='<div style="font-family:Arial,sans-serif;color:#333;">'
+    +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;color:#fff;">'
+    +'<div><div style="font-size:20px;font-weight:bold;">ELZER</div><div style="font-size:9px;letter-spacing:2px;">DISTRIBUTION</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;">Bon Fournisseur</div><div style="font-size:18px;font-weight:bold;">'+new Date(today).toLocaleDateString('fr-FR')+'</div></div></div>'
+    +'<div style="padding:16px 24px;background:#f7faf4;border-bottom:1px solid #eee;"><div style="font-size:12px;color:#5a7050;">📦 '+todayOrders.length+' commande(s) - '+Object.keys(prods).length+' produit(s) à approvisionner</div></div>'
+    +'<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f7faf4;"><th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">Produit</th><th style="padding:10px;font-size:10px;color:#5a7050;text-transform:uppercase;">Unité</th><th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;">Quantité Totale</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bon Fournisseur '+today+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
+}
+
+// ── IMPRIMER FACTURE ──
+function printFacture(){
+  var sel=document.getElementById('fact-mois');
+  var cliSel=document.getElementById('fact-client');
+  if(!sel||!sel.value){toast('Selectionnez un mois');return;}
+  if(!cliSel||!cliSel.value){toast('Selectionnez un client');return;}
+  var month=sel.value;
+  var cliName=cliSel.value;
+  orders=load('terrasse_orders',[]);
+  var cliList=load('admin_clients',[]);
+  var cli=(cliList||[]).find(function(c){return c.name===cliName;})||{};
+  var prix=cli.prix||{};
+  var monthOrders=orders.filter(function(o){return o.client===cliName && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';});
+  if(!monthOrders.length){toast('Aucune commande');return;}
+  var totalMois=0;
+  var rows=monthOrders.map(function(o,idx){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var blTotal=0;
+    (o.items||[]).forEach(function(i){
+      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      blTotal+=pu*(parseFloat(i.qty)||0);
+    });
+    totalMois+=blTotal;
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';"><td style="padding:9px 24px;font-size:12px;font-weight:600;color:#5a7050;">BL-'+o.id+'</td><td style="padding:9px;font-size:12px;color:#777;">'+dv+'</td><td style="padding:9px;font-size:12px;color:#777;">'+(o.items||[]).length+' articles</td><td style="padding:9px 24px;text-align:right;font-size:12px;font-weight:600;">'+blTotal.toFixed(2).replace('.',',')+' Dh</td></tr>';
+  }).join('');
+  var numFact=getNextNum2();
+  var html='<div style="font-family:Arial,sans-serif;color:#333;">'
+    +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;color:#fff;">'
+    +'<div><div style="font-size:20px;font-weight:bold;">ELZER</div><div style="font-size:9px;letter-spacing:2px;">DISTRIBUTION</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;">Facture</div><div style="font-size:22px;font-weight:bold;">'+numFact+'</div><div style="font-size:11px;margin-top:2px;">'+new Date().toLocaleDateString('fr-FR')+'</div></div></div>'
+    +'<div style="display:flex;border-bottom:1px solid #eee;"><div style="flex:1;padding:16px 24px;border-right:1px solid #eee;">'
+    +'<div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:6px;">Fournisseur</div>'
+    +'<div style="font-size:14px;font-weight:600;color:#5a7050;">ELZER DISTRIBUTION</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;">Appt N°15 Imm12 lot Sine<br>Av Allal Fassi, Marrakech<br>ICE: 003711905000045<br>RC: 129615 - IF: 06298456<br>Tel: +212 6 73 95 83 37</div></div>'
+    +'<div style="flex:1;padding:16px 24px;"><div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:6px;">Client</div>'
+    +'<div style="font-size:14px;font-weight:600;">'+cliName+'</div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;">'
+    +(cli.adresse?cli.adresse+'<br>':'')
+    +(cli.tel?'Tel: '+cli.tel+'<br>':'')
+    +(cli.email?cli.email+'<br>':'')
+    +(cli.ice?'ICE: '+cli.ice+'<br>':'')
+    +(cli.rc?'RC: '+cli.rc+'<br>':'')
+    +(cli.iff?'IF: '+cli.iff:'')
+    +'</div></div></div>'
+    +'<div style="padding:10px 24px;background:#f7faf4;font-size:11px;color:#5a7050;">📅 Période: '+month+' - '+monthOrders.length+' bon(s) de livraison</div>'
+    +'<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f7faf4;"><th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">N° BL</th><th style="padding:10px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">Date</th><th style="padding:10px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">Articles</th><th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;">Total</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;"><div><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span><span style="font-size:22px;font-weight:bold;color:#5a7050;">'+totalMois.toFixed(2).replace('.',',')+' Dh</span></div></div>'
+    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+numFact+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
@@ -1903,8 +2054,14 @@ function exportPDF(id){
   doc.text('Av Allal Fassi, Marrakech',14,y);
   if(cli.tel) doc.text('Tel: '+cli.tel,W/2+10,y);
   y+=4;
+  doc.text('RC: 129615 - IF: 06298456',14,y);
+  if(cli.email) doc.text(cli.email,W/2+10,y);
+  y+=4;
   doc.text('ICE: 003711905000045',14,y);
   if(cli.ice) doc.text('ICE: '+cli.ice,W/2+10,y);
+  y+=4;
+  doc.text('Tel: +212 6 73 95 83 37',14,y);
+  if(cli.rc) doc.text('RC: '+cli.rc+(cli.iff?' - IF: '+cli.iff:''),W/2+10,y);
   
   // Tableau articles
   y+=10;
@@ -2122,6 +2279,7 @@ function renderDevis(){
       (d.items.length>4?'<span style="font-size:11px;color:#888;padding:2px 8px;">+'+(d.items.length-4)+' autres</span>':'')+'</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
       '<button class="btn btn-b btn-sm" data-action="edit-devis" data-id="'+d.id+'">Modifier</button>'+
+      '<button class="btn btn-s btn-sm" data-action="print-devis" data-id="'+d.id+'">🖨️ Imprimer</button>'+
       '<button class="btn btn-b btn-sm" data-action="export-devis-pdf" data-id="'+d.id+'">📄 PDF</button>'+
       '<a class="btn btn-sm" style="background:#25d366;color:#fff;border:none;text-decoration:none;" href="https://wa.me/'+(cliInfo.wa||PHONE)+'?text='+waMsg+'" target="_blank">📱 WA</a>'+
       '<a class="btn btn-sm" style="background:#1a73e8;color:#fff;border:none;text-decoration:none;" href="mailto:'+(cliInfo.email||'elzerdist@gmail.com')+'?subject=Devis+D-'+d.id+'&body='+waMsg+'" target="_blank">📧 Email</a>'+
