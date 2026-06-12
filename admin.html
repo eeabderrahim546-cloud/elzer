@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781215287</title>
+<title>Admin ELZER v1781256447</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -149,7 +149,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 
 /* RESPONSIVE - sidebar etroite sur petit ecran */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .sb { width: 50px !important; }
   .main { margin-left: 50px !important; width: calc(100% - 50px) !important; }
   .panel.active {
@@ -1856,37 +1856,102 @@ function printBL(id){
 
 function exportPDF(id){
   orders=load('terrasse_orders',[]);
-  var o=orders.find(function(x){return x.id===id;});if(!o)return;
-  var jsPDF=window.jspdf.jsPDF;var doc=new jsPDF();
+  var o=orders.find(function(x){return x.id===id;});
+  if(!o){toast('BL introuvable');return;}
+  if(!window.jspdf){toast('Chargement PDF...');return;}
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF();
+  var W=210;
+  var cliList=load('admin_clients',[]);
+  var cli=(cliList||[]).find(function(c){return c.name===o.client;})||{};
+  var prix=cli.prix||{};
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
-  doc.setFillColor(15,45,10);doc.rect(0,0,210,28,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(15);doc.setFont('helvetica','bold');
-  doc.text('BON DE COMMANDE #'+o.id,105,12,{align:'center'});
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('ELZER Distribution',105,21,{align:'center'});
-  doc.setTextColor(34,34,34);doc.setFontSize(10);
-  doc.setFont('helvetica','bold');doc.text('Client :',14,38);doc.setFont('helvetica','normal');doc.text(o.client,40,38);
-  doc.setFont('helvetica','bold');doc.text('Livraison :',14,46);doc.setFont('helvetica','normal');doc.text(dv,40,46);
-  doc.setDrawColor(45,106,31);doc.setLineWidth(0.4);doc.line(14,52,196,52);
-  doc.setFillColor(232,245,216);doc.rect(14,55,182,7,'F');
-  doc.setTextColor(26,92,14);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('DESIGNATION',16,61);doc.text('UNITE',150,61);doc.text('QTE',175,61);
-  var y=71;doc.setFont('helvetica','normal');doc.setTextColor(34,34,34);
-  (o.items||[]).forEach(function(item,i){
+  
+  // Header vert sauge
+  doc.setFillColor(90,112,80);
+  doc.rect(0,0,W,32,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(20);
+  doc.setFont('helvetica','bold');
+  doc.text('ELZER',14,18);
+  doc.setFontSize(10);
+  doc.setFont('helvetica','normal');
+  doc.text('DISTRIBUTION',14,25);
+  
+  doc.setFontSize(11);
+  doc.text('BON DE LIVRAISON',W-14,14,{align:'right'});
+  doc.setFontSize(16);
+  doc.setFont('helvetica','bold');
+  doc.text('N\u00b0 BL-'+o.id,W-14,22,{align:'right'});
+  doc.setFontSize(9);
+  doc.setFont('helvetica','normal');
+  doc.text(dv,W-14,28,{align:'right'});
+  
+  // Fournisseur / Client
+  var y=42;
+  doc.setFontSize(8);doc.setTextColor(150);
+  doc.text('FOURNISSEUR',14,y);
+  doc.text('CLIENT',W/2+10,y);
+  y+=5;
+  doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(90,112,80);
+  doc.text('ELZER DISTRIBUTION',14,y);
+  doc.setTextColor(50);
+  doc.text(o.client,W/2+10,y);
+  y+=5;
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(100);
+  doc.text('Appt N15 Imm12 lot Sine',14,y);
+  if(cli.adresse) doc.text(cli.adresse.substring(0,40),W/2+10,y);
+  y+=4;
+  doc.text('Av Allal Fassi, Marrakech',14,y);
+  if(cli.tel) doc.text('Tel: '+cli.tel,W/2+10,y);
+  y+=4;
+  doc.text('ICE: 003711905000045',14,y);
+  if(cli.ice) doc.text('ICE: '+cli.ice,W/2+10,y);
+  
+  // Tableau articles
+  y+=10;
+  doc.setFillColor(247,250,244);
+  doc.rect(14,y,W-28,8,'F');
+  doc.setFontSize(8);doc.setTextColor(90,112,80);doc.setFont('helvetica','bold');
+  doc.text('DESIGNATION',16,y+5.5);
+  doc.text('UNITE',95,y+5.5);
+  doc.text('QTE',120,y+5.5);
+  doc.text('P.U HT',145,y+5.5);
+  doc.text('TOTAL',W-16,y+5.5,{align:'right'});
+  y+=10;
+  
+  doc.setTextColor(50);doc.setFont('helvetica','normal');doc.setFontSize(9);
+  var total=0;
+  (o.items||[]).forEach(function(i){
+    var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+    var qty=parseFloat(i.qty)||0;
+    var lt=pu*qty;
+    total+=lt;
+    doc.text(i.name.substring(0,30),16,y);
+    doc.text(i.unit||'',95,y);
+    doc.text(qty.toFixed(2).replace('.',','),120,y);
+    if(pu>0) doc.text(pu.toFixed(2).replace('.',','),145,y);
+    if(lt>0) doc.text(lt.toFixed(2).replace('.',','),W-16,y,{align:'right'});
+    y+=5;
     if(y>270){doc.addPage();y=20;}
-    if(i%2===0){doc.setFillColor(248,253,244);doc.rect(14,y-5,182,7,'F');}
-    doc.setFontSize(8);doc.text((item.name||'').substring(0,40),16,y);
-    doc.text(item.unit||'',150,y);
-    doc.setFont('helvetica','bold');doc.text(String(item.qty),175,y);doc.setFont('helvetica','normal');
-    y+=8;
   });
-  if(o.total){y+=4;doc.setFillColor(15,45,10);doc.rect(14,y,182,9,'F');doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('TOTAL : '+Math.round(o.total).toLocaleString('fr-FR')+' Dh',105,y+6,{align:'center'});}
+  
+  // Total
+  y+=4;
+  doc.setDrawColor(90,112,80);doc.setLineWidth(0.5);
+  doc.line(14,y,W-14,y);
+  y+=8;
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(90,112,80);
+  doc.text('TOTAL HT: '+total.toFixed(2).replace('.',',')+' Dh',W-16,y,{align:'right'});
+  
+  // Footer
   addPDFFooter(doc,W);
-  doc.save('commande_'+o.id+'.pdf');toast('PDF exporte!');
+  
+  doc.save('BL-'+o.id+'_'+(o.client||'').replace(/ /g,'_')+'.pdf');
+  toast('PDF telecharge!');
 }
 
 
-// ── NOTES COMMANDES ──
 function saveCmdNote(){
   var id=document.getElementById('modal-cmd-title').textContent.split('#')[1].split(' ')[0];
   var notes=load('cmd_notes',{});
