@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781300150</title>
+<title>Admin ELZER v1781300891</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -769,6 +769,7 @@ document.addEventListener('click',function(e){
     else if(a==='print-fournisseur'){printFournisseur();}
     else if(a==='print-facture'){printFacture();}
     else if(a==='view-bl'){viewBL(el.dataset.id);}
+    else if(a==='edit-bl-num'){editBLNum(el.dataset.id);}
     else if(a==='edit-bl-items'){editBLItems(el.dataset.id);}
     else if(a==='save-bl-items'){saveBLItems(el.dataset.id);}
     else if(a==='add-bl-row'){
@@ -1749,10 +1750,37 @@ function viewBL(id){
   document.getElementById('modal-client-title').textContent='BL #'+o.id+' — '+o.client;
   modal.querySelector('.mbd').innerHTML='<div style="max-height:60vh;overflow-y:auto;background:#fff;border:1px solid #eee;border-radius:8px;">'+buildBLHtml(o)+'</div>';
   modal.querySelector('.mft').innerHTML=
-    '<button class="btn btn-s" data-action="edit-bl-items" data-id="'+id+'">✏️ Modifier articles</button>'
+    '<button class="btn btn-s btn-sm" data-action="edit-bl-num" data-id="'+id+'">🔢 N° BL</button>'
+    +'<button class="btn btn-s" data-action="edit-bl-items" data-id="'+id+'">✏️ Modifier articles</button>'
     +'<button class="btn btn-s" data-action="print-bl" data-id="'+id+'">🖨️ Imprimer</button>'
     +'<button class="btn btn-p" data-action="pdf-bl" data-id="'+id+'">📄 PDF</button>';
   openModal('modal-client');
+}
+
+
+// ── MODIFIER NUMERO BL ──
+function editBLNum(id){
+  var newNum=prompt('Nouveau numéro BL (sera vérifié pour pas de doublon):', id);
+  if(!newNum||newNum===id) return;
+  newNum=String(newNum).trim();
+  orders=load('terrasse_orders',[]);
+  // Verifier doublon
+  if(orders.find(function(x){return String(x.id)===newNum && x.id!==id;})){
+    toast('❌ Numéro déjà utilisé');return;
+  }
+  var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
+  if(idx<0){toast('BL introuvable');return;}
+  orders[idx].id=newNum;
+  save('terrasse_orders',orders);
+  if(typeof saveOrderToSupabase==='function') saveOrderToSupabase(orders[idx]);
+  // Mettre a jour le compteur si necessaire
+  var maxN=0;
+  orders.forEach(function(o){var n=parseInt(o.id)||0;if(n>maxN)maxN=n;});
+  localStorage.setItem('elzer_next_bl',String(maxN+1));
+  toast('✅ N° BL modifié: '+newNum);
+  renderHistorique();
+  renderCommandes();
+  viewBL(newNum);
 }
 
 function editBLItems(id){
@@ -1812,23 +1840,69 @@ function buildBLHtml(o){
   var prix=cli.prix||{};
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
   var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):dv;
-  var total=0;
-  var itemRows=(o.items||[]).map(function(i,idx){
-    var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
-    var qty=parseFloat(i.qty)||0;
-    var lineTotal=pu*qty;
-    total+=lineTotal;
-    var bg=idx%2===0?'#fff':'#fafcf8';
-    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';">'
-      +'<td style="padding:9px 24px;font-size:12px;color:#333;">'+i.name+'</td>'
-      +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#777;">'+i.unit+'</td>'
-      +'<td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:600;color:#333;">'+qty.toFixed(2).replace('.',',')+'</td>'
-      +'<td style="padding:9px 12px;text-align:right;font-size:12px;color:#777;">'+(pu>0?pu.toFixed(2).replace('.',','):'')+'</td>'
-      +'<td style="padding:9px 24px;text-align:right;font-size:12px;font-weight:600;color:#5a7050;">'+(lineTotal>0?lineTotal.toFixed(2).replace('.',','):'')+'</td>'
-      +'</tr>';
-  }).join('');
-  var cliIce=cli.ice||'';
-  var cliAdresse=cli.adresse||'';
+  var hasPrix=false;
+  var totalGeneral=0;
+  var totalQty=0;
+  
+  // Grouper par type (Cuisine/Bar/Personnel) ou tout dans une section si pas de type
+  var groups={};
+  (o.items||[]).forEach(function(i){
+    var t=i.type||'Articles';
+    if(!groups[t]) groups[t]=[];
+    groups[t].push(i);
+  });
+  var groupOrder=['Cuisine','Bar','Personnel','Articles'];
+  var sortedGroups=Object.keys(groups).sort(function(a,b){
+    var ia=groupOrder.indexOf(a); var ib=groupOrder.indexOf(b);
+    return (ia<0?9:ia)-(ib<0?9:ib);
+  });
+  
+  var sectionsHtml='';
+  sortedGroups.forEach(function(grpName){
+    var items=groups[grpName];
+    var grpTotal=0;
+    var grpQty=0;
+    var icon='📋';
+    if(grpName==='Cuisine') icon='👨\u200d🍳';
+    else if(grpName==='Bar') icon='🍹';
+    else if(grpName==='Personnel') icon='👥';
+    
+    var rows=items.map(function(i,idx){
+      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var qty=parseFloat(i.qty)||0;
+      var lt=pu*qty;
+      grpTotal+=lt;
+      grpQty+=qty;
+      if(pu>0) hasPrix=true;
+      var bg=idx%2===0?'#fff':'#fafcf8';
+      return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';">'
+        +'<td style="padding:9px 24px;font-size:12px;color:#333;">'+i.name+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#777;">'+i.unit+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:600;color:#333;">'+qty.toFixed(2).replace('.',',')+'</td>'
+        +'<td style="padding:9px 12px;text-align:right;font-size:12px;color:#777;">'+(pu>0?pu.toFixed(2).replace('.',','):'-')+'</td>'
+        +'<td style="padding:9px 24px;text-align:right;font-size:12px;font-weight:600;color:#5a7050;">'+(lt>0?lt.toFixed(2).replace('.',','):'-')+'</td>'
+        +'</tr>';
+    }).join('');
+    totalGeneral+=grpTotal;
+    totalQty+=grpQty;
+    
+    sectionsHtml+='<div style="background:#f7faf4;padding:8px 24px;border-top:2px solid #5a7050;font-size:12px;font-weight:600;color:#5a7050;display:flex;justify-content:space-between;">'
+      +'<span>'+icon+' '+grpName+'</span>'
+      +'<span style="color:#666;font-weight:400;font-size:11px;">'+items.length+' article(s) · '+grpQty.toFixed(2).replace('.',',')+'</span>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      +'<thead><tr style="background:#fff;border-bottom:1px solid #eee;">'
+      +'<th style="padding:6px 24px;text-align:left;font-size:9px;color:#999;text-transform:uppercase;font-weight:600;">Désignation</th>'
+      +'<th style="padding:6px 12px;text-align:center;font-size:9px;color:#999;text-transform:uppercase;font-weight:600;">Unité</th>'
+      +'<th style="padding:6px 12px;text-align:center;font-size:9px;color:#999;text-transform:uppercase;font-weight:600;">Qté</th>'
+      +'<th style="padding:6px 12px;text-align:right;font-size:9px;color:#999;text-transform:uppercase;font-weight:600;">P.U HT</th>'
+      +'<th style="padding:6px 24px;text-align:right;font-size:9px;color:#999;text-transform:uppercase;font-weight:600;">Total</th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table>';
+    if(hasPrix && grpTotal>0){
+      sectionsHtml+='<div style="padding:6px 24px;text-align:right;background:#fff;border-bottom:1px solid #eee;font-size:11px;color:#5a7050;">Sous-total '+grpName+': <strong>'+grpTotal.toFixed(2).replace('.',',')+' Dh</strong></div>';
+    }
+  });
+  
   return '<div style="font-family:Arial,sans-serif;color:#333;">'
     +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start;">'
     +'<div style="display:flex;align-items:center;gap:12px;">'
@@ -1846,7 +1920,7 @@ function buildBLHtml(o){
     +'<div style="flex:1;padding:16px 24px;border-right:1px solid #eee;">'
     +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Fournisseur</div>'
     +'<div style="font-size:14px;font-weight:600;color:#5a7050;">ELZER DISTRIBUTION</div>'
-    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">Appt N\u00b015 Imm12 lot Sine<br>Av Allal Fassi, Marrakech</div></div>'
+    +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">Appt N\u00b015 Imm12 lot Sine<br>Av Allal Fassi, Marrakech<br>ICE: 003711905000045<br>RC: 129615 - IF: 06298456<br>Tel: +212 6 73 95 83 37</div></div>'
     +'<div style="flex:1;padding:16px 24px;">'
     +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Client</div>'
     +'<div style="font-size:14px;font-weight:600;color:#333;">'+o.client+'</div>'
@@ -1858,21 +1932,16 @@ function buildBLHtml(o){
     +(cli.rc?'RC: '+cli.rc+'<br>':'')
     +(cli.iff?'IF: '+cli.iff:'')
     +'</div></div></div>'
-    +'<table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr style="background:#f7faf4;">'
-    +'<th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">D\u00e9signation</th>'
-    +'<th style="padding:10px 12px;text-align:center;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Unit\u00e9</th>'
-    +'<th style="padding:10px 12px;text-align:center;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Qt\u00e9</th>'
-    +'<th style="padding:10px 12px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">P.U HT</th>'
-    +'<th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Total</th></tr></thead>'
-    +'<tbody>'+itemRows+'</tbody></table>'
-    +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;">'
+    +sectionsHtml
+    +'<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;">'
+    +'<div style="font-size:11px;color:#666;">'+(o.items||[]).length+' ligne(s) · Total quantité: <strong>'+totalQty.toFixed(2).replace('.',',')+'</strong></div>'
     +'<div style="text-align:right;"><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span>'
-    +'<span style="font-size:22px;font-weight:bold;color:#5a7050;">'+total.toFixed(2).replace('.',',')+' Dh</span></div></div>'
+    +'<span style="font-size:22px;font-weight:bold;color:#5a7050;">'+(hasPrix?totalGeneral.toFixed(2).replace('.',',')+' Dh':'-')+'</span></div></div>'
     +'<div style="padding:12px 24px;background:#5a7050;text-align:center;">'
     +'<div style="font-size:8px;color:#d4e0cc;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH \u00b7 Marrakech \u00b7 MAROC<br>'
     +'RC: 129615 \u00b7 IF: 06298456 \u00b7 ICE: 003711905000045 \u00b7 T\u00e9l: +212 6 73 95 83 37</div></div></div>';
 }
+
 
 function getBLFooter(){
   return '<div style="position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:8px;color:#444;border-top:1px solid #999;padding:6px;background:#fff;">'
