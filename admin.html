@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781299400</title>
+<title>Admin ELZER v1781300150</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1624,8 +1624,7 @@ function exportFacturePDF(){
   
   // Calculer le total des commandes du mois pour ce client
   orders=load('terrasse_orders',[]);
-  var cliList=load('admin_clients',[]);
-  var cli=(cliList||[]).find(function(c){return c.name===cliName;})||{};
+  var cli=findClient(cliName);
   var prix=cli.prix||{};
   var monthOrders=orders.filter(function(o){
     return o.client===cliName && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';
@@ -1797,9 +1796,19 @@ function saveBLItems(id){
 }
 
 // ── IMPRIMER BL (format reel) ──
+
+// ── Normaliser noms clients (ignorer accents/casse) ──
+function normName(s){
+  return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function findClient(name){
+  var list=load('admin_clients',[])||[];
+  var n=normName(name);
+  return list.find(function(c){return normName(c.name)===n;})||{};
+}
+
 function buildBLHtml(o){
-  var cliList=load('admin_clients',[]);
-  var cli=(cliList||[]).find(function(c){return c.name===o.client;})||{};
+  var cli=findClient(o.client);
   var prix=cli.prix||{};
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
   var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):dv;
@@ -1889,8 +1898,7 @@ function printDevis(id){
   var devisList=load('elzer_devis',[]);
   var d=devisList.find(function(x){return String(x.id)===String(id);});
   if(!d){toast('Devis introuvable');return;}
-  var cliList=load('admin_clients',[]);
-  var cli=(cliList||[]).find(function(c){return c.name===d.client;})||{};
+  var cli=findClient(d.client);
   var dateStr=d.date?new Date(d.date).toLocaleDateString('fr-FR'):'';
   var validStr='';
   if(d.dateFrom&&d.dateTo){
@@ -1976,8 +1984,7 @@ function printFacture(){
   var month=sel.value;
   var cliName=cliSel.value;
   orders=load('terrasse_orders',[]);
-  var cliList=load('admin_clients',[]);
-  var cli=(cliList||[]).find(function(c){return c.name===cliName;})||{};
+  var cli=findClient(cliName);
   var prix=cli.prix||{};
   var monthOrders=orders.filter(function(o){return o.client===cliName && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';});
   if(!monthOrders.length){toast('Aucune commande');return;}
@@ -2030,8 +2037,7 @@ function exportPDF(id){
   var jsPDF=window.jspdf.jsPDF;
   var doc=new jsPDF();
   var W=210;
-  var cliList=load('admin_clients',[]);
-  var cli=(cliList||[]).find(function(c){return c.name===o.client;})||{};
+  var cli=findClient(o.client);
   var prix=cli.prix||{};
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
   
