@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781353981</title>
+<title>Admin ELZER v1781354843</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1636,7 +1636,7 @@ function exportFacturePDF(){
   var totalMois=0;
   monthOrders.forEach(function(o){
     (o.items||[]).forEach(function(i){
-      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
       var qty=parseFloat(i.qty)||0;
       totalMois+=pu*qty;
     });
@@ -1712,7 +1712,7 @@ function exportFacturePDF(){
     var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
     var blTotal=0;
     (o.items||[]).forEach(function(i){
-      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
       blTotal+=pu*(parseFloat(i.qty)||0);
     });
     doc.text('BL-'+o.id,16,y);
@@ -1895,7 +1895,7 @@ function buildBLHtml(o){
     else if(grpName==='Personnel') icon='👥';
     
     var rows=items.map(function(i,idx){
-      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
       var qty=parseFloat(i.qty)||0;
       var lt=pu*qty;
       grpTotal+=lt;
@@ -2089,7 +2089,7 @@ function printFacture(){
     var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
     var blTotal=0;
     (o.items||[]).forEach(function(i){
-      var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
       blTotal+=pu*(parseFloat(i.qty)||0);
     });
     totalMois+=blTotal;
@@ -2199,7 +2199,7 @@ function exportPDF(id){
   doc.setTextColor(50);doc.setFont('helvetica','normal');doc.setFontSize(9);
   var total=0;
   (o.items||[]).forEach(function(i){
-    var pu=parseFloat(String(prix[i.name]||'0').replace(',','.'))||0;
+    var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
     var qty=parseFloat(i.qty)||0;
     var lt=pu*qty;
     total+=lt;
