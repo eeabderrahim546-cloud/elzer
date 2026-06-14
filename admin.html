@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781396939</title>
+<title>Admin ELZER v1781397501</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -169,7 +169,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 </style>
 </head>
 <body>
-      <div style="font-size:9px;color:#2d6a1f;letter-spacing:2px;text-transform:uppercase;">DISTRIBUTION — ADMIN</div>
+      <div style="font-size:9px;color:#6b8a5e;letter-spacing:2px;text-transform:uppercase;">DISTRIBUTION — ADMIN</div>
     </div>
     
     <div style="margin-top:16px;font-size:10px;color:#bbb;">ELZER Distribution Marrakech</div>
@@ -180,7 +180,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   <div class="sb-logo" style="display:flex;flex-direction:column;align-items:center;padding:10px 6px;">
     <svg viewBox="0 0 42 42" width="38" height="38" role="img">
       <title>ELZER</title>
-      <circle cx="21" cy="21" r="19" fill="#2d6a1f"/>
+      <circle cx="21" cy="21" r="19" fill="#6b8a5e"/>
       <path d="M21 8 C14 12 11 19 14 25 C16 30 19 32 21 34 C23 32 26 30 28 25 C31 19 28 12 21 8Z" fill="#6cb84a"/>
       <path d="M21 8 C28 12 31 19 28 25 C26 30 23 32 21 34Z" fill="#4a9a35"/>
       <path d="M17 30 L19 35 L21 30Z" fill="#e67e22"/>
@@ -216,7 +216,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 <svg viewBox="0 0 180 46" width="44" height="44" role="img" style="flex-shrink:0;">
   <title>ELZER Distribution</title>
   <g transform="translate(0,3)">
-    <circle cx="20" cy="20" r="18" fill="#2d6a1f"/>
+    <circle cx="20" cy="20" r="18" fill="#6b8a5e"/>
     <path d="M20 7 C13 11 10 18 13 24 C15 29 18 31 20 33 C22 31 25 29 27 24 C30 18 27 11 20 7Z" fill="#6cb84a"/>
     <path d="M20 7 C27 11 30 18 27 24 C25 29 22 31 20 33Z" fill="#4a9a35"/>
     <path d="M16 29 L18 34 L20 29Z" fill="#e67e22"/>
@@ -243,7 +243,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="stat"><div class="stat-n" id="d-clients">0</div><div class="stat-l">En préparation</div></div>
         <div class="stat"><div class="stat-n" id="d-ca">0 Dh</div><div class="stat-l">CA du jour</div></div>
       </div>
-      <div class="sec-hd"><div class="sec-t">📋 Commandes du jour</div><button class="btn btn-s btn-sm" data-panel="commandes">Voir tout</button></div>
+      <div class="sec-hd"><div id="dash-smart"></div>
+      <div class="sec-t">📋 Commandes du jour</div><button class="btn btn-s btn-sm" data-panel="commandes">Voir tout</button></div>
       <div class="tw"><table class="tbl"><thead><tr><th>#</th><th>Client</th><th>Livraison</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="dash-tbody"></tbody></table></div>
     </div>
     <div class="panel" id="panel-commandes">
@@ -303,7 +304,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 <svg viewBox="0 0 180 46" width="44" height="44" role="img" style="flex-shrink:0;">
   <title>ELZER Distribution</title>
   <g transform="translate(0,3)">
-    <circle cx="20" cy="20" r="18" fill="#2d6a1f"/>
+    <circle cx="20" cy="20" r="18" fill="#6b8a5e"/>
     <path d="M20 7 C13 11 10 18 13 24 C15 29 18 31 20 33 C22 31 25 29 27 24 C30 18 27 11 20 7Z" fill="#6cb84a"/>
     <path d="M20 7 C27 11 30 18 27 24 C25 29 22 31 20 33Z" fill="#4a9a35"/>
     <path d="M16 29 L18 34 L20 29Z" fill="#e67e22"/>
@@ -338,12 +339,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- STATISTIQUES -->
     <div class="panel" id="panel-stats">
-      <div style="background:linear-gradient(135deg,#5a7050 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;" id="stats-header">
+      <div style="background:linear-gradient(135deg,#5a7050 0%,#6b8a5e 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;" id="stats-header">
         <div style="display:flex;align-items:center;gap:10px;">
   <svg viewBox="0 0 180 46" width="44" height="44" role="img" style="flex-shrink:0;">
   <title>ELZER Distribution</title>
   <g transform="translate(0,3)">
-    <circle cx="20" cy="20" r="18" fill="#2d6a1f"/>
+    <circle cx="20" cy="20" r="18" fill="#6b8a5e"/>
     <path d="M20 7 C13 11 10 18 13 24 C15 29 18 31 20 33 C22 31 25 29 27 24 C30 18 27 11 20 7Z" fill="#6cb84a"/>
     <path d="M20 7 C27 11 30 18 27 24 C25 29 22 31 20 33Z" fill="#4a9a35"/>
     <path d="M16 29 L18 34 L20 29Z" fill="#e67e22"/>
@@ -388,12 +389,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
     <!-- DEVIS -->
     <div class="panel" id="panel-devis">
-      <div style="background:linear-gradient(135deg,#5a7050 0%,#2d6a1f 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="background:linear-gradient(135deg,#5a7050 0%,#6b8a5e 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
 <svg viewBox="0 0 180 46" width="44" height="44" role="img" style="flex-shrink:0;">
   <title>ELZER Distribution</title>
   <g transform="translate(0,3)">
-    <circle cx="20" cy="20" r="18" fill="#2d6a1f"/>
+    <circle cx="20" cy="20" r="18" fill="#6b8a5e"/>
     <path d="M20 7 C13 11 10 18 13 24 C15 29 18 31 20 33 C22 31 25 29 27 24 C30 18 27 11 20 7Z" fill="#6cb84a"/>
     <path d="M20 7 C27 11 30 18 27 24 C25 29 22 31 20 33Z" fill="#4a9a35"/>
     <path d="M16 29 L18 34 L20 29Z" fill="#e67e22"/>
@@ -417,7 +418,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div style="font-size:14px;font-weight:500;color:#fff;">📊 Suivi Factures</div>
         <div style="display:flex;gap:8px;">
-          <button onclick="openSuiviForm(-1)" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">+ Ajouter</button>
+          <button onclick="openSuiviForm(-1)" style="background:#6b8a5e;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">+ Ajouter</button>
           <button onclick="exportSuiviCSV()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">📥 CSV</button>
         </div>
       </div>
@@ -439,7 +440,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">Commentaire</label><input id="sf2-com" class="fs" placeholder="Note..." style="width:100%;"/></div>
         </div>
         <div style="display:flex;gap:8px;">
-          <button onclick="saveSuiviRow2()" style="flex:1;background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:9px;cursor:pointer;font-size:13px;font-weight:500;">💾 Enregistrer</button>
+          <button onclick="saveSuiviRow2()" style="flex:1;background:#6b8a5e;color:#fff;border:none;border-radius:6px;padding:9px;cursor:pointer;font-size:13px;font-weight:500;">💾 Enregistrer</button>
           <button onclick="document.getElementById('suivi-form-inline').style.display='none'" style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:9px 16px;cursor:pointer;font-size:13px;">Annuler</button>
         </div>
       </div>
@@ -468,7 +469,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div class="panel" id="panel-stock" style="color:#333;background:#f4f6f3;">
       <div style="background:#5a7050;border-radius:12px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
         <div style="font-size:14px;font-weight:500;color:#fff;">📦 Gestion Stock</div>
-        <button onclick="saveStockAdmin()" style="background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
+        <button onclick="saveStockAdmin()" style="background:#6b8a5e;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">💾 Sauvegarder</button>
       </div>
       <div id="stock-alerte-admin" style="display:none;background:#fff3e0;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#854f0b;border:1px solid #fac775;"></div>
       <div id="stock-body-admin" style="color:#333 !important;background:#f4f6f3 !important;"></div>
@@ -507,10 +508,10 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div class="fr"><div class="fg"><label class="fl">ICE</label><input type="text" class="fi" id="cl-ice"/></div><div class="fg"><label class="fl">RC</label><input type="text" class="fi" id="cl-rc"/></div></div>
       <div class="fg"><label class="fl">IF</label><input type="text" class="fi" id="cl-if"/></div>
       <div class="fg" style="background:#f4fbed;border-radius:8px;padding:12px;border:1px solid #c5e8b0;">
-        <label class="fl" style="color:#2d6a1f;">🔑 Mot de passe client</label>
+        <label class="fl" style="color:#6b8a5e;">🔑 Mot de passe client</label>
         <div style="display:flex;gap:8px;margin-top:6px;">
           <input type="text" class="fi" id="cl-pwd" placeholder="Vide = acces libre" style="flex:1;"/>
-          <button type="button" id="gen-pwd-btn" style="padding:10px 14px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;">Generer</button>
+          <button type="button" id="gen-pwd-btn" style="padding:10px 14px;background:#6b8a5e;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;white-space:nowrap;">Generer</button>
         </div>
       </div>
       <div class="fg">
@@ -542,7 +543,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div style="padding:10px 20px;border-top:1px solid #f0f0f0;">
       <label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:4px;">Note interne (admin uniquement)</label>
       <textarea id="cmd-note-text" placeholder="Ajouter une note..." style="width:100%;padding:8px;border:1.5px solid #e0e0e0;border-radius:6px;font-size:12px;resize:vertical;min-height:50px;font-family:Arial,sans-serif;outline:none;"></textarea>
-      <button onclick="saveCmdNote()" style="margin-top:4px;padding:4px 10px;background:#2d6a1f;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">Sauvegarder note</button>
+      <button onclick="saveCmdNote()" style="margin-top:4px;padding:4px 10px;background:#6b8a5e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">Sauvegarder note</button>
     </div>
     <div class="mft" id="modal-cmd-footer"></div>
   </div>
@@ -763,7 +764,8 @@ document.addEventListener('click',function(e){
     else if(a==='set-status-close'){setStatus(el.dataset.id,el.dataset.status);closeModal('modal-cmd');}
     else if(a==='open-detail'){openCmdDetail(el.dataset.id);}
     else if(a==='export-pdf'){exportPDF(el.dataset.id);}
-    else if(a==='pdf-bl'){exportPDF(el.dataset.id);}
+    else if(a==='wa-order'){sendOrderWA(el.dataset.id);}
+  else if(a==='pdf-bl'){exportPDF(el.dataset.id);}
     else if(a==='print-bl'){printBL(el.dataset.id);}
     else if(a==='print-devis'){printDevis(el.dataset.id);}
     else if(a==='print-fournisseur'){printFournisseur();}
@@ -833,19 +835,72 @@ function statusBadge(s){
 function renderDashboard(){
   orders=load('terrasse_orders',[]);
   var today=new Date().toISOString().split('T')[0];
+  var thisMonth=today.substring(0,7);
   var todayO=orders.filter(function(o){return o.createdAt&&o.createdAt.startsWith(today);});
+  var monthO=orders.filter(function(o){return (o.delivDate&&o.delivDate.startsWith(thisMonth))||(o.createdAt&&o.createdAt.startsWith(thisMonth));});
   var newO=orders.filter(function(o){return o.status==='nouvelle';});
   var prepO=orders.filter(function(o){return o.status==='preparation';});
 
+  // Stats de base
   var dt=document.getElementById('d-total'); if(dt) dt.textContent=todayO.length;
   var dn=document.getElementById('d-new'); if(dn) dn.textContent=newO.length;
   var dc=document.getElementById('d-clients'); if(dc) dc.textContent=prepO.length;
-  var dca=document.getElementById('d-ca'); if(dca) dca.textContent=Math.round(todayO.reduce(function(s,o){return s+(o.total||0);},0)).toLocaleString('fr-FR')+' Dh';
+  var caJour=todayO.reduce(function(s,o){return s+(o.total||0);},0);
+  var dca=document.getElementById('d-ca'); if(dca) dca.textContent=Math.round(caJour).toLocaleString('fr-FR')+' Dh';
   var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=newO.length;
 
+  // === DASHBOARD INTELLIGENT ===
+  var smart=document.getElementById('dash-smart');
+  if(smart){
+    // CA du mois
+    var caMois=monthO.reduce(function(s,o){return s+(o.total||0);},0);
+    // Top clients (par CA ce mois)
+    var cliCA={};
+    monthO.forEach(function(o){cliCA[o.client]=(cliCA[o.client]||0)+(o.total||0);});
+    var topClients=Object.keys(cliCA).map(function(c){return {name:c,ca:cliCA[c]};}).sort(function(a,b){return b.ca-a.ca;}).slice(0,5);
+    // Top produits (par quantité ce mois)
+    var prodQty={};
+    monthO.forEach(function(o){(o.items||[]).forEach(function(i){prodQty[i.name]=(prodQty[i.name]||0)+(parseFloat(i.qty)||0);});});
+    var topProds=Object.keys(prodQty).map(function(p){return {name:p,qty:prodQty[p]};}).sort(function(a,b){return b.qty-a.qty;}).slice(0,5);
+
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px;">';
+    
+    // Carte CA du mois
+    html+='<div style="background:linear-gradient(135deg,#5a7050,#6b8a5e);border-radius:12px;padding:16px;color:#fff;">';
+    html+='<div style="font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:1px;">CA du mois</div>';
+    html+='<div style="font-size:28px;font-weight:bold;margin:4px 0;">'+Math.round(caMois).toLocaleString('fr-FR')+' Dh</div>';
+    html+='<div style="font-size:11px;opacity:.85;">'+monthO.length+' commande(s) ce mois</div></div>';
+    
+    // Top clients
+    html+='<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8dd;">';
+    html+='<div style="font-size:12px;font-weight:600;color:#5a7050;margin-bottom:10px;">🏆 Top Clients (mois)</div>';
+    if(topClients.length){
+      topClients.forEach(function(c,i){
+        var medals=['🥇','🥈','🥉','4.','5.'];
+        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">';
+        html+='<span>'+medals[i]+' '+c.name+'</span><span style="font-weight:600;color:#5a7050;">'+Math.round(c.ca).toLocaleString('fr-FR')+' Dh</span></div>';
+      });
+    } else { html+='<div style="color:#bbb;font-size:12px;">Aucune donnée</div>'; }
+    html+='</div>';
+    
+    // Top produits
+    html+='<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8dd;">';
+    html+='<div style="font-size:12px;font-weight:600;color:#5a7050;margin-bottom:10px;">📦 Top Produits (mois)</div>';
+    if(topProds.length){
+      topProds.forEach(function(p,i){
+        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">';
+        html+='<span>'+(i+1)+'. '+p.name+'</span><span style="font-weight:600;color:#6b8a5e;">'+p.qty.toFixed(1).replace('.',',')+'</span></div>';
+      });
+    } else { html+='<div style="color:#bbb;font-size:12px;">Aucune donnée</div>'; }
+    html+='</div>';
+    
+    html+='</div>';
+    smart.innerHTML=html;
+  }
+
+  // Commandes du jour
   var tbody=document.getElementById('dash-tbody');
   if(!tbody) return;
-  // Commandes DU JOUR triees: nouvelles d'abord, puis preparation, puis livrees
   var sorted=[].concat(todayO).sort(function(a,b){
     var order={nouvelle:0,preparation:1,livree:2};
     return (order[a.status]||3)-(order[b.status]||3);
@@ -858,10 +913,13 @@ function renderDashboard(){
   sorted.forEach(function(o){
     var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
     var cr=o.createdAt?new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+    var cli=findClient(o.client);
+    var waNum=cli.wa||cli.tel||'';
     var acts='';
     if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Préparer</button>';
     if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livrer</button>';
-    rows+='<tr><td style="font-weight:600;color:var(--g7);">#'+o.id+'</td><td style="font-weight:500;">'+o.client+'</td><td style="font-size:11px;color:#888;"><div>🕐 '+cr+'</div><div>📦 '+dv+'</div></td><td style="font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</td><td>'+statusBadge(o.status)+'</td><td><div style="display:flex;gap:4px;"><button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Détail</button>'+acts+'</div></td></tr>';
+    var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
+    rows+='<tr><td style="font-weight:600;color:var(--g7);">#'+o.id+'</td><td style="font-weight:500;">'+o.client+'</td><td style="font-size:11px;color:#888;"><div>🕐 '+cr+'</div><div>📦 '+dv+'</div></td><td style="font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</td><td>'+statusBadge(o.status)+'</td><td><div style="display:flex;gap:4px;">'+waBtn+'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Détail</button>'+acts+'</div></td></tr>';
   });
   tbody.innerHTML=rows;
 }
@@ -1169,7 +1227,7 @@ function renderFournisseur(){
   var fourDate=document.getElementById('four-date').value;
   var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
   var html='<div style="background:#5a7050;padding:10px 16px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">';
-  html+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:5px;padding:3px 8px;"><div style="font-size:12px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#2d6a1f;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);">Marrakech · +212 6 73 95 83 37</div></div>';
+  html+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:5px;padding:3px 8px;"><div style="font-size:12px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#6b8a5e;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);">Marrakech · +212 6 73 95 83 37</div></div>';
   html+='<div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.5);">BON FOURNISSEUR</div><div style="font-size:11px;font-weight:600;color:#fff;">'+fourDateFr+'</div><div style="font-size:9px;color:rgba(255,255,255,.4);">'+res.filtered.length+' commande(s) · '+res.items.length+' produits</div></div>';
   html+='</div>';
   
@@ -1180,7 +1238,7 @@ function renderFournisseur(){
     html+='<div style="border:1px solid #e0e8d8;margin-top:8px;border-radius:8px;overflow:hidden;">';
     html+='<div style="padding:8px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;display:flex;align-items:center;gap:6px;">'+emoji+' '+secName+'<span style="font-size:10px;font-weight:400;color:#3b6d11;margin-left:auto;">'+items.length+' produits</span></div>';
     html+='<table style="width:100%;border-collapse:collapse;">';
-    html+='<thead><tr style="background:#f4fbed;"><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Designation</th><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Unite</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Total</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Prix achat</th></tr></thead><tbody>';
+    html+='<thead><tr style="background:#f4fbed;"><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Designation</th><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Unite</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Total</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Prix achat</th></tr></thead><tbody>';
     items.forEach(function(item,idx){
       var bg=idx%2===0?'#fff':'#f9fdf5';
       var ar=TRAD[item.name]||'';
@@ -1524,7 +1582,7 @@ function renderFacturation(){
     // Header avec numero de facture
     html+='<div style="background:#5a7050;padding:14px 18px;">';
     html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">';
-    html+='<div><div style="background:#fff;border-radius:5px;padding:3px 8px;display:inline-block;margin-bottom:5px;"><div style="font-size:13px;font-weight:700;color:#e67e22;line-height:1.1;">ELZER</div><div style="font-size:6px;color:#2d6a1f;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);line-height:1.7;">N°15 Imm 12, Marrakech<br/>+212 6 73 95 83 37</div></div>';
+    html+='<div><div style="background:#fff;border-radius:5px;padding:3px 8px;display:inline-block;margin-bottom:5px;"><div style="font-size:13px;font-weight:700;color:#e67e22;line-height:1.1;">ELZER</div><div style="font-size:6px;color:#6b8a5e;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);line-height:1.7;">N°15 Imm 12, Marrakech<br/>+212 6 73 95 83 37</div></div>';
     html+='<div style="background:rgba(255,255,255,.1);border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 12px;text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Facture N°</div><div style="font-size:16px;font-weight:700;color:#e67e22;">'+factNum+'</div><div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:2px;">'+moisSel.options[moisSel.selectedIndex].text+'</div></div>';
     html+='</div>';
     html+='<div style="border-top:1px solid rgba(255,255,255,.1);padding-top:10px;display:flex;justify-content:space-between;align-items:flex-start;">';
@@ -1559,7 +1617,7 @@ function renderFacturation(){
       // Header BL
       html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f4fbed;">';
       html+='<div style="display:flex;align-items:center;gap:8px;">';
-      html+='<span style="background:#2d6a1f;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:5px;">BL #'+o.id+'</span>';
+      html+='<span style="background:#6b8a5e;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:5px;">BL #'+o.id+'</span>';
       html+='<span style="font-size:12px;color:var(--gy5);">'+dv+'</span>';
       html+='<span style="font-size:11px;color:var(--gy5);">'+items.length+' articles</span>';
       html+='</div>';
@@ -2168,6 +2226,33 @@ function printFacture(){
   setTimeout(function(){win.print();},400);
 }
 
+
+// ── WHATSAPP RAPIDE COMMANDE ──
+function sendOrderWA(id){
+  orders=load('terrasse_orders',[]);
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  if(!o) return;
+  var cli=findClient(o.client);
+  var waNum=cli.wa||cli.tel||'';
+  if(!waNum){toast('Pas de numéro WhatsApp pour ce client');return;}
+  waNum=waNum.replace(/[^0-9]/g,'');
+  if(waNum.charAt(0)==='0') waNum='212'+waNum.substring(1);
+  if(waNum.indexOf('212')!==0) waNum='212'+waNum;
+  var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+  var statusTxt={nouvelle:'reçue',preparation:'en préparation',livree:'livrée'}[o.status]||o.status;
+  var msg='🌿 *ELZER DISTRIBUTION*\n\n';
+  msg+='Bonjour '+o.client+',\n\n';
+  msg+='📋 Votre commande *BL-'+o.id+'* est *'+statusTxt+'*\n';
+  msg+='📅 Livraison: '+dv+'\n\n';
+  msg+='*Détail:*\n';
+  (o.items||[]).forEach(function(i){
+    msg+='• '+i.name+': '+i.qty+' '+i.unit+'\n';
+  });
+  if(o.total) msg+='\n💰 Total: '+Math.round(o.total).toLocaleString('fr-FR')+' Dh';
+  msg+='\n\nMerci de votre confiance! 🙏';
+  window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
+}
+
 function exportPDF(id){
   orders=load('terrasse_orders',[]);
   var o=orders.find(function(x){return x.id===id;});
@@ -2293,9 +2378,9 @@ function renderStats(){
   });
   
   document.getElementById('stats-cards').innerHTML=
-    '<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #e0e8d8;"><div style="font-size:11px;color:#666;">Total commandes</div><div style="font-size:24px;font-weight:600;color:#2d6a1f;">'+orders.length+'</div></div>'+
+    '<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #e0e8d8;"><div style="font-size:11px;color:#666;">Total commandes</div><div style="font-size:24px;font-weight:600;color:#6b8a5e;">'+orders.length+'</div></div>'+
     '<div style="background:#e6f0ff;border-radius:8px;padding:14px;border:1px solid #b5d4f4;"><div style="font-size:11px;color:#185fa5;">Nouvelles</div><div style="font-size:24px;font-weight:600;color:#0c447c;">'+newCount+'</div></div>'+
-    '<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #e0e8d8;"><div style="font-size:11px;color:#666;">Cette semaine</div><div style="font-size:24px;font-weight:600;color:#2d6a1f;">'+thisWeek.length+'</div></div>'+
+    '<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #e0e8d8;"><div style="font-size:11px;color:#666;">Cette semaine</div><div style="font-size:24px;font-weight:600;color:#6b8a5e;">'+thisWeek.length+'</div></div>'+
     '<div style="background:#faeeda;border-radius:8px;padding:14px;border:1px solid #fac775;"><div style="font-size:11px;color:#854f0b;">CA total</div><div style="font-size:18px;font-weight:600;color:#633806;">'+Math.round(totalCA).toLocaleString('fr-FR')+' Dh</div></div>';
 
   // Produits populaires
@@ -2310,7 +2395,7 @@ function renderStats(){
   var maxVal=sorted.length?sorted[0][1]:1;
   document.getElementById('stats-products').innerHTML=sorted.map(function(e){
     var pct=Math.round(e[1]/maxVal*100);
-    return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>'+e[0]+'</span><span style="color:#2d6a1f;font-weight:600;">'+e[1]+'</span></div><div style="background:#e8f5d8;border-radius:4px;height:6px;"><div style="background:#2d6a1f;height:100%;border-radius:4px;width:'+pct+'%;"></div></div></div>';
+    return '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span>'+e[0]+'</span><span style="color:#6b8a5e;font-weight:600;">'+e[1]+'</span></div><div style="background:#e8f5d8;border-radius:4px;height:6px;"><div style="background:#6b8a5e;height:100%;border-radius:4px;width:'+pct+'%;"></div></div></div>';
   }).join('')||'<div style="color:#ccc;text-align:center;padding:20px;">Aucune donnee</div>';
 
   // Clients actifs
@@ -2322,7 +2407,7 @@ function renderStats(){
   var sortedCli=Object.entries(cliMap).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
   document.getElementById('stats-clients').innerHTML=sortedCli.map(function(e){
     var initials=e[0].split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
-    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f0f5ea;"><div style="width:30px;height:30px;border-radius:6px;background:#e8f5d8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#27500a;">'+initials+'</div><div style="flex:1;font-size:13px;">'+e[0]+'</div><div style="font-size:13px;font-weight:600;color:#2d6a1f;">'+Math.round(e[1]).toLocaleString('fr-FR')+' Dh</div></div>';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid #f0f5ea;"><div style="width:30px;height:30px;border-radius:6px;background:#e8f5d8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#27500a;">'+initials+'</div><div style="flex:1;font-size:13px;">'+e[0]+'</div><div style="font-size:13px;font-weight:600;color:#6b8a5e;">'+Math.round(e[1]).toLocaleString('fr-FR')+' Dh</div></div>';
   }).join('')||'<div style="color:#ccc;text-align:center;padding:20px;">Aucune donnee</div>';
 }
 
@@ -2365,7 +2450,7 @@ function renderCalendrier(){
     var hasOrders=delivMap[d]&&delivMap[d].length>0;
     var isToday=isCurrentMonth&&d===todayDate;
     var bg=hasOrders?'#eaf3de':'var(--g0)';
-    var border=isToday?'2px solid #2d6a1f':'1px solid #e0e8d8';
+    var border=isToday?'2px solid #6b8a5e':'1px solid #e0e8d8';
     html+='<div style="background:'+bg+';border:'+border+';border-radius:6px;padding:4px;text-align:center;cursor:pointer;min-height:48px;" data-action="cal-day" data-day="'+d+'">';
     html+='<div style="font-size:11px;font-weight:'+(isToday?'600':'400')+';color:'+(hasOrders?'#27500a':'#666')+';">'+d+'</div>';
     if(hasOrders) html+='<div style="font-size:9px;color:#3b6d11;margin-top:2px;">'+delivMap[d].length+' livr.</div>';
@@ -2389,7 +2474,7 @@ function renderCalendrier(){
         return d.getFullYear()===calYear&&d.getMonth()===calMonth&&d.getDate()===day;
       });
       det.innerHTML='<div style="background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;"><div style="padding:8px 12px;background:#eaf3de;font-size:12px;font-weight:600;color:#27500a;">'+day+'/'+String(calMonth+1).padStart(2,'0')+'/'+calYear+' — '+dayOrders.length+' livraison(s)</div>'+
-        dayOrders.map(function(o){return '<div style="padding:8px 12px;border-top:0.5px solid #f0f5ea;font-size:12px;display:flex;justify-content:space-between;"><span>'+o.client+'</span><span style="color:#2d6a1f;font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'—')+'</span></div>';}).join('')+'</div>';
+        dayOrders.map(function(o){return '<div style="padding:8px 12px;border-top:0.5px solid #f0f5ea;font-size:12px;display:flex;justify-content:space-between;"><span>'+o.client+'</span><span style="color:#6b8a5e;font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'—')+'</span></div>';}).join('')+'</div>';
     } else {
       det.innerHTML='<div style="font-size:12px;color:#888;padding:8px;">Pas de livraison le '+day+'/'+String(calMonth+1).padStart(2,'0')+'</div>';
     }
@@ -2437,7 +2522,7 @@ function renderDevis(){
     }
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:10px;overflow:hidden;">'+
       '<div style="padding:10px 14px;background:#f4fbed;border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">'+
-      '<div><div style="font-size:13px;font-weight:600;color:#2d6a1f;">D-'+d.id+' — '+d.client+'</div><div style="font-size:11px;color:#666;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+d.date+' · '+d.items.length+' articles'+validityStr+'</div></div>'+
+      '<div><div style="font-size:13px;font-weight:600;color:#6b8a5e;">D-'+d.id+' — '+d.client+'</div><div style="font-size:11px;color:#666;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+d.date+' · '+d.items.length+' articles'+validityStr+'</div></div>'+
       '<span style="background:'+statusColor+';color:'+statusTextColor+';font-size:10px;padding:2px 8px;border-radius:10px;">'+statusLabel+'</span></div>'+
       '<div style="padding:10px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'+
       d.items.slice(0,4).map(function(i){return '<span style="background:#e8f5d8;border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' '+i.qty+' '+i.unit+'</span>';}).join('')+
@@ -2471,7 +2556,7 @@ function openDevisModal(id){
   CATALOGUE.forEach(function(sec){
     var secKey=sec.title.replace(/[🥦🍊🌿🫙]/g,'').trim();
     var emoji={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'}[secKey]||'📦';
-    catHTML+='<div style="padding:4px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#2d6a1f;border-top:0.5px solid #e0f0d8;border-bottom:0.5px solid #e0f0d8;">'+emoji+' '+sec.title+'</div>';
+    catHTML+='<div style="padding:4px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#6b8a5e;border-top:0.5px solid #e0f0d8;border-bottom:0.5px solid #e0f0d8;">'+emoji+' '+sec.title+'</div>';
     sec.items.forEach(function(item,idx){
       // Chercher prix dans devis existant ou prix client ou prix catalogue
       var existPrix='';
@@ -2489,7 +2574,7 @@ function openDevisModal(id){
       catHTML+='<div style="text-align:center;font-size:11px;color:#888;">'+item.u+'</div>';
       catHTML+='<div style="text-align:right;"><span style="font-size:10px;color:#bbb;background:#f5f5f5;padding:2px 5px;border-radius:4px;" title="Prix achat moyen 7j">'+paMoyenStr+'</span></div>';
       catHTML+='<input type="text" value="'+prix+'" placeholder="0" class="dv-prix" data-prod="'+item.n+'"'+(isExcluded?' disabled':'')+' style="text-align:right;padding:3px 6px;border:1px solid #c0dd97;border-radius:4px;font-size:11px;width:100%;font-weight:500;color:#27500a;"/>';
-      catHTML+='<button data-action="toggle-devis-excl" data-prod="'+item.n+'" style="background:'+(isExcluded?'#e8f5d8':'#ffecec')+';color:'+(isExcluded?'#2d6a1f':'#d32f2f')+';border:none;border-radius:4px;padding:2px 5px;cursor:pointer;font-size:12px;">'+(isExcluded?'↩':'✕')+'</button>';
+      catHTML+='<button data-action="toggle-devis-excl" data-prod="'+item.n+'" style="background:'+(isExcluded?'#e8f5d8':'#ffecec')+';color:'+(isExcluded?'#6b8a5e':'#d32f2f')+';border:none;border-radius:4px;padding:2px 5px;cursor:pointer;font-size:12px;">'+(isExcluded?'↩':'✕')+'</button>';
       catHTML+='</div>';
     });
   });
@@ -2497,7 +2582,7 @@ function openDevisModal(id){
   var formHTML='<div id="devis-form-container" style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:12px;overflow:hidden;">';
   // Header
   formHTML+='<div style="background:#5a7050;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">';
-  formHTML+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:4px;padding:2px 7px;"><div style="font-size:11px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#2d6a1f;letter-spacing:1px;">DISTRIBUTION</div></div>';
+  formHTML+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:4px;padding:2px 7px;"><div style="font-size:11px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#6b8a5e;letter-spacing:1px;">DISTRIBUTION</div></div>';
   formHTML+='<span style="color:#fff;font-size:13px;font-weight:600;">'+(id?'Modifier devis':'Nouveau devis')+'</span></div>';
   formHTML+='<button data-action="close-devis-form" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:18px;">✕</button></div>';
   // Body
@@ -2520,13 +2605,13 @@ function openDevisModal(id){
   formHTML+='<input type="text" id="dv-search" placeholder="🔍 Rechercher..." oninput="filterDevisCat()" style="width:140px;padding:5px 8px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;"/></div>';
   // Catalogue
   formHTML+='<div style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;margin-bottom:8px;">';
-  formHTML+='<div style="display:grid;grid-template-columns:1fr 45px 80px 80px 30px;padding:6px 10px;background:#f4fbed;font-size:9px;font-weight:600;color:#2d6a1f;text-transform:uppercase;gap:4px;border-bottom:1px solid #e0e8d8;">';
+  formHTML+='<div style="display:grid;grid-template-columns:1fr 45px 80px 80px 30px;padding:6px 10px;background:#f4fbed;font-size:9px;font-weight:600;color:#6b8a5e;text-transform:uppercase;gap:4px;border-bottom:1px solid #e0e8d8;">';
   formHTML+='<span>Produit</span><span style="text-align:center;">Unite</span><span style="text-align:right;color:#bbb;">P.Achat moy.</span><span style="text-align:right;">Prix vente</span><span style="text-align:center;">✕</span></div>';
   formHTML+='<div style="padding:4px 10px;background:#fff8e6;border-bottom:0.5px solid #fac775;font-size:9px;color:#854f0b;">🔒 Prix achat = visible admin uniquement — pas dans le PDF envoyé au client</div>';
   formHTML+='<div id="dv-cat-list" style="max-height:280px;overflow-y:auto;">'+catHTML+'</div></div>';
   // Restore + Statut
   formHTML+='<div style="display:flex;gap:8px;margin-bottom:10px;">';
-  formHTML+='<button data-action="restore-devis-all" style="padding:5px 10px;background:#e8f5d8;border:1px solid #c0dd97;border-radius:5px;font-size:11px;cursor:pointer;color:#2d6a1f;">↩ Tout restaurer</button>';
+  formHTML+='<button data-action="restore-devis-all" style="padding:5px 10px;background:#e8f5d8;border:1px solid #c0dd97;border-radius:5px;font-size:11px;cursor:pointer;color:#6b8a5e;">↩ Tout restaurer</button>';
   formHTML+='<select id="dv-status" style="flex:1;padding:5px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;">';
   formHTML+='<option value="attente"'+(d&&d.status==='attente'?' selected':'')+'>En attente</option>';
   formHTML+='<option value="envoye"'+(d&&d.status==='envoye'?' selected':'')+'>Envoyé</option>';
@@ -2539,7 +2624,7 @@ function openDevisModal(id){
   formHTML+='<span style="font-size:11px;color:#27500a;">Marge auto:</span>';
   formHTML+='<input type="number" id="dv-marge" value="40" min="0" max="300" style="width:55px;text-align:center;font-size:12px;padding:3px 6px;"/>';
   formHTML+='<span style="font-size:11px;color:#27500a;">%</span>';
-  formHTML+='<button data-action="apply-devis-marge" style="padding:4px 10px;background:#2d6a1f;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;margin-left:auto;">Appliquer</button></div>';
+  formHTML+='<button data-action="apply-devis-marge" style="padding:4px 10px;background:#6b8a5e;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;margin-left:auto;">Appliquer</button></div>';
   formHTML+='<div style="display:flex;gap:6px;">';
   formHTML+='<button class="btn btn-p" data-action="save-devis" data-id="'+(id||'')+'" style="flex:1;">💾 Enregistrer</button>';
   formHTML+='<button class="btn btn-s" data-action="close-devis-form">Annuler</button></div>';
@@ -2669,9 +2754,9 @@ function openBLEdit(orderId){
       '</div>';
   }).join('');
   
-  var html='<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#2d6a1f;">Commande #'+orderId+' — '+o.client+'</div>'+
+  var html='<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#6b8a5e;">Commande #'+orderId+' — '+o.client+'</div>'+
     '<div id="bl-edit-items" style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;margin-bottom:8px;">'+
-    '<div style="display:grid;grid-template-columns:1fr 60px 60px 70px 30px;padding:6px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#2d6a1f;text-transform:uppercase;gap:4px;"><span>Produit</span><span>Qte</span><span>Unite</span><span>Prix Dh</span><span></span></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 60px 60px 70px 30px;padding:6px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;gap:4px;"><span>Produit</span><span>Qte</span><span>Unite</span><span>Prix Dh</span><span></span></div>'+
     itemsHTML+'</div>'+
     '<button class="btn btn-s btn-sm" data-action="add-bl-item" data-order-id="'+orderId+'">+ Ajouter article</button>';
   
@@ -2789,7 +2874,7 @@ document.addEventListener('click',function(e){
       row.querySelector('.dv-prix').disabled=true;
       row.querySelector('.dv-prix').style.opacity='0.4';
       row.querySelector('[data-action="toggle-devis-excl"]').style.background='#e8f5d8';
-      row.querySelector('[data-action="toggle-devis-excl"]').style.color='#2d6a1f';
+      row.querySelector('[data-action="toggle-devis-excl"]').style.color='#6b8a5e';
       row.querySelector('[data-action="toggle-devis-excl"]').textContent='↩';
     }
     // Update count
@@ -3633,7 +3718,7 @@ function renderStockAdmin(){
     html+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:10px;">';
     html+='<div style="padding:6px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;">'+emoji+' '+sec.title+'</div>';
     html+='<table style="width:100%;border-collapse:collapse;">';
-    html+='<tr style="background:#f4fbed;"><th style="padding:5px 14px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:left;text-transform:uppercase;">Produit</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:80px;">Stock</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:80px;">Seuil</th><th style="padding:5px;font-size:9px;font-weight:600;color:#2d6a1f;text-align:center;width:50px;">Etat</th></tr>';
+    html+='<tr style="background:#f4fbed;"><th style="padding:5px 14px;font-size:9px;font-weight:600;color:#6b8a5e;text-align:left;text-transform:uppercase;">Produit</th><th style="padding:5px;font-size:9px;font-weight:600;color:#6b8a5e;text-align:center;width:80px;">Stock</th><th style="padding:5px;font-size:9px;font-weight:600;color:#6b8a5e;text-align:center;width:80px;">Seuil</th><th style="padding:5px;font-size:9px;font-weight:600;color:#6b8a5e;text-align:center;width:50px;">Etat</th></tr>';
     sec.items.forEach(function(item,i){
       var s=parseFloat(stk[item.n]||0);
       var se=parseFloat(seu[item.n]||5);
