@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781449837</title>
+<title>Admin ELZER v1781451978</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -163,28 +163,56 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   .sb-logo { padding: 12px 5px !important; }
 }
 
-/* MOBILE (< 768) - encore plus compact */
+/* MOBILE (< 768) - layout optimisé */
 @media (max-width: 768px) {
-  .sb { width: 44px !important; }
-  .main { margin-left: 44px !important; width: calc(100% - 44px) !important; }
-  .panel.active {
-    left: 44px !important;
-    padding: 8px !important;
-    top: 50px !important;
+  body { overflow-x: hidden !important; }
+  .app { width: 100vw !important; overflow-x: hidden !important; }
+  .sb { width: 50px !important; }
+  .main { 
+    margin-left: 50px !important; 
+    width: calc(100vw - 50px) !important;
+    max-width: calc(100vw - 50px) !important;
+    overflow-x: hidden !important;
   }
-  .sbi { padding: 8px 6px !important; }
+  .content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  .panel.active {
+    left: 50px !important;
+    right: 0 !important;
+    width: calc(100vw - 50px) !important;
+    max-width: calc(100vw - 50px) !important;
+    padding: 10px !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  .sbi { padding: 8px 4px !important; justify-content: center !important; }
   .sbi .ico { font-size: 18px !important; }
-  /* Tableaux scrollables horizontalement */
-  table { font-size: 11px !important; }
+  .sbi span:not(.ico) { display: none !important; }
+  /* Header dans .main */
+  .main > div[style*="background"] {
+    padding: 8px !important;
+    font-size: 12px !important;
+  }
+  /* Tableaux scrollables */
+  table { font-size: 11px !important; width: 100% !important; }
   th, td { padding: 6px 4px !important; }
-  /* Boutons plus petits */
+  /* Boutons compacts */
   .btn { padding: 6px 8px !important; font-size: 11px !important; }
   .btn-sm { padding: 4px 6px !important; font-size: 10px !important; }
-  /* Cards plus serrées */
+  /* Grilles dashboard - 2 colonnes max */
+  div[style*="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Cards stats */
   .stat-card { padding: 10px !important; }
-  .stat-v { font-size: 18px !important; }
-  /* Inputs */
-  input, select, textarea { font-size: 14px !important; }
+  .stat-v { font-size: 20px !important; }
+  /* Inputs anti-zoom iOS */
+  input, select, textarea { font-size: 16px !important; }
   /* Modals plein écran */
   .mod { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; height: 100vh !important; max-height: 100vh !important; }
 }
