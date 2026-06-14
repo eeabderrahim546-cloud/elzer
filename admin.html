@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781354843</title>
+<title>Admin ELZER v1781396939</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1758,9 +1758,52 @@ function viewBL(id){
 }
 
 
+
+// ── NUMEROTATION BL AUTO-CONTINUE PAR CLIENT ──
+function getNextBLNumForClient(clientName){
+  var orders=load('terrasse_orders',[]);
+  var clientBLs=orders.filter(function(o){return normName(o.client)===normName(clientName);});
+  if(!clientBLs.length){
+    return new Date().getFullYear()+'001';
+  }
+  // Trouver le BL avec le numero le plus eleve
+  var maxNum=-1;
+  var bestId='';
+  clientBLs.forEach(function(o){
+    var idStr=String(o.id);
+    var numPart=idStr.match(/(\d+)$/);
+    if(numPart){
+      var n=parseInt(numPart[1]);
+      if(n>maxNum){
+        maxNum=n;
+        bestId=idStr;
+      }
+    }
+  });
+  if(bestId){
+    var m=bestId.match(/^(.*?)(\d+)$/);
+    if(m){
+      var pre=m[1];
+      var num=m[2];
+      var nextNum=String(parseInt(num)+1).padStart(num.length,'0');
+      return pre+nextNum;
+    }
+  }
+  return new Date().getFullYear()+'001';
+}
+
+// Renumeroter automatiquement le prochain BL d'un client
+function suggestNextBLNum(clientName){
+  return getNextBLNumForClient(clientName);
+}
+
 // ── MODIFIER NUMERO BL ──
 function editBLNum(id){
-  var newNum=prompt('Nouveau numéro BL (sera vérifié pour pas de doublon):', id);
+  orders=load('terrasse_orders',[]);
+  var o=orders.find(function(x){return String(x.id)===String(id);});
+  var suggestion=o?getNextBLNumForClient(o.client):id;
+  var msg='Numéro BL actuel: '+id+'\n\nEntrez le nouveau numéro.\nLes prochains BL de ce client suivront automatiquement.\n\nExemple: si vous mettez 2026001, le suivant sera 2026002';
+  var newNum=prompt(msg, id);
   if(!newNum||newNum===id) return;
   newNum=String(newNum).trim();
   orders=load('terrasse_orders',[]);
