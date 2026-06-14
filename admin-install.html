@@ -2,32 +2,46 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ELZER Admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>ELZER Admin - Installation</title>
 <link rel="manifest" href="manifest-admin.json"/>
-<meta name="theme-color" content="#0f2d0a"/>
-<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-title" content="Admin ELZER"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Admin ELZER"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="icon" href="icon.svg" type="image/svg+xml"/>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#5a7050,#6b8a5e);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:#fff;border-radius:20px;padding:30px;max-width:400px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.2);text-align:center;}
+.logo{width:80px;height:80px;border-radius:50%;background:#5a7050;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#fff;font-size:36px;font-weight:bold;}
+h1{color:#5a7050;margin:0 0 8px;font-size:22px;}
+.sub{color:#888;font-size:14px;margin-bottom:24px;}
+.btn{display:block;width:100%;padding:14px;background:#5a7050;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;text-decoration:none;margin-bottom:10px;}
+.btn:hover{background:#6b8a5e;}
+.btn-s{background:#f5f5f5;color:#333;}
+.steps{text-align:left;background:#f7faf4;border-radius:10px;padding:14px;margin:16px 0;font-size:13px;color:#5a7050;line-height:1.6;}
+.steps b{color:#333;}
+</style>
 </head>
-<body style="background:#0f2d0a;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:Arial,sans-serif;">
-<div style="text-align:center;color:white;">
-  <div style="font-size:24px;font-weight:700;color:#e67e22;">ELZER</div>
-  <div style="font-size:9px;color:#6cb84a;margin-top:4px;letter-spacing:2px;">DISTRIBUTION</div>
-  <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:12px;">Administration</div>
-  <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;">Chargement...</div>
+<body>
+<div class="card">
+  <div class="logo">⚙️</div>
+  <h1>ELZER Admin</h1>
+  <div class="sub">Panneau d'administration mobile</div>
+  
+  <a class="btn" href="admin-login.html">🔐 Ouvrir l'Admin</a>
+  
+  <div class="steps">
+    <b>📱 Pour installer sur ton téléphone :</b><br>
+    <b>Android (Chrome)</b> : Menu ⋮ → "Installer l'application"<br>
+    <b>iPhone (Safari)</b> : Bouton Partager → "Sur l'écran d'accueil"
+  </div>
+  
+  <a class="btn btn-s" href="accueil.html">← Retour à l'accueil</a>
 </div>
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(function(){
-    window.location.replace('admin-login.html');
-  }).catch(function(){
-    window.location.replace('admin-login.html');
-  });
-} else {
-  window.location.replace('admin-login.html');
-}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){});}
 </script>
 </body>
 </html>
