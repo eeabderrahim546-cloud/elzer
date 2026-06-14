@@ -1,1 +1,31 @@
-{"name": "ELZER - MIDA", "short_name": "MIDA", "description": "Commandes ELZER Distribution", "start_url": "/elzer/client_mida.html", "scope": "/elzer/", "display": "standalone", "background_color": "#0f2d0a", "theme_color": "#0f2d0a", "orientation": "portrait", "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"}, {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}, {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]}
+{
+  "name": "ELZER - MIDA",
+  "short_name": "MIDA",
+  "description": "Commandes ELZER Distribution",
+  "start_url": "/elzer/client_mida.html",
+  "scope": "/elzer/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#5a7050",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
