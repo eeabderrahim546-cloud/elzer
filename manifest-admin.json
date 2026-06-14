@@ -5,8 +5,8 @@
   "start_url": "/elzer/admin-install.html",
   "scope": "/elzer/",
   "display": "standalone",
-  "background_color": "#0f2d0a",
-  "theme_color": "#0f2d0a",
+  "background_color": "#ffffff",
+  "theme_color": "#5a7050",
   "orientation": "portrait",
   "icons": [
     {
