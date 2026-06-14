@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781451978</title>
+<title>Admin ELZER v1781452167</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -163,62 +163,107 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   .sb-logo { padding: 12px 5px !important; }
 }
 
-/* MOBILE (< 768) - layout optimisé */
+/* MOBILE - hamburger menu */
 @media (max-width: 768px) {
   body { overflow-x: hidden !important; }
-  .app { width: 100vw !important; overflow-x: hidden !important; }
-  .sb { width: 50px !important; }
-  .main { 
-    margin-left: 50px !important; 
-    width: calc(100vw - 50px) !important;
-    max-width: calc(100vw - 50px) !important;
-    overflow-x: hidden !important;
+  
+  /* Bouton hamburger fixé en haut */
+  .mobile-burger {
+    display: flex !important;
+    position: fixed !important;
+    top: 8px;
+    left: 8px;
+    z-index: 9999;
+    width: 40px;
+    height: 40px;
+    background: #5a7050;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 22px;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    cursor: pointer;
+  }
+  
+  /* Sidebar cachée par défaut, glisse depuis la gauche */
+  .sb {
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s ease !important;
+    width: 220px !important;
+    z-index: 9998 !important;
+  }
+  .sb.mobile-open {
+    transform: translateX(0) !important;
+  }
+  
+  /* Overlay sombre quand sidebar ouverte */
+  .mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 9997;
+  }
+  .mobile-overlay.show { display: block; }
+  
+  /* Contenu prend toute la largeur */
+  .main {
+    margin-left: 0 !important;
+    width: 100vw !important;
+    padding-top: 56px !important;
   }
   .content {
     width: 100% !important;
-    max-width: 100% !important;
     padding: 8px !important;
-    overflow-x: hidden !important;
     box-sizing: border-box !important;
   }
   .panel.active {
-    left: 50px !important;
+    left: 0 !important;
     right: 0 !important;
-    width: calc(100vw - 50px) !important;
-    max-width: calc(100vw - 50px) !important;
-    padding: 10px !important;
-    overflow-x: hidden !important;
+    top: 56px !important;
+    width: 100vw !important;
+    padding: 12px !important;
     box-sizing: border-box !important;
   }
-  .sbi { padding: 8px 4px !important; justify-content: center !important; }
-  .sbi .ico { font-size: 18px !important; }
-  .sbi span:not(.ico) { display: none !important; }
-  /* Header dans .main */
+  
+  /* Header dans .main visible mais compact */
   .main > div[style*="background"] {
-    padding: 8px !important;
+    padding: 8px 8px 8px 56px !important;
     font-size: 12px !important;
   }
-  /* Tableaux scrollables */
+  
+  /* Tableaux compacts */
   table { font-size: 11px !important; width: 100% !important; }
   th, td { padding: 6px 4px !important; }
-  /* Boutons compacts */
-  .btn { padding: 6px 8px !important; font-size: 11px !important; }
-  .btn-sm { padding: 4px 6px !important; font-size: 10px !important; }
-  /* Grilles dashboard - 2 colonnes max */
+  .btn { padding: 7px 10px !important; font-size: 12px !important; }
+  .btn-sm { padding: 5px 7px !important; font-size: 11px !important; }
+  
+  /* Grilles en 1 colonne */
   div[style*="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))"] {
     grid-template-columns: 1fr !important;
   }
-  /* Cards stats */
-  .stat-card { padding: 10px !important; }
-  .stat-v { font-size: 20px !important; }
-  /* Inputs anti-zoom iOS */
+  
+  /* Cards */
+  .stat-card { padding: 12px !important; }
+  .stat-v { font-size: 22px !important; }
+  
+  /* Inputs */
   input, select, textarea { font-size: 16px !important; }
+  
   /* Modals plein écran */
   .mod { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; height: 100vh !important; max-height: 100vh !important; }
 }
+
+/* Hamburger caché par défaut sur desktop */
+.mobile-burger { display: none; }
 </style>
 </head>
 <body>
+<button class="mobile-burger" id="mob-burger" onclick="document.querySelector('.sb').classList.toggle('mobile-open');document.getElementById('mob-overlay').classList.toggle('show');">☰</button>
+<div class="mobile-overlay" id="mob-overlay" onclick="document.querySelector('.sb').classList.remove('mobile-open');this.classList.remove('show');"></div>
+
       <div style="font-size:9px;color:#6b8a5e;letter-spacing:2px;text-transform:uppercase;">DISTRIBUTION — ADMIN</div>
     </div>
     
@@ -732,6 +777,12 @@ document.getElementById('sb-nav').addEventListener('click',function(e){
   var btn=e.target.closest('[data-panel]');
   if(!btn)return;
   showPanel(btn.dataset.panel);
+  // Fermer la sidebar sur mobile après clic
+  if(window.innerWidth<=768){
+    document.querySelector('.sb').classList.remove('mobile-open');
+    var ov=document.getElementById('mob-overlay');
+    if(ov) ov.classList.remove('show');
+  }
 });
 
 function showPanel(id){
