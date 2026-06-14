@@ -448,6 +448,25 @@ document.getElementById('dd').value=new Date().toISOString().split('T')[0];
 
 // Lire numéro BL depuis localStorage admin
 function getBLNum(){
+  // Numerotation continue par client
+  const orders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+  const cliName=(CLI&&CLI.name)||'';
+  function norm(s){return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+  const clientBLs=orders.filter(o=>norm(o.client)===norm(cliName));
+  if(!clientBLs.length){
+    // Premier BL du client
+    const n=parseInt(localStorage.getItem('elzer_next_bl')||'1');
+    return n;
+  }
+  // Prendre le dernier BL du client et incrementer
+  const lastId=String(clientBLs[clientBLs.length-1].id);
+  const m=lastId.match(/^(.*?)(\d+)$/);
+  if(m){
+    const pre=m[1];
+    const num=m[2];
+    const nextNum=String(parseInt(num)+1).padStart(num.length,'0');
+    return pre+nextNum;
+  }
   const n=parseInt(localStorage.getItem('elzer_next_bl')||'1');
   return n;
 }
