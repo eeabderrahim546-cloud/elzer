@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781397501</title>
+<title>Admin ELZER v1781449837</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -149,6 +149,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 
 /* RESPONSIVE - sidebar etroite sur petit ecran */
+/* TABLET (entre 768 et 1100) */
 @media (max-width: 1100px) {
   .sb { width: 50px !important; }
   .main { margin-left: 50px !important; width: calc(100% - 50px) !important; }
@@ -158,13 +159,34 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   }
   .sb-logo-t, .sb-logo-s, .sb-foot, .sb-badge { display: none !important; }
   .sbi span { display: none !important; }
-  .sbi {
-    justify-content: center !important;
-    padding: 10px !important;
+  .sbi { justify-content: center !important; padding: 10px !important; }
+  .sb-logo { padding: 12px 5px !important; }
+}
+
+/* MOBILE (< 768) - encore plus compact */
+@media (max-width: 768px) {
+  .sb { width: 44px !important; }
+  .main { margin-left: 44px !important; width: calc(100% - 44px) !important; }
+  .panel.active {
+    left: 44px !important;
+    padding: 8px !important;
+    top: 50px !important;
   }
-  .sb-logo {
-    padding: 12px 5px !important;
-  }
+  .sbi { padding: 8px 6px !important; }
+  .sbi .ico { font-size: 18px !important; }
+  /* Tableaux scrollables horizontalement */
+  table { font-size: 11px !important; }
+  th, td { padding: 6px 4px !important; }
+  /* Boutons plus petits */
+  .btn { padding: 6px 8px !important; font-size: 11px !important; }
+  .btn-sm { padding: 4px 6px !important; font-size: 10px !important; }
+  /* Cards plus serrées */
+  .stat-card { padding: 10px !important; }
+  .stat-v { font-size: 18px !important; }
+  /* Inputs */
+  input, select, textarea { font-size: 14px !important; }
+  /* Modals plein écran */
+  .mod { width: 100% !important; max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; height: 100vh !important; max-height: 100vh !important; }
 }
 </style>
 </head>
