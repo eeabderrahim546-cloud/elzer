@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781471112</title>
+<title>Admin ELZER v1781474672</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -333,14 +333,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   <div class="content">
     <div class="panel active" id="panel-dashboard">
       <div class="stats">
-        <div class="stat"><div class="stat-n" id="d-total">0</div><div class="stat-l">Commandes du jour</div></div>
-        <div class="stat"><div class="stat-n" id="d-new" style="color:#1a7aff">0</div><div class="stat-l">Nouvelles</div></div>
-        <div class="stat"><div class="stat-n" id="d-clients">0</div><div class="stat-l">En préparation</div></div>
-        <div class="stat"><div class="stat-n" id="d-ca">0 Dh</div><div class="stat-l">CA du jour</div></div>
+        <div class="stat"><div class="stat-n" id="d-livtoday" style="color:#5a7050">0</div><div class="stat-l">🚚 À livrer aujourd'hui</div></div>
+        <div class="stat"><div class="stat-n" id="d-prep" style="color:#c47a00">0</div><div class="stat-l">📦 À préparer</div></div>
+        <div class="stat"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
+        <div class="stat"><div class="stat-n" id="d-late" style="color:#d32f2f">0</div><div class="stat-l">⚠️ En retard</div></div>
       </div>
-      <div class="sec-hd"><div id="dash-smart"></div>
-      <div class="sec-t">📋 Commandes du jour</div><button class="btn btn-s btn-sm" data-panel="commandes">Voir tout</button></div>
-      <div class="tw"><table class="tbl"><thead><tr><th>#</th><th>Client</th><th>Livraison</th><th>Total</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="dash-tbody"></tbody></table></div>
+      <div id="dash-operations"></div>
     </div>
     <div class="panel" id="panel-commandes">
       <div class="sec-hd">
@@ -936,93 +934,79 @@ function statusBadge(s){
 function renderDashboard(){
   orders=load('terrasse_orders',[]);
   var today=new Date().toISOString().split('T')[0];
-  var thisMonth=today.substring(0,7);
-  var todayO=orders.filter(function(o){return o.createdAt&&o.createdAt.startsWith(today);});
-  var monthO=orders.filter(function(o){return (o.delivDate&&o.delivDate.startsWith(thisMonth))||(o.createdAt&&o.createdAt.startsWith(thisMonth));});
-  var newO=orders.filter(function(o){return o.status==='nouvelle';});
-  var prepO=orders.filter(function(o){return o.status==='preparation';});
-
-  // Stats de base
-  var dt=document.getElementById('d-total'); if(dt) dt.textContent=todayO.length;
-  var dn=document.getElementById('d-new'); if(dn) dn.textContent=newO.length;
-  var dc=document.getElementById('d-clients'); if(dc) dc.textContent=prepO.length;
-  var caJour=todayO.reduce(function(s,o){return s+(o.total||0);},0);
-  var dca=document.getElementById('d-ca'); if(dca) dca.textContent=Math.round(caJour).toLocaleString('fr-FR')+' Dh';
-  var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=newO.length;
-
-  // === DASHBOARD INTELLIGENT ===
-  var smart=document.getElementById('dash-smart');
-  if(smart){
-    // CA du mois
-    var caMois=monthO.reduce(function(s,o){return s+(o.total||0);},0);
-    // Top clients (par CA ce mois)
-    var cliCA={};
-    monthO.forEach(function(o){cliCA[o.client]=(cliCA[o.client]||0)+(o.total||0);});
-    var topClients=Object.keys(cliCA).map(function(c){return {name:c,ca:cliCA[c]};}).sort(function(a,b){return b.ca-a.ca;}).slice(0,5);
-    // Top produits (par quantité ce mois)
-    var prodQty={};
-    monthO.forEach(function(o){(o.items||[]).forEach(function(i){prodQty[i.name]=(prodQty[i.name]||0)+(parseFloat(i.qty)||0);});});
-    var topProds=Object.keys(prodQty).map(function(p){return {name:p,qty:prodQty[p]};}).sort(function(a,b){return b.qty-a.qty;}).slice(0,5);
-
-    var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px;">';
-    
-    // Carte CA du mois
-    html+='<div style="background:linear-gradient(135deg,#5a7050,#6b8a5e);border-radius:12px;padding:16px;color:#fff;">';
-    html+='<div style="font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:1px;">CA du mois</div>';
-    html+='<div style="font-size:28px;font-weight:bold;margin:4px 0;">'+Math.round(caMois).toLocaleString('fr-FR')+' Dh</div>';
-    html+='<div style="font-size:11px;opacity:.85;">'+monthO.length+' commande(s) ce mois</div></div>';
-    
-    // Top clients
-    html+='<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8dd;">';
-    html+='<div style="font-size:12px;font-weight:600;color:#5a7050;margin-bottom:10px;">🏆 Top Clients (mois)</div>';
-    if(topClients.length){
-      topClients.forEach(function(c,i){
-        var medals=['🥇','🥈','🥉','4.','5.'];
-        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">';
-        html+='<span>'+medals[i]+' '+c.name+'</span><span style="font-weight:600;color:#5a7050;">'+Math.round(c.ca).toLocaleString('fr-FR')+' Dh</span></div>';
-      });
-    } else { html+='<div style="color:#bbb;font-size:12px;">Aucune donnée</div>'; }
-    html+='</div>';
-    
-    // Top produits
-    html+='<div style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8dd;">';
-    html+='<div style="font-size:12px;font-weight:600;color:#5a7050;margin-bottom:10px;">📦 Top Produits (mois)</div>';
-    if(topProds.length){
-      topProds.forEach(function(p,i){
-        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:12px;">';
-        html+='<span>'+(i+1)+'. '+p.name+'</span><span style="font-weight:600;color:#6b8a5e;">'+p.qty.toFixed(1).replace('.',',')+'</span></div>';
-      });
-    } else { html+='<div style="color:#bbb;font-size:12px;">Aucune donnée</div>'; }
-    html+='</div>';
-    
-    html+='</div>';
-    smart.innerHTML=html;
-  }
-
-  // Commandes du jour
-  var tbody=document.getElementById('dash-tbody');
-  if(!tbody) return;
-  var sorted=[].concat(todayO).sort(function(a,b){
-    var order={nouvelle:0,preparation:1,livree:2};
-    return (order[a.status]||3)-(order[b.status]||3);
-  });
-  if(!sorted.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#bbb;padding:30px;">Aucune commande aujourd hui</td></tr>';
-    return;
-  }
-  var rows='';
-  sorted.forEach(function(o){
-    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
-    var cr=o.createdAt?new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+  var tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
+  
+  // Filtres par date de livraison
+  var livToday=orders.filter(function(o){return o.delivDate===today && o.status!=='annulee' && o.status!=='livree';});
+  var livTomorrow=orders.filter(function(o){return o.delivDate===tomorrow && o.status!=='annulee';});
+  var aPreparer=orders.filter(function(o){return o.delivDate===today && o.status==='nouvelle';});
+  var enRetard=orders.filter(function(o){return o.delivDate && o.delivDate<today && o.status!=='livree' && o.status!=='annulee';});
+  
+  // Stats
+  var e;
+  if(e=document.getElementById('d-livtoday')) e.textContent=livToday.length;
+  if(e=document.getElementById('d-prep')) e.textContent=aPreparer.length;
+  if(e=document.getElementById('d-tomorrow')) e.textContent=livTomorrow.length;
+  if(e=document.getElementById('d-late')) e.textContent=enRetard.length;
+  var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=orders.filter(function(o){return o.status==='nouvelle';}).length;
+  
+  var ops=document.getElementById('dash-operations');
+  if(!ops) return;
+  
+  function orderCard(o,showLivBtn){
     var cli=findClient(o.client);
     var waNum=cli.wa||cli.tel||'';
-    var acts='';
-    if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Préparer</button>';
-    if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livrer</button>';
+    var nbArticles=(o.items||[]).length;
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';
     var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
-    rows+='<tr><td style="font-weight:600;color:var(--g7);">#'+o.id+'</td><td style="font-weight:500;">'+o.client+'</td><td style="font-size:11px;color:#888;"><div>🕐 '+cr+'</div><div>📦 '+dv+'</div></td><td style="font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</td><td>'+statusBadge(o.status)+'</td><td><div style="display:flex;gap:4px;">'+waBtn+'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Détail</button>'+acts+'</div></td></tr>';
-  });
-  tbody.innerHTML=rows;
+    var actBtn='';
+    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
+    else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:12px;margin-bottom:8px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
+      +'<div><div style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:2px;">BL-'+o.id+' · '+nbArticles+' article(s) · reçu '+cr+'</div></div>'
+      +statusBadge(o.status)+'</div>'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
+      +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋 Détail</button>'
+      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️ BL</button>'
+      +waBtn+actBtn+'</div></div>';
+  }
+  
+  var html='';
+  
+  // SECTION 1: EN RETARD (priorité absolue)
+  if(enRetard.length){
+    html+='<div style="background:#ffecec;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #d32f2f;">';
+    html+='<div style="font-size:14px;font-weight:600;color:#d32f2f;margin-bottom:10px;">⚠️ EN RETARD ('+enRetard.length+')</div>';
+    enRetard.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
+    enRetard.forEach(function(o){html+=orderCard(o);});
+    html+='</div>';
+  }
+  
+  // SECTION 2: À LIVRER AUJOURD'HUI
+  html+='<div style="background:#f7faf4;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #5a7050;">';
+  html+='<div style="font-size:14px;font-weight:600;color:#5a7050;margin-bottom:10px;">🚚 À LIVRER AUJOURD HUI ('+livToday.length+')</div>';
+  if(livToday.length){
+    // Trier: a preparer d'abord, puis en preparation
+    livToday.sort(function(a,b){var o={nouvelle:0,preparation:1};return (o[a.status]||2)-(o[b.status]||2);});
+    livToday.forEach(function(o){html+=orderCard(o,true);});
+  } else {
+    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune livraison prévue aujourd hui</div>';
+  }
+  html+='</div>';
+  
+  // SECTION 3: POUR DEMAIN (anticiper)
+  html+='<div style="background:#f0f6ff;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #1a7aff;">';
+  html+='<div style="font-size:14px;font-weight:600;color:#1a5c9e;margin-bottom:10px;">📅 COMMANDES POUR DEMAIN ('+livTomorrow.length+')</div>';
+  if(livTomorrow.length){
+    livTomorrow.forEach(function(o){html+=orderCard(o);});
+  } else {
+    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune commande reçue pour demain</div>';
+  }
+  html+='</div>';
+  
+  ops.innerHTML=html;
 }
 
 // ── COMMANDES ──
