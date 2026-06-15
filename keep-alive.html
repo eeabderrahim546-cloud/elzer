@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Keep Alive</title>
+<meta name="robots" content="noindex"/>
+</head>
+<body style="font-family:Arial;padding:40px;text-align:center;">
+<h2>ELZER Keep Alive ✅</h2>
+<div id="status">Ping en cours...</div>
+<script>
+fetch('https://ryfywqcgdvrhtpzfjsns.supabase.co/rest/v1/commandes?limit=1', {
+  headers: {
+    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Znl3cWNnZHZyaHRwemZqc25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMzU4MDQsImV4cCI6MjA5NTkxMTgwNH0.CBvMyW66erhqfbNCqud4iRUuYXr2DXW6FZMvCYJz9R0'
+  }
+})
+.then(r => r.json())
+.then(d => {
+  document.getElementById('status').innerHTML = '✅ Supabase actif - ' + new Date().toLocaleString('fr-FR');
+})
+.catch(e => {
+  document.getElementById('status').innerHTML = '❌ Erreur: ' + e.message;
+});
+</script>
+</body>
+</html>
