@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781474672</title>
+<title>Admin ELZER v1781555925</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -418,14 +418,18 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:var(--g0);padding:10px;border-radius:8px;border:1px solid var(--g2);">
         <div style="font-size:12px;color:var(--gy5);font-weight:600;">N° Facture:</div>
-        <input type="text" id="fact-num-input" placeholder="F-2026-001" style="padding:6px 10px;border:1.5px solid var(--gy3);border-radius:6px;font-size:13px;font-family:var(--mn);width:140px;outline:none;" oninput="save('elzer_fact_num',this.value)"/>
-        <div style="font-size:11px;color:var(--gy5);">Format: F-2026-001, F-2026-002...</div>
+        <input type="text" id="fact-num-input" placeholder="ELD2026/0001" style="padding:6px 10px;border:1.5px solid var(--gy3);border-radius:6px;font-size:13px;font-family:var(--mn);width:160px;outline:none;"/>
+        <button class="btn btn-s btn-sm" data-action="fact-auto-num">🔄 Auto</button>
+        <div style="font-size:11px;color:var(--gy5);">Continu global. Modifiable = la suite repart de votre numéro</div>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-        <select class="fs" style="width:200px;" id="fact-mois"></select>
-        <select class="fs" style="width:200px;" id="fact-client"><option value="">Tous les clients</option></select>
-        <button class="btn btn-s" data-action="print-facture">🖨️ Imprimer</button>
-      <button class="btn btn-p" data-action="export-facture-pdf">PDF</button>
+        <select class="fs" style="width:180px;" id="fact-mois"></select>
+        <select class="fs" style="width:180px;" id="fact-client"><option value="">Choisir client</option></select>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-p" data-action="print-facture-mensuelle">📄 Facture mensuelle (Imprimer/PDF)</button>
+        <button class="btn btn-a" data-action="print-releve-mensuel">📋 Relevé mensuel (Imprimer/PDF)</button>
+        <button class="btn btn-s" data-action="export-facture-pdf">💾 Enregistrer au Suivi</button>
       </div>
       <div id="facturation-content"></div>
     </div>
@@ -869,6 +873,9 @@ document.addEventListener('click',function(e){
     else if(a==='print-devis'){printDevis(el.dataset.id);}
     else if(a==='print-fournisseur'){printFournisseur();}
     else if(a==='print-facture'){printFacture();}
+    else if(a==='print-facture-mensuelle'){printFactureMensuelle();}
+    else if(a==='print-releve-mensuel'){printReleveMensuel();}
+    else if(a==='fact-auto-num'){var inp=document.getElementById('fact-num-input');if(inp){inp.value=getNextNum2();toast('N° auto: '+inp.value);}}
     else if(a==='view-bl'){viewBL(el.dataset.id);}
     else if(a==='edit-bl-num'){editBLNum(el.dataset.id);}
     else if(a==='edit-bl-items'){editBLItems(el.dataset.id);}
@@ -1604,6 +1611,9 @@ function getNextFactNum(){
 }
 
 function renderFacturation(){
+  var numInp=document.getElementById('fact-num-input');
+  if(numInp && !numInp.value) numInp.value=getNextNum2();
+
   orders=load('terrasse_orders',[]);
   var fnInput=document.getElementById('fact-num-input');
   var savedNum=load('elzer_fact_num','F-'+new Date().getFullYear()+'-001');
@@ -1755,6 +1765,122 @@ function renderFacturation(){
     html+='</div>';
   });
   document.getElementById('facturation-content').innerHTML=html;
+}
+
+
+// ── FACTURE MENSUELLE (format ELZER reel: liste BL du mois) ──
+function buildFactureMensuelleHtml(cliName, month, factNum){
+  orders=load('terrasse_orders',[]);
+  var cli=findClient(cliName);
+  var prix=cli.prix||{};
+  var monthOrders=orders.filter(function(o){
+    return normName(o.client)===normName(cliName) && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';
+  });
+  monthOrders.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
+  var total=0;
+  var rows=monthOrders.map(function(o){
+    var blTotal=0;
+    (o.items||[]).forEach(function(i){
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
+      blTotal+=pu*(parseFloat(i.qty)||0);
+    });
+    if(blTotal===0 && o.total) blTotal=o.total;
+    total+=blTotal;
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    return '<tr><td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;">Commande légumes et fruits '+dv+'</td>'
+      +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:center;">N°'+o.id+'</td>'
+      +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:right;">'+blTotal.toFixed(2).replace('.',',')+'</td></tr>';
+  }).join('');
+  var dateNow=new Date().toLocaleDateString('fr-FR');
+  return '<div style="font-family:Arial,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:20px;">'
+    +'<h1 style="text-align:center;color:#2d6a1f;font-size:24px;margin-bottom:20px;">FACTURE</h1>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:20px;">'
+    +'<div style="font-size:12px;line-height:1.5;"><div style="color:#c0392b;font-size:15px;font-weight:bold;">Societé ELZER DISTRIBUTION</div>'
+    +'Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC<br>Mail: elzerdist@gmail.com<br>Tél: +212 673 958 337</div>'
+    +'<div style="text-align:right;font-size:12px;line-height:1.6;"><div style="color:#c0392b;font-weight:bold;">Client : '+cliName+'</div>'
+    +'<div>Date: '+dateNow+'</div>'
+    +(cli.ice?'<div>ICE : '+cli.ice+'</div>':'')+'</div></div>'
+    +'<div style="text-align:center;color:#2d6a1f;font-weight:bold;font-size:16px;margin-bottom:16px;">Facture N° : '+factNum+'</div>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">'
+    +'<thead><tr style="background:#f0f0f0;"><th style="padding:8px 14px;border:1px solid #ddd;text-align:left;font-size:12px;">DESCRIPTION</th>'
+    +'<th style="padding:8px 14px;border:1px solid #ddd;font-size:12px;">NUMERO DE BL</th>'
+    +'<th style="padding:8px 14px;border:1px solid #ddd;font-size:12px;">TOTAL</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:flex-end;"><table style="border-collapse:collapse;">'
+    +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#c0392b;font-size:13px;">TOTAL HT</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:13px;border-bottom:1px solid #ccc;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
+    +'<tr><td style="padding:6px 20px;text-align:right;color:#c0392b;font-size:13px;">TVA</td><td style="padding:6px 20px;text-align:right;font-size:13px;border-bottom:1px solid #ccc;">0,00%</td></tr>'
+    +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#c0392b;font-size:14px;">TOTAL A PAYER</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:14px;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
+    +'</table></div>'
+    +'<div style="margin-top:40px;padding-top:12px;border-top:1px solid #ddd;text-align:center;font-size:8px;color:#888;line-height:1.5;">'
+    +'ELZER DIST S.A.R.L au capital de 100 000 DH- siège social :Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC.<br>'
+    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div>';
+}
+
+// ── RELEVE MENSUEL (recapitulatif factures du client) ──
+function buildReleveMensuelHtml(cliName, month){
+  loadSuivi2();
+  var cli=findClient(cliName);
+  var factures=SUIVI2.filter(function(f){
+    return normName(f.client)===normName(cliName) && f.mois===month;
+  });
+  var total=0;
+  var rows=factures.map(function(f){
+    total+=parseFloat(f.montant)||0;
+    return '<tr><td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;">Commande légumes et fruits</td>'
+      +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:center;">'+(f.blIds?f.blIds.join(', '):'-')+'</td>'
+      +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:center;">'+f.num+'</td>'
+      +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:right;">'+(parseFloat(f.montant)||0).toFixed(2).replace('.',',')+'</td></tr>';
+  }).join('');
+  var dateNow=new Date().toLocaleDateString('fr-FR');
+  return '<div style="font-family:Arial,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:20px;">'
+    +'<h1 style="text-align:center;color:#2d6a1f;font-size:22px;margin-bottom:20px;">RELEVE DES FACTURES</h1>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:20px;">'
+    +'<div style="font-size:12px;line-height:1.5;"><div style="color:#c0392b;font-size:15px;font-weight:bold;">Societé ELZER DISTRIBUTION</div>'
+    +'Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC<br>Mail: elzerdist@gmail.com<br>Tél: +212 673 958 337</div>'
+    +'<div style="text-align:right;font-size:12px;line-height:1.6;"><div style="color:#c0392b;font-weight:bold;">CLIENT : '+cliName+'</div>'
+    +(cli.ice?'<div>ICE : '+cli.ice+'</div>':'')+'<div>Date: '+dateNow+'</div></div></div>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">'
+    +'<thead><tr style="background:#f0f0f0;"><th style="padding:8px 14px;border:1px solid #ddd;text-align:left;font-size:12px;">DESCRIPTION</th>'
+    +'<th style="padding:8px 14px;border:1px solid #ddd;font-size:12px;">N° BL</th>'
+    +'<th style="padding:8px 14px;border:1px solid #ddd;font-size:12px;">N° DE FACTURE</th>'
+    +'<th style="padding:8px 14px;border:1px solid #ddd;font-size:12px;">TOTAL</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<div style="display:flex;justify-content:flex-end;"><table style="border-collapse:collapse;">'
+    +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#2d6a1f;font-size:13px;border:1px solid #ddd;">TOTAL HT</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:13px;border:1px solid #ddd;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
+    +'<tr><td style="padding:6px 20px;text-align:right;color:#2d6a1f;font-size:13px;border:1px solid #ddd;">TVA 0%</td><td style="padding:6px 20px;text-align:right;font-size:13px;border:1px solid #ddd;">0,00</td></tr>'
+    +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#2d6a1f;font-size:14px;border:1px solid #ddd;">TOTAL A PAYER</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:14px;border:1px solid #ddd;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
+    +'</table></div>'
+    +'<div style="margin-top:40px;padding-top:12px;border-top:1px solid #ddd;text-align:center;font-size:8px;color:#888;line-height:1.5;">'
+    +'ELZER DIST S.A.R.L au capital de 100 000 DH- siège social :Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC.<br>'
+    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div>';
+}
+
+// Imprimer facture mensuelle
+function printFactureMensuelle(){
+  var cliSel=document.getElementById('fact-client');
+  var moisSel=document.getElementById('fact-mois');
+  if(!cliSel||!cliSel.value){toast('Sélectionnez un client');return;}
+  if(!moisSel||!moisSel.value){toast('Sélectionnez un mois');return;}
+  var numInput=document.getElementById('fact-num-input');
+  var factNum=(numInput&&numInput.value)?numInput.value:getNextNum2();
+  var html=buildFactureMensuelleHtml(cliSel.value, moisSel.value, factNum);
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+factNum+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
+}
+
+// Imprimer releve mensuel
+function printReleveMensuel(){
+  var cliSel=document.getElementById('fact-client');
+  var moisSel=document.getElementById('fact-mois');
+  if(!cliSel||!cliSel.value){toast('Sélectionnez un client');return;}
+  if(!moisSel||!moisSel.value){toast('Sélectionnez un mois');return;}
+  var html=buildReleveMensuelHtml(cliSel.value, moisSel.value);
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relevé '+cliSel.value+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
 }
 
 function exportFacturePDF(){
@@ -3865,9 +3991,28 @@ function loadSuivi2(){
 
 function getNextNum2(){
   loadSuivi2();
-  if(!SUIVI2.length) return 'AFD'+new Date().getFullYear()+'/0001';
-  var max=Math.max.apply(null,SUIVI2.map(function(r){return parseInt((r.num.match(/[0-9]+$/)||['0'])[0]);}));
-  return 'AFD'+new Date().getFullYear()+'/'+(String(max+1).padStart(4,'0'));
+  var year=new Date().getFullYear();
+  // Numero continu GLOBAL (tous clients confondus)
+  // Cherche le max parmi toutes les factures existantes
+  var allNums=[];
+  SUIVI2.forEach(function(r){
+    var m=String(r.num||'').match(/(\d+)$/);
+    if(m) allNums.push(parseInt(m[1]));
+  });
+  // Aussi verifier le compteur manuel sauvegarde
+  var savedCounter=parseInt(localStorage.getItem('elzer_fact_counter')||'0');
+  if(savedCounter>0) allNums.push(savedCounter-1);
+  var maxNum=allNums.length?Math.max.apply(null,allNums):0;
+  var next=maxNum+1;
+  return 'ELD'+year+'/'+String(next).padStart(4,'0');
+}
+
+// Definir manuellement le prochain numero de facture
+function setNextFactNum(num){
+  var m=String(num).match(/(\d+)$/);
+  if(m){
+    localStorage.setItem('elzer_fact_counter',String(parseInt(m[1])));
+  }
 }
 
 function openSuiviForm(idx){
