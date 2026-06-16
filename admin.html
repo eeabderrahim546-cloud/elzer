@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781617821</title>
+<title>Admin ELZER v1781619154</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -344,7 +344,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div class="sec-hd">
         <div class="sec-t">📋 Commandes</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="date" class="fs" style="width:150px;" id="filter-date" data-action="filter-cmd-change"/>
+          <input type="date" class="fs" style="width:150px;" id="filter-date"/>
           <select class="fs" style="width:140px;" id="filter-status"><option value="">Tous statuts</option><option value="nouvelle">Nouvelles</option><option value="preparation">Préparation</option><option value="livree">Livrées</option><option value="annulee">Annulées</option></select>
           <select class="fs" style="width:140px;" id="filter-client"><option value="">Tous clients</option></select>
           <button class="btn btn-s btn-sm" data-action="clear-cmd-filters">✕ Réinit</button>
@@ -431,6 +431,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <select class="fs" style="width:180px;" id="fact-mois"></select>
         <select class="fs" style="width:180px;" id="fact-client"><option value="">Choisir client</option></select>
+      </div>
+      <div style="background:#f7faf4;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5a7050;cursor:pointer;">
+          <input type="checkbox" id="fact-joindre-bl"/> 📎 Joindre les BL détaillés avec la facture mensuelle
+        </label>
+        <div style="font-size:11px;color:#888;margin-top:4px;margin-left:24px;">Si coché, chaque BL du mois sera imprimé après la facture (avec le détail des produits)</div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-p" data-action="print-facture-mensuelle">📄 Facture mensuelle (Imprimer/PDF)</button>
@@ -628,10 +634,16 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div id="fact-format-current" style="font-size:12px;color:#5a7050;margin-top:8px;font-weight:600;"></div>
       </div>
       
-      <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;">
+      <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;margin-bottom:16px;">
         <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter tous les BL existants</div>
         <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format à toutes les commandes existantes, par client et par date.</div>
         <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-bl-format-all">🔄 Appliquer le format à tous les BL</button>
+      </div>
+      
+      <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;">
+        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter toutes les factures existantes</div>
+        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format à toutes les factures du Suivi, par ordre de date.</div>
+        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-fact-format-all">🔄 Appliquer le format à toutes les factures</button>
       </div>
     </div>
 
@@ -908,6 +920,7 @@ document.addEventListener('click',function(e){
   else if(a==='save-bl-format'){saveBLFormat();}
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
+  else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
   else if(a==='mark-bl-facture'){
     orders=load('terrasse_orders',[]);
     var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
@@ -1100,6 +1113,28 @@ function getNextBLNumForClient(clientName){
 }
 
 // Appliquer le format BL a toutes les commandes existantes
+
+// Appliquer le format facture a toutes les factures existantes
+function applyFactFormatToAll(){
+  var factFormat=localStorage.getItem('elzer_fact_format');
+  if(!factFormat){toast('Définissez d abord un format Facture');return;}
+  if(!confirm('Renuméroter TOUTES les factures avec le format '+factFormat+' ?\n\nElles seront renumérotées par ordre de date.')) return;
+  loadSuivi2();
+  var fm=factFormat.match(/^(.*?)(\d+)$/);
+  if(!fm){toast('Format invalide');return;}
+  var prefix=fm[1];
+  var startNum=parseInt(fm[2]);
+  var numLen=fm[2].length;
+  // Trier par date
+  SUIVI2.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  SUIVI2.forEach(function(f,i){
+    f.num=prefix+String(startNum+i).padStart(numLen,'0');
+  });
+  saveSuivi2();
+  toast('✅ '+SUIVI2.length+' factures renumérotées');
+  renderSuivi2();
+}
+
 function applyBLFormatToAll(){
   var blFormat=localStorage.getItem('elzer_bl_format');
   if(!blFormat){toast('Définissez d abord un format BL');return;}
@@ -2070,14 +2105,29 @@ function printFactureMensuelle(){
   if(!moisSel||!moisSel.value){toast('Sélectionnez un mois');return;}
   var numInput=document.getElementById('fact-num-input');
   var factNum=(numInput&&numInput.value)?numInput.value:getNextNum2();
-  var html=buildFactureMensuelleHtml(cliSel.value, moisSel.value, factNum);
+  var cliName=cliSel.value;
+  var month=moisSel.value;
+  var html=buildFactureMensuelleHtml(cliName, month, factNum);
+  
+  // Verifier si on doit joindre les BL
+  var joindreBL=document.getElementById('fact-joindre-bl');
+  if(joindreBL && joindreBL.checked){
+    orders=load('terrasse_orders',[]);
+    var monthOrders=orders.filter(function(o){
+      return normName(o.client)===normName(cliName) && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';
+    });
+    monthOrders.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
+    // Ajouter chaque BL apres la facture (avec saut de page)
+    monthOrders.forEach(function(o){
+      html+='<div style="page-break-before:always;"></div>'+buildBLHtml(o);
+    });
+  }
+  
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+factNum+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
-
-// Imprimer releve mensuel
 function printReleveMensuel(){
   var cliSel=document.getElementById('fact-client');
   var moisSel=document.getElementById('fact-mois');
@@ -4291,6 +4341,10 @@ var editSuivi2=-1;
 
 function loadSuivi2(){
   SUIVI2=load('elzer_suivi_factures',[]);
+}
+function saveSuivi2(){
+  save('elzer_suivi_factures',SUIVI2);
+  if(typeof saveSuivi2ToSupabase==='function') saveSuivi2ToSupabase();
 }
 
 function getNextNum2(){
