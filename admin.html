@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781644365</title>
+<title>Admin ELZER v1781644836</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -258,7 +258,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 
 /* Hamburger caché par défaut sur desktop */
 .mobile-burger { display: none; }
-</style>
+.cmd-tab{padding:9px 16px;border:1.5px solid #e0e8d8;background:#fff;border-radius:10px;font-size:13px;font-weight:500;color:#5a7050;cursor:pointer;transition:all .15s;}.cmd-tab:hover{background:#f7faf4;}.cmd-tab-active{background:#5a7050;color:#fff;border-color:#5a7050;}</style>
 </head>
 <body>
 <button class="mobile-burger" id="mob-burger" onclick="document.querySelector('.sb').classList.toggle('mobile-open');document.getElementById('mob-overlay').classList.toggle('show');">☰</button>
@@ -343,12 +343,14 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div class="panel" id="panel-commandes">
       <div class="sec-hd">
         <div class="sec-t">📋 Commandes</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="date" class="fs" style="width:150px;" id="filter-date"/>
-          <select class="fs" style="width:140px;" id="filter-status"><option value="">Tous statuts</option><option value="nouvelle">Nouvelles</option><option value="preparation">Préparation</option><option value="livree">Livrées</option><option value="annulee">Annulées</option></select>
-          <select class="fs" style="width:140px;" id="filter-client"><option value="">Tous clients</option></select>
-          <button class="btn btn-s btn-sm" id="btn-reinit-cmd" onclick="resetCmdFilters()">✕ Réinit</button>
-        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="cmd-view-tabs">
+        <button class="cmd-tab cmd-tab-active" data-view="today" onclick="setCmdView('today')">📅 Aujourd'hui</button>
+        <button class="cmd-tab" data-view="tomorrow" onclick="setCmdView('tomorrow')">⏭️ Demain</button>
+        <button class="cmd-tab" data-view="new" onclick="setCmdView('new')">🆕 Nouvelles</button>
+        <button class="cmd-tab" data-view="toprep" onclick="setCmdView('toprep')">📦 À préparer</button>
+        <button class="cmd-tab" data-view="all" onclick="setCmdView('all')">📋 Toutes</button>
+        <input type="date" class="fs" style="width:150px;margin-left:auto;" id="cmd-date-pick" onchange="setCmdView('date')"/>
       </div>
       <div id="commandes-list"></div>
     </div>
@@ -1078,10 +1080,10 @@ document.addEventListener('click',function(e){
   if(pn&&!pn.closest('#sb-nav')){showPanel(pn.dataset.panel);}
 });
 
-document.getElementById('filter-status').addEventListener('change',renderCommandes);
+var _fs=document.getElementById('filter-status');if(_fs)_fs.addEventListener('change',renderCommandes);
   var fdEl2=document.getElementById('filter-date');if(fdEl2)fdEl2.addEventListener('change',renderCommandes);
-document.getElementById('filter-client').addEventListener('change',renderCommandes);
-document.getElementById('cat-search').addEventListener('input',renderCatalogue);
+var _fc=document.getElementById('filter-client');if(_fc)_fc.addEventListener('change',renderCommandes);
+var _cs=document.getElementById('cat-search');if(_cs)_cs.addEventListener('input',renderCatalogue);
 // Listener pour prix achat dans fournisseur
 document.addEventListener('change',function(e){
   var el=e.target.closest('[data-action="save-prix-achat"]');
@@ -1330,74 +1332,114 @@ function resetCmdFilters(){
 }
 window.resetCmdFilters=resetCmdFilters;
 
+if(typeof window.CMD_VIEW==='undefined') window.CMD_VIEW='today';
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
-  var fs=document.getElementById('filter-status').value;
-  var fc=document.getElementById('filter-client').value;
-  var fcSel=document.getElementById('filter-client');
-  var cur=fc;
-  var cls=[].concat([...new Set(orders.map(function(o){return o.client;}))]);
-  fcSel.innerHTML='<option value="">Tous les clients</option>'+cls.map(function(c){return '<option value="'+c+'"'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
-  var list=[].concat(orders).sort(function(a,b){
-    var sa=({nouvelle:0,preparation:1,livree:2,annulee:3})[a.status]||9;
-    var sb=({nouvelle:0,preparation:1,livree:2,annulee:3})[b.status]||9;
+  var view=window.CMD_VIEW||'today';
+  var today=new Date().toISOString().split('T')[0];
+  var tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
+  var container=document.getElementById('commandes-list');
+  if(!container)return;
+  
+  // Filtrer selon la vue
+  var list=[].concat(orders).filter(function(o){return o.status!=='annulee';});
+  var titre='';
+  if(view==='today'){ list=list.filter(function(o){return o.delivDate===today;}); titre='🚚 Livraisons d aujourd hui ('+today.split('-').reverse().join('/')+')'; }
+  else if(view==='tomorrow'){ list=list.filter(function(o){return o.delivDate===tomorrow;}); titre='⏭️ Livraisons de demain'; }
+  else if(view==='new'){ list=list.filter(function(o){return o.status==='nouvelle';}); titre='🆕 Nouvelles commandes'; }
+  else if(view==='toprep'){ list=list.filter(function(o){return o.status==='nouvelle'||o.status==='preparation';}); titre='📦 Commandes à préparer'; }
+  else if(view==='date'){ var dp=document.getElementById('cmd-date-pick').value; list=list.filter(function(o){return o.delivDate===dp;}); titre='📅 Commandes du '+(dp?dp.split('-').reverse().join('/'):'...'); }
+  else { titre='📋 Toutes les commandes'; }
+  
+  // TOUJOURS trier: nouvelles en haut, puis par date de reception (recentes en haut)
+  list.sort(function(a,b){
+    var sa=({nouvelle:0,preparation:1,livree:2})[a.status]||9;
+    var sb=({nouvelle:0,preparation:1,livree:2})[b.status]||9;
     if(sa!==sb) return sa-sb;
     return new Date(b.createdAt||0)-new Date(a.createdAt||0);
   });
-  if(fs)list=list.filter(function(o){return o.status===fs;});
-  if(fc)list=list.filter(function(o){return o.client===fc;});
-  var fdEl=document.getElementById('filter-date');
-  var fd=fdEl?fdEl.value:'';
-  if(fd)list=list.filter(function(o){return o.delivDate===fd;});
-  var container=document.getElementById('commandes-list');
-  if(!list.length){container.innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucune commande.</p></div>';return;}
   
-  var html='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
-    +'<table style="width:100%;border-collapse:collapse;">'
-    +'<thead><tr style="background:#5a7050;color:#fff;">'
-    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">N° BL</th>'
-    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">CLIENT</th>'
-    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">RÉCEPTION</th>'
-    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">LIVRAISON</th>'
-    +'<th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:600;">TOTAL</th>'
-    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">STATUT</th>'
-    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">ACTIONS</th>'
-    +'</tr></thead><tbody>';
+  // Compteurs pour les onglets
+  var nbToday=orders.filter(function(o){return o.delivDate===today && o.status!=='annulee';}).length;
+  var nbTomorrow=orders.filter(function(o){return o.delivDate===tomorrow && o.status!=='annulee';}).length;
+  var nbNew=orders.filter(function(o){return o.status==='nouvelle';}).length;
+  var nbPrep=orders.filter(function(o){return o.status==='nouvelle'||o.status==='preparation';}).length;
+  // Mettre a jour les badges des onglets
+  updateCmdTabBadges(nbToday,nbTomorrow,nbNew,nbPrep);
   
-  list.forEach(function(o,idx){
+  if(!list.length){
+    container.innerHTML='<div class="empty"><div class="empty-i">📭</div><p>Aucune commande dans cette vue.</p></div>';
+    return;
+  }
+  
+  // En-tete de section
+  var html='<div style="font-size:15px;font-weight:600;color:#5a7050;margin-bottom:12px;">'+titre+' · '+list.length+' commande(s)</div>';
+  
+  // Cartes commandes (plus visuelles qu'un tableau)
+  list.forEach(function(o){
     var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
     var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'-';
-    var isLivree=o.status==='livree'||o.status==='annulee';
-    var bg=idx%2===0?'#fff':'#fafcf8';
-    if(isLivree) bg='#f5f5f5';
-    var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
     var nbArt=(o.items||[]).length;
-    
+    var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
     var cli=findClient(o.client);
     var waNum=cli.wa||cli.tel||'';
-    var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
-    var actBtn='';
-    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶</button>';
-    else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓</button>';
     
-    html+='<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;'+(isLivree?'opacity:.7;':'')+'">'
-      +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
-      +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'<div style="font-size:10px;color:#aaa;">'+nbArt+' article(s)</div></td>'
-      +'<td style="padding:9px 12px;text-align:center;font-size:11px;color:#888;">'+cr+'</td>'
-      +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
-      +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
-      +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
-      +'<td style="padding:9px 12px;text-align:center;"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
-      +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋</button>'
-      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
+    // Couleur de bordure selon statut
+    var borderC=o.status==='nouvelle'?'#1a7aff':(o.status==='preparation'?'#c47a00':'#27ae60');
+    var isNew=o.status==='nouvelle';
+    
+    var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱 WA</button>':'';
+    var actBtn='';
+    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
+    else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
+    
+    html+='<div style="background:#fff;border-radius:12px;border:1px solid #e2e8dd;border-left:4px solid '+borderC+';padding:14px;margin-bottom:10px;'+(isNew?'box-shadow:0 2px 8px rgba(26,122,255,0.12);':'')+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+      +'<div style="flex:1;">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+      +(isNew?'<span style="background:#1a7aff;color:#fff;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:10px;">NOUVEAU</span>':'')
+      +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+o.id+'</span>'
+      +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
+      +'</div>'
+      +statusBadge(o.status)
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋 Détail</button>'
+      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️ BL</button>'
       +waBtn+actBtn
-      +'</div></td></tr>';
+      +'</div></div>';
   });
   
-  html+='</tbody></table></div>';
   container.innerHTML=html;
 }
 
+// Changer la vue commandes
+function setCmdView(v){
+  window.CMD_VIEW=v;
+  // Mettre a jour les onglets actifs
+  document.querySelectorAll('.cmd-tab').forEach(function(t){
+    if(t.dataset.view===v) t.classList.add('cmd-tab-active');
+    else t.classList.remove('cmd-tab-active');
+  });
+  renderCommandes();
+}
+window.setCmdView=setCmdView;
+
+// Mettre a jour les badges compteurs sur les onglets
+function updateCmdTabBadges(nbToday,nbTomorrow,nbNew,nbPrep){
+  function setBadge(view,n){
+    var tab=document.querySelector('.cmd-tab[data-view="'+view+'"]');
+    if(!tab)return;
+    var base=tab.textContent.replace(/\s*\(\d+\)$/,'');
+    tab.textContent=base+(n>0?' ('+n+')':'');
+  }
+  setBadge('today',nbToday);
+  setBadge('tomorrow',nbTomorrow);
+  setBadge('new',nbNew);
+  setBadge('toprep',nbPrep);
+}
 
 function setStatus(id,status){
   orders=load('terrasse_orders',[]);
