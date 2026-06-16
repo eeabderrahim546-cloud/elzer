@@ -460,12 +460,21 @@ async function loadAllOrdersForBL(){
 
 function getBLNum(){
   const cliName=(CLI&&CLI.name)||'';
+  // Format de depart defini par l'admin
+  const blFormat=localStorage.getItem('elzer_bl_format')||(new Date().getFullYear()+'/001');
   // Combiner local + cache Supabase
   const localOrders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
   const allOrders=localOrders.concat(SUPA_ORDERS_CACHE);
   const clientBLs=allOrders.filter(o=>norm(o.client)===norm(cliName));
   if(!clientBLs.length){
-    return new Date().getFullYear()+'/001';
+    // Pas de BL pour ce client: utiliser le format admin OU deduire d'un autre client
+    if(allOrders.length){
+      // Deduire le format d'une commande existante (n'importe quel client)
+      var sample=String(allOrders[0].id);
+      var sm=sample.match(/^(.*?)(\d+)$/);
+      if(sm) return sm[1]+'1'.padStart(sm[2].length,'0');
+    }
+    return blFormat;
   }
   // Trouver le numero le PLUS ELEVE (pas le dernier de la liste)
   var maxNum=-1, bestId='';
@@ -486,7 +495,7 @@ function getBLNum(){
       return pre+nextNum;
     }
   }
-  return new Date().getFullYear()+'/001';
+  return blFormat;
 }
 function formatBL(n){
   if(typeof n==='string' && n.indexOf('/')>=0) return n;
