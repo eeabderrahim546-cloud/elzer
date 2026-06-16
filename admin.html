@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781604087</title>
+<title>Admin ELZER v1781615306</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -392,6 +392,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-p" data-action="print-fournisseur">🖨️ Imprimer / PDF</button>
           <button class="btn btn-a" data-action="send-fournisseur-wa">📱 WhatsApp</button>
+          <button class="btn" style="background:#27ae60;color:#fff;" data-action="mark-four-bought">✅ Marquer comme acheté</button>
           <button class="btn btn-s btn-sm" data-action="show-four-dates">📋 Voir dates avec commandes</button>
         </div>
       </div>
@@ -593,6 +594,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
         <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
         <button class="btn btn-a btn-sm" data-action="renum-bl" style="white-space:nowrap;">🔢 Renuméroter BL</button>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#666;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="histo-show-archived" onchange="renderHistorique()"/> 🗄️ Archivés</label>
       </div>
       <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
       <div id="historique-content"></div>
@@ -871,6 +873,39 @@ document.addEventListener('click',function(e){
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
   else if(a==='renum-bl'){renumeroterBL();}
+  else if(a==='mark-bl-facture'){
+    orders=load('terrasse_orders',[]);
+    var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
+    if(o){o.facture=true;save('terrasse_orders',orders);toast('✅ BL marqué facturé');renderHistorique();}
+  }
+  else if(a==='archive-bl'){
+    if(!confirm('Archiver ce BL ? Il sera caché mais conservé.')) return;
+    orders=load('terrasse_orders',[]);
+    var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
+    if(o){o.archived=true;save('terrasse_orders',orders);toast('🗄️ BL archivé');renderHistorique();}
+  }
+  else if(a==='unarchive-bl'){
+    orders=load('terrasse_orders',[]);
+    var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
+    if(o){o.archived=false;save('terrasse_orders',orders);toast('BL restauré');renderHistorique();}
+  }
+  else if(a==='mark-four-bought'){
+    var fd=document.getElementById('four-date').value;
+    if(!fd){toast('Sélectionnez une date');return;}
+    var b=load('four_bought',{});
+    b[fd]={date:fd,boughtAt:new Date().toISOString()};
+    save('four_bought',b);
+    toast('✅ Marqué comme acheté');
+    renderFournisseur();
+  }
+  else if(a==='unmark-four-bought'){
+    var fd=document.getElementById('four-date').value;
+    var b=load('four_bought',{});
+    delete b[fd];
+    save('four_bought',b);
+    toast('Annulé');
+    renderFournisseur();
+  }
   else if(a==='filter-cmd-change'){renderCommandes();}
   else if(a==='clear-cmd-filters'){
     var fd=document.getElementById('filter-date');if(fd)fd.value='';
@@ -1327,6 +1362,9 @@ function renderFournisseur(){
   var res=getFournisseurItems();
   var el=document.getElementById('fournisseur-content');
   var fourDate=document.getElementById('four-date').value;
+  // Verifier si cette date est deja marquee achetee
+  var bought=load('four_bought',{});
+  var isBought=fourDate && bought[fourDate];
   var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Toutes dates';
   
   if(!res.items.length){
@@ -1339,7 +1377,13 @@ function renderFournisseur(){
   var totalAchat=0;
   res.items.forEach(function(it){totalAchat+=it.prixAchat*it.total;});
   
-  var html='<div style="background:#5a7050;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">';
+  var html='';
+  if(isBought){
+    html+='<div style="background:#d4edda;border:1px solid #27ae60;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">';
+    html+='<div style="color:#1a7a3a;font-weight:600;font-size:14px;">✅ Produits déjà achetés pour cette date</div>';
+    html+='<button class="btn btn-s btn-sm" data-action="unmark-four-bought">↩️ Annuler</button></div>';
+  }
+  html+='<div style="background:#5a7050;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">';
   html+='<div><div style="font-size:16px;font-weight:bold;">📋 '+fourDateFr+'</div>';
   html+='<div style="font-size:12px;opacity:.85;">'+nbCommandes+' commande(s) · '+nbProduits+' produit(s)</div></div>';
   html+='<div style="text-align:right;"><div style="font-size:11px;opacity:.85;">Total achat estimé</div><div style="font-size:18px;font-weight:bold;" id="four-total-achat">'+totalAchat.toFixed(2).replace('.',',')+' Dh</div></div>';
@@ -3348,7 +3392,11 @@ function renderHistorique(){
   var monthFilter=document.getElementById('histo-month').value;
   var q=(document.getElementById('histo-search').value||'').toLowerCase();
 
+  var showArchived=document.getElementById('histo-show-archived');
+  var showArch=showArchived&&showArchived.checked;
   var filtered=orders.filter(function(o){
+    if(!showArch && o.archived) return false;
+    if(showArch && !o.archived) return false;
     if(cliFilter&&o.client!==cliFilter) return false;
     if(monthFilter){
       var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
@@ -3402,6 +3450,8 @@ function renderHistorique(){
         +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
+        +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
+        +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
         +'</div></td></tr>';
     }).join('')
     +'</tbody></table></div>';
@@ -3724,7 +3774,11 @@ function renderHistorique(){
   var monthFilter=document.getElementById('histo-month').value;
   var q=(document.getElementById('histo-search').value||'').toLowerCase();
 
+  var showArchived=document.getElementById('histo-show-archived');
+  var showArch=showArchived&&showArchived.checked;
   var filtered=orders.filter(function(o){
+    if(!showArch && o.archived) return false;
+    if(showArch && !o.archived) return false;
     if(cliFilter&&o.client!==cliFilter) return false;
     if(monthFilter){
       var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
@@ -3778,6 +3832,8 @@ function renderHistorique(){
         +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
+        +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
+        +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
         +'</div></td></tr>';
     }).join('')
     +'</tbody></table></div>';
