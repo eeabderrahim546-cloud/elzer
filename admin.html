@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781602848</title>
+<title>Admin ELZER v1781604087</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -592,6 +592,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
         <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
         <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+        <button class="btn btn-a btn-sm" data-action="renum-bl" style="white-space:nowrap;">🔢 Renuméroter BL</button>
       </div>
       <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
       <div id="historique-content"></div>
@@ -869,6 +870,7 @@ document.addEventListener('click',function(e){
   else if(a==='four-today'){document.getElementById('four-date').value=new Date().toISOString().split('T')[0];renderFournisseur();}
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
+  else if(a==='renum-bl'){renumeroterBL();}
   else if(a==='filter-cmd-change'){renderCommandes();}
   else if(a==='clear-cmd-filters'){
     var fd=document.getElementById('filter-date');if(fd)fd.value='';
@@ -3278,6 +3280,55 @@ function saveStockNow(){
 
 
 // ── HISTORIQUE BL ──
+
+// ── RENUMEROTER les BL d'un client proprement ──
+function renumeroterBL(){
+  var cliSel=document.getElementById('histo-client');
+  var cliName=cliSel?cliSel.value:'';
+  if(!cliName){
+    if(!confirm('Aucun client sélectionné. Renuméroter TOUS les clients ?\n\nChaque client aura ses BL renumérotés par ordre de date: ANNEE/001, 002, 003...')) return;
+  } else {
+    if(!confirm('Renuméroter tous les BL de '+cliName+' ?\n\nIls seront renumérotés par ordre de date: '+new Date().getFullYear()+'/001, 002, 003...')) return;
+  }
+  orders=load('terrasse_orders',[]);
+  var year=new Date().getFullYear();
+  // Grouper par client
+  var byCli={};
+  orders.forEach(function(o){
+    var k=normName(o.client);
+    if(!byCli[k]) byCli[k]=[];
+    byCli[k].push(o);
+  });
+  var changed=0;
+  Object.keys(byCli).forEach(function(cliKey){
+    // Si un client est selectionne, ne traiter que lui
+    if(cliName && normName(cliName)!==cliKey) return;
+    var cliOrders=byCli[cliKey];
+    // Trier par date de creation/livraison
+    cliOrders.sort(function(a,b){
+      return new Date(a.createdAt||a.delivDate||0)-new Date(b.createdAt||b.delivDate||0);
+    });
+    // Renumeroter
+    cliOrders.forEach(function(o,i){
+      var newId=year+'/'+String(i+1).padStart(3,'0');
+      if(o.id!==newId){
+        var oldId=o.id;
+        o.id=newId;
+        changed++;
+        // Sync Supabase: supprimer ancien, creer nouveau
+        try{
+          supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(oldId));
+          supaFetch('POST','commandes',{id:newId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(o.items),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+        }catch(e){}
+      }
+    });
+  });
+  save('terrasse_orders',orders);
+  toast('✅ '+changed+' BL renumérotés!');
+  renderHistorique();
+  renderCommandes();
+}
+
 function renderHistorique(){
   orders=load('terrasse_orders',[]);
   clients=load('admin_clients',clients);
