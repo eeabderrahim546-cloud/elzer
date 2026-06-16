@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781641019</title>
+<title>Admin ELZER v1781641188</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -2145,6 +2145,47 @@ function printFactureMensuelle(){
   var factNum=(numInput&&numInput.value)?numInput.value:getNextNum2();
   var cliName=cliSel.value;
   var month=moisSel.value;
+  
+  // Calculer le total et enregistrer au Suivi automatiquement
+  orders=load('terrasse_orders',[]);
+  var cli=findClient(cliName);
+  var prix=cli.prix||{};
+  var moInv=orders.filter(function(o){
+    return normName(o.client)===normName(cliName) && o.delivDate && o.delivDate.startsWith(month) && o.status!=='annulee';
+  });
+  var totMois=0;
+  moInv.forEach(function(o){
+    var blT=0;
+    (o.items||[]).forEach(function(i){
+      var pu=parseFloat(String(prix[i.name]||i.prix||'0').replace(',','.'))||0;
+      blT+=pu*(parseFloat(i.qty)||0);
+    });
+    if(blT===0&&o.total)blT=o.total;
+    totMois+=blT;
+  });
+  // Enregistrer au Suivi (si pas deja present pour ce client+mois)
+  loadSuivi2();
+  var exists=SUIVI2.find(function(f){return normName(f.client)===normName(cliName)&&f.mois===month;});
+  if(!exists && moInv.length){
+    SUIVI2.push({
+      num:factNum, client:cliName, mois:month,
+      mt:totMois.toFixed(2), montant:totMois.toFixed(2),
+      regl:'EN COURS', reglement:'EN COURS',
+      date:new Date().toISOString().split('T')[0],
+      mtchq:'', chq:'', etat:'Non regle',
+      comment:'Facture '+month+' - '+moInv.length+' BL',
+      blIds:moInv.map(function(o){return o.id;})
+    });
+    saveSuivi2();
+    // Marquer les BL comme factures
+    moInv.forEach(function(o){
+      var oo=orders.find(function(x){return String(x.id)===String(o.id);});
+      if(oo)oo.facture=true;
+    });
+    save('terrasse_orders',orders);
+    toast('✅ Facture '+factNum+' enregistrée au Suivi');
+  }
+  
   var html=buildFactureMensuelleHtml(cliName, month, factNum);
   
   // Verifier si on doit joindre les BL
