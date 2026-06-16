@@ -570,12 +570,14 @@ function ca(){rows.forEach(({ic,ib,ip,row})=>{ic.value='';ic.className='qi';if(i
 function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0)l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});});return l;}
 function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
 function cm(){document.getElementById('ov').classList.remove('on');}
-function co(){
+async function co(){
   cm();
   const dat=document.getElementById('dd').value;
   const lines=gl();
   const total=lines.reduce((s,l)=>s+pp(l.price)*l.total,0);
   const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR');
+  // Recharger les commandes depuis Supabase pour avoir le bon numero
+  await loadAllOrdersForBL();
   const blNum=getBLNum();
   const orders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
   const items=[];
@@ -584,9 +586,9 @@ function co(){
   orders.push({id:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode});
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(orders[orders.length-1]);
-  // Incrémenter BL
-  localStorage.setItem('elzer_next_bl',String(blNum+1));
-  document.getElementById('bl-num').textContent='BL #'+formatBL(blNum+1);
+  // Recharger cache et calculer le prochain numero pour affichage
+  SUPA_ORDERS_CACHE.push({id:String(blNum),client:CLI.name});
+  document.getElementById('bl-num').textContent='BL #'+getBLNum();
   let msg='🌿 *BL #'+blNum+'*\n👤 '+CLI.name+'\n📅 Livraison : '+ds+'\n\n';
   if(mode==='t'){const c=lines.filter(l=>l.cuisine>0),b=lines.filter(l=>l.bar>0),p=lines.filter(l=>l.perso>0);if(c.length)msg+='CUISINE\n'+c.map(l=>'• '+l.name+' : '+l.cuisine+' '+l.unit).join('\n')+'\n\n';if(b.length)msg+='BAR\n'+b.map(l=>'• '+l.name+' : '+l.bar+' '+l.unit).join('\n')+'\n\n';if(p.length)msg+='PERSONNEL\n'+p.map(l=>'• '+l.name+' : '+l.perso+' '+l.unit).join('\n')+'\n\n';}
   else{msg+=lines.map(l=>'• '+l.name+' : '+l.total+' '+l.unit).join('\n')+'\n\n';}
