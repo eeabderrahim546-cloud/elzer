@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781599804</title>
+<title>Admin ELZER v1781600193</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1037,7 +1037,6 @@ function renderCommandes(){
   var cls=[].concat([...new Set(orders.map(function(o){return o.client;}))]);
   fcSel.innerHTML='<option value="">Tous les clients</option>'+cls.map(function(c){return '<option value="'+c+'"'+(c===cur?' selected':'')+'>'+c+'</option>';}).join('');
   var list=[].concat(orders).sort(function(a,b){
-    // Nouvelles d'abord, puis preparation, puis livrees
     var sa=({nouvelle:0,preparation:1,livree:2,annulee:3})[a.status]||9;
     var sb=({nouvelle:0,preparation:1,livree:2,annulee:3})[b.status]||9;
     if(sa!==sb) return sa-sb;
@@ -1047,47 +1046,53 @@ function renderCommandes(){
   if(fc)list=list.filter(function(o){return o.client===fc;});
   var container=document.getElementById('commandes-list');
   if(!list.length){container.innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucune commande.</p></div>';return;}
-  var html='';
-  list.forEach(function(o){
-    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
-    var cr=o.createdAt?new Date(o.createdAt).toLocaleString('fr-FR'):'';
-    var acts='';
-    if(o.status==='nouvelle') acts='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Preparer</button><button class="btn btn-d btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="annulee">Annuler</button>';
-    else if(o.status==='preparation') acts='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livree</button><button class="btn btn-d btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="annulee">Annuler</button>';
-    acts+='<button class="btn btn-b btn-sm" data-action="edit-bl" data-id="'+o.id+'">Modifier BL</button>';
-    // Boutons envoi
-    var cliInfo=clients.find(function(c){return c.name===o.client;})||{};
-    var waNum=cliInfo.wa||PHONE;
-    var cmdMsg=encodeURIComponent('✅ Commande #'+o.id+' confirmee\nClient: '+o.client+'\nLivraison: '+dv+'\n\n'+(o.items||[]).map(function(i){return '• '+i.name+': '+i.qty+' '+i.unit;}).join('\n')+(o.total?'\n\nTotal: '+Math.round(o.total).toLocaleString('fr-FR')+' Dh':''));
-    var emailBody=encodeURIComponent('Commande #'+o.id+'\nClient: '+o.client+'\nLivraison: '+dv+'\n\n'+(o.items||[]).map(function(i){return i.name+': '+i.qty+' '+i.unit;}).join('\n'));
-    var sendBtns='<a class="btn btn-sm" style="background:#25d366;color:#fff;border:none;text-decoration:none;" href="https://wa.me/'+waNum+'?text='+cmdMsg+'" target="_blank">📱 WA Client</a>';
-    var waGroup=load('wa_group',PHONE);
-    sendBtns+='<a class="btn btn-sm" style="background:#128C7E;color:#fff;border:none;text-decoration:none;" href="https://wa.me/'+waGroup+'?text='+cmdMsg+'" target="_blank">👥 Groupe</a>';
-    sendBtns+='<a class="btn btn-sm" style="background:#1a73e8;color:#fff;border:none;text-decoration:none;" href="mailto:elzerdist@gmail.com?subject=Commande+%23'+o.id+'&body='+emailBody+'" target="_blank">📧 Email</a>';
+  
+  var html='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;">'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">N° BL</th>'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">CLIENT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">RÉCEPTION</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">LIVRAISON</th>'
+    +'<th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:600;">TOTAL</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">STATUT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">ACTIONS</th>'
+    +'</tr></thead><tbody>';
+  
+  list.forEach(function(o,idx){
+    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'-';
     var isLivree=o.status==='livree'||o.status==='annulee';
-    var bgHd=isLivree?'var(--g0)':(o.status==='preparation'?'#f4fbed':'#eaf3de');
-    var bdHd=isLivree?'var(--g2)':(o.status==='preparation'?'#c5e0b0':'#c0dd97');
-    var opStyle=isLivree?'opacity:.75;':'';
-    var totalStr=o.total?(' &middot; <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>'):'';
-    var itemsHTML=(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:6px;padding:3px 10px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('');
-    var actHTML='';
-    if(o.status==='nouvelle') actHTML+='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">Preparer</button>';
-    else if(o.status==='preparation') actHTML+='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">Livrer</button>';
-    if(!isLivree) actHTML+='<button class="btn btn-b btn-sm" data-action="edit-bl" data-id="'+o.id+'">Modifier BL</button>';
-    actHTML+='<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">Detail</button>';
-    actHTML+='<button class="btn btn-s btn-sm" data-action="export-pdf" data-id="'+o.id+'">PDF</button>';
-    html+='<div style="background:#fff;border-radius:12px;border:1.5px solid #e0e8d8;margin-bottom:10px;overflow:hidden;'+opStyle+'">'
-      +'<div style="padding:10px 14px;background:'+bgHd+';border-bottom:1px solid '+bdHd+';display:flex;justify-content:space-between;align-items:center;">'
-      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' - '+o.client+'</div>'
-      +'<div style="font-size:10px;color:var(--gy5);margin-top:2px;">Reception: '+cr+' | Livraison: '+dv+totalStr+'</div></div>'
-      +statusBadge(o.status)+'</div>'
-      +'<div style="padding:10px 14px;border-bottom:1px solid var(--g2);">'
-      +'<div style="display:flex;flex-wrap:wrap;gap:5px;">'+itemsHTML+'</div></div>'
-      +'<div style="padding:8px 14px;display:flex;gap:6px;flex-wrap:wrap;">'+actHTML+'</div>'
-      ;
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    if(isLivree) bg='#f5f5f5';
+    var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
+    var nbArt=(o.items||[]).length;
+    
+    var cli=findClient(o.client);
+    var waNum=cli.wa||cli.tel||'';
+    var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
+    var actBtn='';
+    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶</button>';
+    else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓</button>';
+    
+    html+='<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;'+(isLivree?'opacity:.7;':'')+'">'
+      +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
+      +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'<div style="font-size:10px;color:#aaa;">'+nbArt+' article(s)</div></td>'
+      +'<td style="padding:9px 12px;text-align:center;font-size:11px;color:#888;">'+cr+'</td>'
+      +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
+      +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
+      +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
+      +'<td style="padding:9px 12px;text-align:center;"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
+      +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋</button>'
+      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
+      +waBtn+actBtn
+      +'</div></td></tr>';
   });
+  
+  html+='</tbody></table></div>';
   container.innerHTML=html;
 }
+
 
 function setStatus(id,status){
   orders=load('terrasse_orders',[]);
