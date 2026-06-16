@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781600193</title>
+<title>Admin ELZER v1781602848</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -294,7 +294,6 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <button class="sbi" data-panel="clients"><span class="ico">👥</span><span>Clients &amp; Prix</span></button>
     <button class="sbi" data-panel="catalogue"><span class="ico">📦</span><span>Catalogue</span></button>
     <button class="sbi" data-panel="fournisseur"><span class="ico">🚚</span><span>Bon Fournisseur</span></button>
-    <button class="sbi" data-panel="liens"><span class="ico">🔗</span><span>Liens Clients</span></button>
     <button class="sbi" data-panel="facturation"><span class="ico">🧾</span><span>Facturation</span></button>
     <button class="sbi" data-panel="devis"><span class="ico">📋</span><span>Devis</span></button>
     <button class="sbi" data-panel="stock"><span class="ico">📦</span><span>Stock</span></button>
@@ -342,17 +341,31 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     </div>
     <div class="panel" id="panel-commandes">
       <div class="sec-hd">
-        <div class="sec-t">Commandes</div>
-        <div style="display:flex;gap:8px;">
-          <select class="fs" style="width:160px;" id="filter-status"><option value="">Tous les statuts</option><option value="nouvelle">Nouvelles</option><option value="preparation">Préparation</option><option value="livree">Livrées</option><option value="annulee">Annulées</option></select>
-          <select class="fs" style="width:160px;" id="filter-client"><option value="">Tous les clients</option></select>
+        <div class="sec-t">📋 Commandes</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="date" class="fs" style="width:150px;" id="filter-date" data-action="filter-cmd-change"/>
+          <select class="fs" style="width:140px;" id="filter-status"><option value="">Tous statuts</option><option value="nouvelle">Nouvelles</option><option value="preparation">Préparation</option><option value="livree">Livrées</option><option value="annulee">Annulées</option></select>
+          <select class="fs" style="width:140px;" id="filter-client"><option value="">Tous clients</option></select>
+          <button class="btn btn-s btn-sm" data-action="clear-cmd-filters">✕ Réinit</button>
         </div>
       </div>
       <div id="commandes-list"></div>
     </div>
     <div class="panel" id="panel-clients">
-      <div class="sec-hd"><div class="sec-t">Clients &amp; Prix</div><button class="btn btn-p" data-action="open-client-modal">+ Ajouter client</button></div>
+      <div class="sec-hd"><div class="sec-t">👥 Clients, Prix & Liens</div><button class="btn btn-p" data-action="open-client-modal">+ Ajouter client</button></div>
+      <div style="background:#eaf3de;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c0dd97;">
+        <div style="font-size:12px;font-weight:600;color:#27500a;margin-bottom:8px;">📱 Configuration Groupe WhatsApp</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="wa-group-input" placeholder="Ex: 212628664142" style="flex:1;padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
+          <button class="btn btn-p" data-action="save-wa-group">Enregistrer</button>
+        </div>
+        <div style="font-size:11px;color:#3b6d11;margin-top:6px;">Les commandes clients seront envoyees a ce numero de groupe</div>
+      </div>
       <div class="cg" id="clients-grid"></div>
+      <div style="margin-top:24px;border-top:2px solid #e2e8dd;padding-top:16px;">
+        <div style="font-size:15px;font-weight:600;color:#5a7050;margin-bottom:12px;">🔗 Liens d'application par client</div>
+        <div id="liens-grid"></div>
+      </div>
     </div>
     <div class="panel" id="panel-catalogue">
       <div class="sec-hd">
@@ -384,18 +397,6 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div id="four-dates-list"></div>
       <div id="fournisseur-content"></div>
-    </div>
-    <div class="panel" id="panel-liens">
-      <div class="sec-hd"><div class="sec-t">Liens Clients</div></div>
-      <div style="background:#eaf3de;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c0dd97;">
-        <div style="font-size:12px;font-weight:600;color:#27500a;margin-bottom:8px;">📱 Configuration Groupe WhatsApp</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" id="wa-group-input" placeholder="Ex: 212628664142" style="flex:1;padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
-          <button class="btn btn-p" data-action="save-wa-group">Enregistrer</button>
-        </div>
-        <div style="font-size:11px;color:#3b6d11;margin-top:6px;">Les commandes clients seront envoyees a ce numero de groupe</div>
-      </div>
-      <div id="liens-grid"></div>
     </div>
     <div class="panel" id="panel-facturation">
       <div style="background:linear-gradient(135deg,#5a7050 0%,#6b8a5e 100%);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">
@@ -809,7 +810,7 @@ function showPanel(id){
   var active=document.querySelector('[data-panel="'+id+'"]');
   if(active)active.classList.add('active');
   if(id==='commandes')renderCommandes();
-  if(id==='clients')renderClients();
+  if(id==='clients')renderClients();renderLiens();
   if(id==='catalogue')renderCatalogue();
   if(id==='dashboard')renderDashboard();
   if(id==='fournisseur')renderFournisseur();
@@ -868,6 +869,13 @@ document.addEventListener('click',function(e){
   else if(a==='four-today'){document.getElementById('four-date').value=new Date().toISOString().split('T')[0];renderFournisseur();}
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
+  else if(a==='filter-cmd-change'){renderCommandes();}
+  else if(a==='clear-cmd-filters'){
+    var fd=document.getElementById('filter-date');if(fd)fd.value='';
+    var fs=document.getElementById('filter-status');if(fs)fs.value='';
+    var fc=document.getElementById('filter-client');if(fc)fc.value='';
+    renderCommandes();
+  }
   else if(a==='set-prix-achat'){
     var prod=el.dataset.prod;var val=el.value.trim();
     var pa=load('prix_achat',{});
@@ -928,6 +936,7 @@ document.addEventListener('click',function(e){
 });
 
 document.getElementById('filter-status').addEventListener('change',renderCommandes);
+  var fdEl2=document.getElementById('filter-date');if(fdEl2)fdEl2.addEventListener('change',renderCommandes);
 document.getElementById('filter-client').addEventListener('change',renderCommandes);
 document.getElementById('cat-search').addEventListener('input',renderCatalogue);
 // Listener pour prix achat dans fournisseur
@@ -1044,6 +1053,9 @@ function renderCommandes(){
   });
   if(fs)list=list.filter(function(o){return o.status===fs;});
   if(fc)list=list.filter(function(o){return o.client===fc;});
+  var fdEl=document.getElementById('filter-date');
+  var fd=fdEl?fdEl.value:'';
+  if(fd)list=list.filter(function(o){return o.delivDate===fd;});
   var container=document.getElementById('commandes-list');
   if(!list.length){container.innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucune commande.</p></div>';return;}
   
@@ -1217,7 +1229,7 @@ function saveClient(){
   save('admin_clients',clients);
 
   closeModal('modal-client');
-  renderClients();
+  renderClients();renderLiens();
   toast('Client enregistre!');
 }
 
@@ -1225,7 +1237,7 @@ function deleteClient(id){
   if(!confirm('Supprimer ce client ?'))return;
   clients=clients.filter(function(c){return c.id!==id;});
   save('admin_clients',clients);
-  renderClients();
+  renderClients();renderLiens();
   toast('Client supprime.');
 }
 
