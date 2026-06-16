@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781642163</title>
+<title>Admin ELZER v1781644365</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -347,7 +347,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <input type="date" class="fs" style="width:150px;" id="filter-date"/>
           <select class="fs" style="width:140px;" id="filter-status"><option value="">Tous statuts</option><option value="nouvelle">Nouvelles</option><option value="preparation">Préparation</option><option value="livree">Livrées</option><option value="annulee">Annulées</option></select>
           <select class="fs" style="width:140px;" id="filter-client"><option value="">Tous clients</option></select>
-          <button class="btn btn-s btn-sm" data-action="clear-cmd-filters">✕ Réinit</button>
+          <button class="btn btn-s btn-sm" id="btn-reinit-cmd" onclick="resetCmdFilters()">✕ Réinit</button>
         </div>
       </div>
       <div id="commandes-list"></div>
@@ -990,6 +990,35 @@ document.addEventListener('click',function(e){
     var fc=document.getElementById('filter-client');if(fc)fc.value='';
     renderCommandes();
   }
+  else if(a==='save-wa-group'){
+    var inp=document.getElementById('wa-group-input');
+    if(inp){save('wa_group',inp.value.trim());toast('✅ Groupe WhatsApp enregistré');}
+  }
+  else if(a==='change-wa-group'){
+    var inp=document.getElementById('wa-group-input');
+    if(inp){save('wa_group',inp.value.trim());toast('✅ Groupe WhatsApp modifié');}
+  }
+  else if(a==='edit-suivi2'){openSuiviForm(parseInt(el.dataset.idx));}
+  else if(a==='del-suivi2'){
+    if(!confirm('Supprimer cette facture du suivi ?'))return;
+    loadSuivi2();
+    var ix=parseInt(el.dataset.idx);
+    SUIVI2.splice(ix,1);
+    saveSuivi2();
+    renderSuivi2();
+    toast('Facture supprimée');
+  }
+  else if(a==='edit-suivi'){openSuiviModal(parseInt(el.dataset.idx));}
+  else if(a==='del-suivi'){
+    if(!confirm('Supprimer cette ligne ?'))return;
+    loadSuivi();
+    SUIVI_ROWS.splice(parseInt(el.dataset.idx),1);
+    saveSuiviLocal();
+    renderSuivi();
+    toast('Ligne supprimée');
+  }
+  else if(a==='save-suivi'){saveSuiviRow(parseInt(el.dataset.idx));}
+  else if(a==='cal-day'){ if(typeof onCalDay==='function') onCalDay(el.dataset.day); }
   else if(a==='set-prix-achat'){
     var prod=el.dataset.prod;var val=el.value.trim();
     var pa=load('prix_achat',{});
@@ -1291,6 +1320,16 @@ function renderDashboard(){
 }
 
 // ── COMMANDES ──
+
+// Reset filtres commandes (fonction globale appelée directement par onclick)
+function resetCmdFilters(){
+  var fd=document.getElementById('filter-date');if(fd)fd.value='';
+  var fs=document.getElementById('filter-status');if(fs)fs.value='';
+  var fc=document.getElementById('filter-client');if(fc){fc.value='';fc.selectedIndex=0;}
+  if(typeof renderCommandes==='function') renderCommandes();
+}
+window.resetCmdFilters=resetCmdFilters;
+
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
   var fs=document.getElementById('filter-status').value;
