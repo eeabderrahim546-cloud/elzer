@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781596865</title>
+<title>Admin ELZER v1781599804</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -336,7 +336,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="stat"><div class="stat-n" id="d-livtoday" style="color:#5a7050">0</div><div class="stat-l">🚚 À livrer aujourd'hui</div></div>
         <div class="stat"><div class="stat-n" id="d-prep" style="color:#c47a00">0</div><div class="stat-l">📦 À préparer</div></div>
         <div class="stat"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
-        <div class="stat"><div class="stat-n" id="d-late" style="color:#d32f2f">0</div><div class="stat-l">⚠️ En retard</div></div>
+        <div class="stat"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
       </div>
       <div id="dash-operations"></div>
     </div>
@@ -868,6 +868,13 @@ document.addEventListener('click',function(e){
   else if(a==='four-today'){document.getElementById('four-date').value=new Date().toISOString().split('T')[0];renderFournisseur();}
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
+  else if(a==='set-prix-achat'){
+    var prod=el.dataset.prod;var val=el.value.trim();
+    var pa=load('prix_achat',{});
+    if(val) pa[prod]=val; else delete pa[prod];
+    save('prix_achat',pa);
+    renderFournisseur();
+  }
   else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
@@ -953,36 +960,35 @@ function renderDashboard(){
   var today=new Date().toISOString().split('T')[0];
   var tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
   
-  // Filtres par date de livraison
-  var livToday=orders.filter(function(o){return o.delivDate===today && o.status!=='annulee' && o.status!=='livree';});
+  var livToday=orders.filter(function(o){return o.delivDate===today && o.status!=='annulee';});
   var livTomorrow=orders.filter(function(o){return o.delivDate===tomorrow && o.status!=='annulee';});
-  var aPreparer=orders.filter(function(o){return o.delivDate===today && o.status==='nouvelle';});
-  var enRetard=orders.filter(function(o){return o.delivDate && o.delivDate<today && o.status!=='livree' && o.status!=='annulee';});
+  var nouvelles=orders.filter(function(o){return o.status==='nouvelle';});
+  var aPreparer=orders.filter(function(o){return o.status==='nouvelle' || o.status==='preparation';});
   
-  // Stats
   var e;
   if(e=document.getElementById('d-livtoday')) e.textContent=livToday.length;
   if(e=document.getElementById('d-prep')) e.textContent=aPreparer.length;
   if(e=document.getElementById('d-tomorrow')) e.textContent=livTomorrow.length;
-  if(e=document.getElementById('d-late')) e.textContent=enRetard.length;
-  var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=orders.filter(function(o){return o.status==='nouvelle';}).length;
+  if(e=document.getElementById('d-late')) e.textContent=nouvelles.length;
+  var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=nouvelles.length;
   
   var ops=document.getElementById('dash-operations');
   if(!ops) return;
   
-  function orderCard(o,showLivBtn){
+  function orderCard(o){
     var cli=findClient(o.client);
     var waNum=cli.wa||cli.tel||'';
     var nbArticles=(o.items||[]).length;
-    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}):'';
+    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
     var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
     var actBtn='';
     if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
     else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:12px;margin-bottom:8px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
-      +'<div><div style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</div>'
-      +'<div style="font-size:11px;color:#888;margin-top:2px;">BL-'+o.id+' · '+nbArticles+' article(s) · reçu '+cr+'</div></div>'
+      +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+o.id+'</span>'
+      +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
+      +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div></div>'
       +statusBadge(o.status)+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
       +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋 Détail</button>'
@@ -992,31 +998,26 @@ function renderDashboard(){
   
   var html='';
   
-  // SECTION 1: EN RETARD (priorité absolue)
-  if(enRetard.length){
-    html+='<div style="background:#ffecec;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #d32f2f;">';
-    html+='<div style="font-size:14px;font-weight:600;color:#d32f2f;margin-bottom:10px;">⚠️ EN RETARD ('+enRetard.length+')</div>';
-    enRetard.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
-    enRetard.forEach(function(o){html+=orderCard(o);});
-    html+='</div>';
-  }
-  
-  // SECTION 2: À LIVRER AUJOURD'HUI
+  // SECTION 1: À LIVRER AUJOURD'HUI
   html+='<div style="background:#f7faf4;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #5a7050;">';
   html+='<div style="font-size:14px;font-weight:600;color:#5a7050;margin-bottom:10px;">🚚 À LIVRER AUJOURD HUI ('+livToday.length+')</div>';
   if(livToday.length){
-    // Trier: a preparer d'abord, puis en preparation
-    livToday.sort(function(a,b){var o={nouvelle:0,preparation:1};return (o[a.status]||2)-(o[b.status]||2);});
-    livToday.forEach(function(o){html+=orderCard(o,true);});
+    livToday.sort(function(a,b){
+      var o={nouvelle:0,preparation:1,livree:2};
+      if((o[a.status]||3)!==(o[b.status]||3)) return (o[a.status]||3)-(o[b.status]||3);
+      return new Date(b.createdAt||0)-new Date(a.createdAt||0);
+    });
+    livToday.forEach(function(o){html+=orderCard(o);});
   } else {
     html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune livraison prévue aujourd hui</div>';
   }
   html+='</div>';
   
-  // SECTION 3: POUR DEMAIN (anticiper)
+  // SECTION 2: POUR DEMAIN
   html+='<div style="background:#f0f6ff;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #1a7aff;">';
   html+='<div style="font-size:14px;font-weight:600;color:#1a5c9e;margin-bottom:10px;">📅 COMMANDES POUR DEMAIN ('+livTomorrow.length+')</div>';
   if(livTomorrow.length){
+    livTomorrow.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
     livTomorrow.forEach(function(o){html+=orderCard(o);});
   } else {
     html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune commande reçue pour demain</div>';
@@ -1288,13 +1289,14 @@ function deleteProd(si,pi){
 // ── BON FOURNISSEUR ──
 function getFournisseurItems(){
   orders=load('terrasse_orders',[]);
+  var pa=load('prix_achat',{});
   var df=document.getElementById('four-date').value;
   var filtered=orders.filter(function(o){return o.status!=='annulee'&&(!df||o.delivDate===df);});
   var map={};
   filtered.forEach(function(o){
     (o.items||[]).forEach(function(item){
       var k=item.name+'|'+item.unit;
-      if(!map[k])map[k]={name:item.name,unit:item.unit,total:0,clients:{}};
+      if(!map[k])map[k]={name:item.name,unit:item.unit,total:0,clients:{},prixAchat:parseFloat(String(pa[item.name]||'0').replace(',','.'))||0};
       map[k].total+=(parseFloat(item.qty)||0);
       map[k].clients[o.client]=(map[k].clients[o.client]||0)+(parseFloat(item.qty)||0);
     });
@@ -1309,39 +1311,40 @@ function renderFournisseur(){
   var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Toutes dates';
   
   if(!res.items.length){
-    el.innerHTML='<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p><p style="font-size:12px;color:#999;">Changez la date ci-dessus ou cliquez Actualiser.</p></div>';
+    el.innerHTML='<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p><p style="font-size:12px;color:#999;">Changez la date ci-dessus ou cliquez Afficher.</p></div>';
     return;
   }
   
   var nbCommandes=res.filtered.length;
   var nbProduits=res.items.length;
+  var totalAchat=0;
+  res.items.forEach(function(it){totalAchat+=it.prixAchat*it.total;});
   
-  // En-tete compact
   var html='<div style="background:#5a7050;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">';
   html+='<div><div style="font-size:16px;font-weight:bold;">📋 '+fourDateFr+'</div>';
-  html+='<div style="font-size:12px;opacity:.85;">'+nbCommandes+' commande(s) · '+nbProduits+' produit(s) à approvisionner</div></div>';
+  html+='<div style="font-size:12px;opacity:.85;">'+nbCommandes+' commande(s) · '+nbProduits+' produit(s)</div></div>';
+  html+='<div style="text-align:right;"><div style="font-size:11px;opacity:.85;">Total achat estimé</div><div style="font-size:18px;font-weight:bold;" id="four-total-achat">'+totalAchat.toFixed(2).replace('.',',')+' Dh</div></div>';
   html+='</div>';
   
-  // Tableau compact en 2 colonnes
-  html+='<div style="background:#fff;border-radius:0 0 10px 10px;border:1px solid #e2e8dd;border-top:none;padding:12px;">';
+  html+='<div style="background:#fff;border-radius:0 0 10px 10px;border:1px solid #e2e8dd;border-top:none;padding:12px;overflow-x:auto;">';
   html+='<table style="width:100%;border-collapse:collapse;">';
   html+='<thead><tr style="background:#f7faf4;">';
   html+='<th style="padding:7px 10px;text-align:left;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">PRODUIT</th>';
   html+='<th style="padding:7px;text-align:center;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">UNITÉ</th>';
-  html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">QUANTITÉ TOTALE</th>';
-  html+='<th style="padding:7px;text-align:center;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">DÉTAIL CLIENTS</th>';
+  html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">QTÉ TOTALE</th>';
+  html+='<th style="padding:7px;text-align:center;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">PRIX ACHAT</th>';
+  html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">TOTAL ACHAT</th>';
   html+='</tr></thead><tbody>';
   
   res.items.forEach(function(item,idx){
     var bg=idx%2===0?'#fff':'#fafcf8';
-    var clientsDetail=Object.keys(item.clients).map(function(c){
-      return c+': '+item.clients[c].toFixed(1).replace('.',',');
-    }).join(' · ');
+    var totalLigne=item.prixAchat*item.total;
     html+='<tr style="background:'+bg+';">';
     html+='<td style="padding:7px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;">'+item.name+'</td>';
     html+='<td style="padding:7px;text-align:center;font-size:12px;color:#888;border-bottom:1px solid #f0f0f0;">'+item.unit+'</td>';
     html+='<td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:bold;color:#5a7050;border-bottom:1px solid #f0f0f0;">'+item.total.toFixed(2).replace('.',',')+'</td>';
-    html+='<td style="padding:7px;text-align:center;font-size:10px;color:#aaa;border-bottom:1px solid #f0f0f0;">'+clientsDetail+'</td>';
+    html+='<td style="padding:5px;text-align:center;border-bottom:1px solid #f0f0f0;"><input type="number" step="0.01" value="'+(item.prixAchat||'')+'" placeholder="0" data-action="set-prix-achat" data-prod="'+item.name.replace(/"/g,'&quot;')+'" style="width:60px;padding:4px;border:1px solid #f0c98a;border-radius:5px;text-align:center;font-size:12px;background:#fff9f0;"/></td>';
+    html+='<td style="padding:7px 10px;text-align:right;font-size:13px;font-weight:600;color:#c47a00;border-bottom:1px solid #f0f0f0;">'+(totalLigne>0?totalLigne.toFixed(2).replace('.',',')+' Dh':'-')+'</td>';
     html+='</tr>';
   });
   
@@ -3307,25 +3310,33 @@ function renderHistorique(){
     return;
   }
 
-  var html=filtered.map(function(o){
-    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
-    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
-    var isLivree=o.status==='livree'||o.status==='annulee';
-    var bg=isLivree?'var(--g0)':'#eaf3de';
-    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:8px;overflow:hidden;'+(isLivree?'opacity:.8;':'')+'">'
-      +'<div style="padding:9px 14px;background:'+bg+';border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'
-      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
-      +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
-      +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
-      +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
-      +'</div>'
-      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
-      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️ Voir / Modifier</button>'
-      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
-      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
-      +'</div></div></div>';
-  }).join('');
+  var html='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;">'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">N° BL</th>'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">CLIENT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">LIVRAISON</th>'
+    +'<th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:600;">TOTAL</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">STATUT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">ACTIONS</th>'
+    +'</tr></thead><tbody>'
+    +filtered.map(function(o,idx){
+      var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
+      var bg=idx%2===0?'#fff':'#fafcf8';
+      var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
+      return '<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;">'
+        +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
+        +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
+        +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
+        +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
+        +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
+        +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
+        +'</div></td></tr>';
+    }).join('')
+    +'</tbody></table></div>';
 
   document.getElementById('historique-content').innerHTML=html;
 }
@@ -3675,25 +3686,33 @@ function renderHistorique(){
     return;
   }
 
-  var html=filtered.map(function(o){
-    var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
-    var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):'';
-    var isLivree=o.status==='livree'||o.status==='annulee';
-    var bg=isLivree?'var(--g0)':'#eaf3de';
-    return '<div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;margin-bottom:8px;overflow:hidden;'+(isLivree?'opacity:.8;':'')+'">'
-      +'<div style="padding:9px 14px;background:'+bg+';border-bottom:1px solid #e0e8d8;display:flex;justify-content:space-between;align-items:center;">'
-      +'<div><div style="font-size:13px;font-weight:600;color:var(--g7);">BL #'+o.id+' — '+o.client+'</div>'
-      +'<div style="font-size:10px;color:var(--gy5);">Reception: '+cr+' | Livraison: '+dv+(o.total?' | <strong style="color:var(--g7);">'+Math.round(o.total).toLocaleString('fr-FR')+' Dh</strong>':'')+'</div></div>'
-      +statusBadge(o.status)+'</div>'
-      +'<div style="padding:8px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'
-      +(o.items||[]).map(function(i){return '<span style="background:var(--g0);border:1px solid var(--g2);border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' <strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></span>';}).join('')
-      +'</div>'
-      +'<div style="display:flex;gap:6px;border-top:1px solid #f0f0f0;padding-top:8px;">'
-      +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️ Voir / Modifier</button>'
-      +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️ Imprimer</button>'
-      +'<button class="btn btn-p btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄 PDF</button>'
-      +'</div></div></div>';
-  }).join('');
+  var html='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;">'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">N° BL</th>'
+    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">CLIENT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">LIVRAISON</th>'
+    +'<th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:600;">TOTAL</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">STATUT</th>'
+    +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">ACTIONS</th>'
+    +'</tr></thead><tbody>'
+    +filtered.map(function(o,idx){
+      var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
+      var bg=idx%2===0?'#fff':'#fafcf8';
+      var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
+      return '<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;">'
+        +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
+        +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
+        +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
+        +'<td style="padding:9px 12px;text-align:center;"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
+        +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
+        +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
+        +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
+        +'</div></td></tr>';
+    }).join('')
+    +'</tbody></table></div>';
 
   document.getElementById('historique-content').innerHTML=html;
 }
