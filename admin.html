@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781641188</title>
+<title>Admin ELZER v1781642163</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -926,7 +926,16 @@ document.addEventListener('click',function(e){
     var nm=decodeURIComponent(el.dataset.name);
     clients=load('admin_clients',clients);
     var c=clients.find(function(x){return x.name===nm;});
-    if(c){openClientModal(c.id);}else{toast('Client introuvable');}
+    if(c){
+      openClientModal(c.id);
+    } else {
+      // Client de base pas encore enregistre: le creer puis ouvrir
+      var newId='c'+Date.now();
+      var newClient={id:newId,name:nm,type:'Restaurant',tel:'',wa:'',email:'',adresse:'',ice:'',rc:'',iff:'',prix:{}};
+      clients.push(newClient);
+      save('admin_clients',clients);
+      openClientModal(newId);
+    }
   }
   else if(a==='delete-client-link'){
     var nm=decodeURIComponent(el.dataset.name);
@@ -934,6 +943,9 @@ document.addEventListener('click',function(e){
     clients=load('admin_clients',[]);
     clients=clients.filter(function(c){return c.name!==nm;});
     save('admin_clients',clients);
+    // Cacher aussi si c'est un client de base (codé en dur)
+    var hidden=load('hidden_base_clients',[]);
+    if(hidden.indexOf(nm)<0){hidden.push(nm);save('hidden_base_clients',hidden);}
     try{ supaFetch('DELETE','clients_elzer?name=eq.'+encodeURIComponent(nm)); }catch(e){}
     toast('Client supprimé');
     renderClients();renderLiens();
@@ -1858,7 +1870,8 @@ function renderLiens(){
     var uid=c.urlId||(c.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20));
     return{id:uid,name:c.name};
   });
-  var all=base.concat(extra);
+  var hiddenBase=load('hidden_base_clients',[]);
+  var all=base.concat(extra).filter(function(c){return hiddenBase.indexOf(c.name)<0;});
   grid.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">'+all.map(function(c){
     var allCli=load('admin_clients',[]);
     var cFull=allCli.find(function(x){return x.name===c.name||x.urlId===c.id;})||
@@ -1876,8 +1889,8 @@ function renderLiens(){
       +'<button class="btn btn-p btn-sm" data-action="copy-link" data-url="'+url+'">📋 Copier</button>'
       +'<button class="btn btn-b btn-sm" data-action="test-link" data-url="'+url+'">🔗 Tester</button>'
       +'<button class="btn btn-s btn-sm" data-action="send-wa-link" data-wa="'+waNum+'" data-msg="'+encodeURIComponent(waMsg)+'">📱 WhatsApp</button>'
-      +(cFull.name?'<button class="btn btn-a btn-sm" data-action="edit-client" data-name="'+encodeURIComponent(cFull.name)+'">✏️ Modifier</button>':'')
-      +(cFull.name?'<button class="btn btn-d btn-sm" data-action="delete-client-link" data-name="'+encodeURIComponent(cFull.name)+'">🗑️</button>':'')
+      +'<button class="btn btn-a btn-sm" data-action="edit-client" data-name="'+encodeURIComponent(c.name)+'">✏️ Modifier</button>'
+      +'<button class="btn btn-d btn-sm" data-action="delete-client-link" data-name="'+encodeURIComponent(c.name)+'">🗑️</button>' 
       +'</div></div>';
   }).join('')+'</div>';
 }
