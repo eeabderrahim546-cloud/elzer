@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781640331</title>
+<title>Admin ELZER v1781641019</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -921,6 +921,23 @@ document.addEventListener('click',function(e){
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
+  else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
+  else if(a==='edit-client'){
+    var nm=decodeURIComponent(el.dataset.name);
+    clients=load('admin_clients',clients);
+    var c=clients.find(function(x){return x.name===nm;});
+    if(c){openClientModal(c.id);}else{toast('Client introuvable');}
+  }
+  else if(a==='delete-client-link'){
+    var nm=decodeURIComponent(el.dataset.name);
+    if(!confirm('Supprimer le client '+nm+' ?\n\nLe client et son lien seront supprimés.')) return;
+    clients=load('admin_clients',[]);
+    clients=clients.filter(function(c){return c.name!==nm;});
+    save('admin_clients',clients);
+    try{ supaFetch('DELETE','clients_elzer?name=eq.'+encodeURIComponent(nm)); }catch(e){}
+    toast('Client supprimé');
+    renderClients();renderLiens();
+  }
   else if(a==='mark-bl-facture'){
     orders=load('terrasse_orders',[]);
     var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
@@ -1116,8 +1133,16 @@ function getNextBLNumForClient(clientName){
 
 // Appliquer le format facture a toutes les factures existantes
 function applyFactFormatToAll(){
-  var factFormat=localStorage.getItem('elzer_fact_format');
-  if(!factFormat){toast('Définissez d abord un format Facture');return;}
+  // Lire le format depuis l'input OU le localStorage
+  var inp=document.getElementById('set-fact-format');
+  var factFormat=(inp&&inp.value.trim())||localStorage.getItem('elzer_fact_format');
+  if(factFormat && inp && inp.value.trim()){
+    // Sauvegarder au passage
+    localStorage.setItem('elzer_fact_format',factFormat);
+  }
+  if(!factFormat){toast('Définissez d abord un format Facture dans le champ ci-dessus');return;}
+  loadSuivi2();
+  if(!SUIVI2.length){toast('⚠️ Aucune facture dans le Suivi. Enregistrez d abord vos factures via Facturation → Enregistrer au Suivi');return;}
   if(!confirm('Renuméroter TOUTES les factures avec le format '+factFormat+' ?\n\nElles seront renumérotées par ordre de date.')) return;
   loadSuivi2();
   var fm=factFormat.match(/^(.*?)(\d+)$/);
@@ -1136,8 +1161,12 @@ function applyFactFormatToAll(){
 }
 
 function applyBLFormatToAll(){
-  var blFormat=localStorage.getItem('elzer_bl_format');
-  if(!blFormat){toast('Définissez d abord un format BL');return;}
+  var inp=document.getElementById('set-bl-format');
+  var blFormat=(inp&&inp.value.trim())||localStorage.getItem('elzer_bl_format');
+  if(blFormat && inp && inp.value.trim()){
+    localStorage.setItem('elzer_bl_format',blFormat);
+  }
+  if(!blFormat){toast('Définissez d abord un format BL dans le champ ci-dessus');return;}
   if(!confirm('Renuméroter TOUTES les commandes avec le format '+blFormat+' ?\n\nChaque client repart de '+blFormat+' par ordre de date.')) return;
   orders=load('terrasse_orders',[]);
   // Extraire prefix et numero de depart du format
@@ -1840,7 +1869,16 @@ function renderLiens(){
     var url=NETLIFY_URL+'/index.html?client='+c.id+(hasPwd?'&k='+cFull.pwd:'');
     var waNum=cFull.wa||PHONE;
     var waMsg='Voici votre lien de commande ELZER Distribution :\n'+url+(hasPwd?'\nMot de passe: '+cFull.pwd:'');
-    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e8d8;padding:16px;"><div style="font-weight:600;font-size:14px;margin-bottom:8px;">'+c.name+'</div><div style="font-size:11px;background:var(--g0);border-radius:6px;padding:8px;margin-bottom:10px;word-break:break-all;">'+url+'</div><div style="display:flex;gap:8px;"><button class="btn btn-p btn-sm" data-action="copy-link" data-url="'+url+'">Copier</button><button class="btn btn-s btn-sm" data-action="send-wa-link" data-wa="'+waNum+'" data-msg="'+encodeURIComponent(waMsg)+'">WhatsApp</button></div></div>';
+    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e8d8;padding:16px;">'
+      +'<div style="font-weight:600;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><span>'+c.name+'</span>'+(hasPwd?'<span style="font-size:9px;background:#fff3e0;color:#c47a00;padding:2px 6px;border-radius:4px;">🔒 '+cFull.pwd+'</span>':'')+'</div>'
+      +'<div style="font-size:11px;background:var(--g0);border-radius:6px;padding:8px;margin-bottom:10px;word-break:break-all;font-family:monospace;">'+url+'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+      +'<button class="btn btn-p btn-sm" data-action="copy-link" data-url="'+url+'">📋 Copier</button>'
+      +'<button class="btn btn-b btn-sm" data-action="test-link" data-url="'+url+'">🔗 Tester</button>'
+      +'<button class="btn btn-s btn-sm" data-action="send-wa-link" data-wa="'+waNum+'" data-msg="'+encodeURIComponent(waMsg)+'">📱 WhatsApp</button>'
+      +(cFull.name?'<button class="btn btn-a btn-sm" data-action="edit-client" data-name="'+encodeURIComponent(cFull.name)+'">✏️ Modifier</button>':'')
+      +(cFull.name?'<button class="btn btn-d btn-sm" data-action="delete-client-link" data-name="'+encodeURIComponent(cFull.name)+'">🗑️</button>':'')
+      +'</div></div>';
   }).join('')+'</div>';
 }
 
