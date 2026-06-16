@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781555925</title>
+<title>Admin ELZER v1781596865</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -366,17 +366,23 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     </div>
     <div class="panel" id="panel-fournisseur">
       <div class="sec-hd">
-        <div class="sec-t">Bon Fournisseur</div>
-        <div style="display:flex;gap:8px;">
-          <input type="date" class="fi" style="width:160px;" id="four-date"/>
-          <button class="btn btn-p" data-action="render-fournisseur">Actualiser</button>
-          <button class="btn btn-s" data-action="print-fournisseur">🖨️ Imprimer</button>
-          <button class="btn btn-b" data-action="export-fournisseur-pdf">📄 PDF</button>
-          <button class="btn btn-s" data-action="send-fournisseur-wa">WhatsApp</button>
-          <button class="btn btn-p btn-sm" data-action="save-four-history">💾 Sauvegarder</button>
-          <button class="btn btn-s btn-sm" data-action="show-four-history">📋 Historique</button>
+        <div class="sec-t">🚚 Bon Fournisseur</div>
+      </div>
+      <div style="background:#f7faf4;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:600;color:#5a7050;">📅 Date livraison:</span>
+          <input type="date" class="fi" style="width:150px;" id="four-date"/>
+          <button class="btn btn-s btn-sm" data-action="four-today">Aujourd'hui</button>
+          <button class="btn btn-s btn-sm" data-action="four-tomorrow">Demain</button>
+          <button class="btn btn-p btn-sm" data-action="render-fournisseur">🔄 Afficher</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-p" data-action="print-fournisseur">🖨️ Imprimer / PDF</button>
+          <button class="btn btn-a" data-action="send-fournisseur-wa">📱 WhatsApp</button>
+          <button class="btn btn-s btn-sm" data-action="show-four-dates">📋 Voir dates avec commandes</button>
         </div>
       </div>
+      <div id="four-dates-list"></div>
       <div id="fournisseur-content"></div>
     </div>
     <div class="panel" id="panel-liens">
@@ -859,6 +865,10 @@ document.addEventListener('click',function(e){
     toast('Prix achat sauvegarde!');
   }
   else if(a==='show-four-history'){showFournisseurHistory();}
+  else if(a==='four-today'){document.getElementById('four-date').value=new Date().toISOString().split('T')[0];renderFournisseur();}
+  else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
+  else if(a==='show-four-dates'){showFourDates();}
+  else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
@@ -1295,59 +1305,49 @@ function getFournisseurItems(){
 function renderFournisseur(){
   var res=getFournisseurItems();
   var el=document.getElementById('fournisseur-content');
-  if(!res.items.length){el.innerHTML='<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p></div>';return;}
-  // Grouper par section du catalogue
-  var sections=['Legumes','Fruits','Herbes','Epicerie'];
-  var sectionEmoji={'Legumes':'🥦','Fruits':'🍊','Herbes':'🌿','Epicerie':'🫙'};
-  var grouped={};
-  sections.forEach(function(s){grouped[s]=[];});
-  grouped['Autres']=[];
-  
-  res.items.forEach(function(item){
-    var found=false;
-    CATALOGUE.forEach(function(sec){
-      if(sec.items.find(function(i){return i.n===item.name;})){
-        var key=sec.title.replace(/[🥦🍊🌿🫙]/g,'').trim();
-        if(grouped[key]) grouped[key].push(item);
-        else grouped['Autres'].push(item);
-        found=true;
-      }
-    });
-    if(!found) grouped['Autres'].push(item);
-  });
-  
   var fourDate=document.getElementById('four-date').value;
-  var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'';
-  var html='<div style="background:#5a7050;padding:10px 16px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">';
-  html+='<div style="display:flex;align-items:center;gap:8px;"><div style="background:#fff;border-radius:5px;padding:3px 8px;"><div style="font-size:12px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:6px;color:#6b8a5e;letter-spacing:1.5px;">DISTRIBUTION</div></div><div style="font-size:9px;color:rgba(255,255,255,.5);">Marrakech · +212 6 73 95 83 37</div></div>';
-  html+='<div style="text-align:right;"><div style="font-size:9px;color:rgba(255,255,255,.5);">BON FOURNISSEUR</div><div style="font-size:11px;font-weight:600;color:#fff;">'+fourDateFr+'</div><div style="font-size:9px;color:rgba(255,255,255,.4);">'+res.filtered.length+' commande(s) · '+res.items.length+' produits</div></div>';
+  var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Toutes dates';
+  
+  if(!res.items.length){
+    el.innerHTML='<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p><p style="font-size:12px;color:#999;">Changez la date ci-dessus ou cliquez Actualiser.</p></div>';
+    return;
+  }
+  
+  var nbCommandes=res.filtered.length;
+  var nbProduits=res.items.length;
+  
+  // En-tete compact
+  var html='<div style="background:#5a7050;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">';
+  html+='<div><div style="font-size:16px;font-weight:bold;">📋 '+fourDateFr+'</div>';
+  html+='<div style="font-size:12px;opacity:.85;">'+nbCommandes+' commande(s) · '+nbProduits+' produit(s) à approvisionner</div></div>';
   html+='</div>';
   
-  Object.entries(grouped).forEach(function(entry){
-    var secName=entry[0], items=entry[1];
-    if(!items.length) return;
-    var emoji=sectionEmoji[secName]||'📦';
-    html+='<div style="border:1px solid #e0e8d8;margin-top:8px;border-radius:8px;overflow:hidden;">';
-    html+='<div style="padding:8px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;display:flex;align-items:center;gap:6px;">'+emoji+' '+secName+'<span style="font-size:10px;font-weight:400;color:#3b6d11;margin-left:auto;">'+items.length+' produits</span></div>';
-    html+='<table style="width:100%;border-collapse:collapse;">';
-    html+='<thead><tr style="background:#f4fbed;"><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Designation</th><th style="padding:6px 14px;text-align:left;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Unite</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Total</th><th style="padding:6px 14px;text-align:right;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;border-bottom:1px solid #e0e8d8;">Prix achat</th></tr></thead><tbody>';
-    items.forEach(function(item,idx){
-      var bg=idx%2===0?'#fff':'#f9fdf5';
-      var ar=TRAD[item.name]||'';
-      var isLarge=item.total>=50;
-      html+='<tr style="background:'+bg+';border-bottom:0.5px solid #f0f5ea;">';
-      html+='<td style="padding:7px 14px;"><div style="font-size:13px;font-weight:500;color:#222;">'+item.name+'</div>'+(ar?'<div style="font-size:10px;color:#aaa;direction:rtl;text-align:right;font-family:Arial,sans-serif;">'+ar+'</div>':'')+'</td>';
-      html+='<td style="padding:7px 14px;color:#888;font-size:12px;">'+item.unit+'</td>';
-      html+='<td style="padding:7px 14px;text-align:right;"><span style="background:'+(isLarge?'#fff3e0':'#eaf3de')+';color:'+(isLarge?'#c47a00':'#27500a')+';font-weight:700;font-size:16px;padding:3px 14px;border-radius:8px;border:1.5px solid '+(isLarge?'#fac775':'#c0dd97')+';">'+item.total+' '+item.unit+'</span></td>';
-      var prixAchat=load('prix_achat',{})[item.name]||'';
-      html+='<td style="padding:7px 14px;text-align:right;"><input type="text" value="'+prixAchat+'" placeholder="0 Dh" style="width:70px;padding:4px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;text-align:right;" data-action="save-prix-achat" data-prod="'+item.name.replace(/"/g,'&quot;')+'"/></td>';
-      html+='</tr>';
-    });
-    html+='</tbody></table></div>';
+  // Tableau compact en 2 colonnes
+  html+='<div style="background:#fff;border-radius:0 0 10px 10px;border:1px solid #e2e8dd;border-top:none;padding:12px;">';
+  html+='<table style="width:100%;border-collapse:collapse;">';
+  html+='<thead><tr style="background:#f7faf4;">';
+  html+='<th style="padding:7px 10px;text-align:left;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">PRODUIT</th>';
+  html+='<th style="padding:7px;text-align:center;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">UNITÉ</th>';
+  html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">QUANTITÉ TOTALE</th>';
+  html+='<th style="padding:7px;text-align:center;font-size:11px;color:#5a7050;border-bottom:2px solid #5a7050;">DÉTAIL CLIENTS</th>';
+  html+='</tr></thead><tbody>';
+  
+  res.items.forEach(function(item,idx){
+    var bg=idx%2===0?'#fff':'#fafcf8';
+    var clientsDetail=Object.keys(item.clients).map(function(c){
+      return c+': '+item.clients[c].toFixed(1).replace('.',',');
+    }).join(' · ');
+    html+='<tr style="background:'+bg+';">';
+    html+='<td style="padding:7px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;">'+item.name+'</td>';
+    html+='<td style="padding:7px;text-align:center;font-size:12px;color:#888;border-bottom:1px solid #f0f0f0;">'+item.unit+'</td>';
+    html+='<td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:bold;color:#5a7050;border-bottom:1px solid #f0f0f0;">'+item.total.toFixed(2).replace('.',',')+'</td>';
+    html+='<td style="padding:7px;text-align:center;font-size:10px;color:#aaa;border-bottom:1px solid #f0f0f0;">'+clientsDetail+'</td>';
+    html+='</tr>';
   });
-  el.innerHTML=html||'<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p></div>';
+  
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
 }
-
 function exportFournisseurPDF(){
   var res=getFournisseurItems();
   if(!res.items.length){toast('Aucun produit.');return;}
@@ -2084,7 +2084,12 @@ function editBLNum(id){
   if(idx<0){toast('BL introuvable');return;}
   orders[idx].id=newNum;
   save('terrasse_orders',orders);
-  if(typeof saveOrderToSupabase==='function') saveOrderToSupabase(orders[idx]);
+  // Synchroniser avec Supabase (supprimer ancien + creer nouveau)
+  try {
+    supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(id));
+    var no=orders[idx];
+    supaFetch('POST','commandes',{id:no.id,client:no.client,deliver_date:no.delivDate,items:JSON.stringify(no.items),total:no.total||0,status:no.status||'nouvelle',mode:no.mode||'simple',created_at:no.createdAt||new Date().toISOString()});
+  } catch(e){}
   // Mettre a jour le compteur si necessaire
   var maxN=0;
   orders.forEach(function(o){var n=parseInt(o.id)||0;if(n>maxN)maxN=n;});
@@ -2352,38 +2357,85 @@ function printDevis(id){
 }
 
 // ── IMPRIMER BON FOURNISSEUR ──
+
+// Afficher les dates qui ont des commandes
+function showFourDates(){
+  orders=load('terrasse_orders',[]);
+  var dates={};
+  orders.forEach(function(o){
+    if(o.delivDate && o.status!=='annulee'){
+      if(!dates[o.delivDate]) dates[o.delivDate]={count:0,clients:{}};
+      dates[o.delivDate].count++;
+      dates[o.delivDate].clients[o.client]=true;
+    }
+  });
+  var sortedDates=Object.keys(dates).sort().reverse();
+  if(!sortedDates.length){toast('Aucune commande enregistrée');return;}
+  var html='<div style="background:#fff;border:1px solid #e2e8dd;border-radius:10px;padding:12px;margin-bottom:14px;">';
+  html+='<div style="font-size:13px;font-weight:600;color:#5a7050;margin-bottom:10px;">📅 Dates avec commandes (cliquez pour afficher):</div>';
+  html+='<div style="display:flex;flex-direction:column;gap:6px;">';
+  sortedDates.forEach(function(d){
+    var dFr=new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    var nbClients=Object.keys(dates[d].clients).length;
+    html+='<button data-action="pick-four-date" data-date="'+d+'" style="text-align:left;padding:9px 12px;background:#f7faf4;border:1px solid #e2e8dd;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">';
+    html+='<span style="font-size:13px;font-weight:500;color:#333;">'+dFr+'</span>';
+    html+='<span style="font-size:11px;color:#5a7050;background:#fff;padding:2px 8px;border-radius:10px;">'+dates[d].count+' cmd · '+nbClients+' client(s)</span>';
+    html+='</button>';
+  });
+  html+='</div></div>';
+  document.getElementById('four-dates-list').innerHTML=html;
+}
+
 function printFournisseur(){
-  var orders=load('terrasse_orders',[]);
-  var today=new Date().toISOString().split('T')[0];
-  var todayOrders=orders.filter(function(o){return (o.delivDate===today)&&o.status!=='annulee';});
-  if(!todayOrders.length){toast('Aucune commande pour aujourd hui');return;}
-  // Agregation produits
+  var dateInput=document.getElementById('four-date');
+  var targetDate=dateInput&&dateInput.value?dateInput.value:new Date().toISOString().split('T')[0];
+  orders=load('terrasse_orders',[]);
+  var dayOrders=orders.filter(function(o){return o.delivDate===targetDate && o.status!=='annulee';});
+  if(!dayOrders.length){toast('Aucune commande pour cette date');return;}
+  // Agreger tous les produits
   var prods={};
-  todayOrders.forEach(function(o){
+  dayOrders.forEach(function(o){
     (o.items||[]).forEach(function(i){
-      var k=i.name;
-      if(!prods[k]) prods[k]={name:i.name,unit:i.unit,qty:0};
+      var k=i.name+'|'+(i.unit||'kg');
+      if(!prods[k]) prods[k]={name:i.name,unit:i.unit||'kg',qty:0};
       prods[k].qty+=parseFloat(i.qty)||0;
     });
   });
-  var rows=Object.values(prods).map(function(p,idx){
-    var bg=idx%2===0?'#fff':'#fafcf8';
-    return '<tr style="border-top:1px solid #f0f0f0;background:'+bg+';"><td style="padding:9px 24px;font-size:12px;">'+p.name+'</td><td style="padding:9px;text-align:center;font-size:12px;color:#777;">'+p.unit+'</td><td style="padding:9px 24px;text-align:right;font-size:14px;font-weight:bold;color:#5a7050;">'+p.qty.toFixed(2).replace('.',',')+'</td></tr>';
-  }).join('');
-  var html='<div style="font-family:Arial,sans-serif;color:#333;">'
-    +'<div style="background:#5a7050;padding:20px 24px;display:flex;justify-content:space-between;color:#fff;">'
-    +'<div><div style="font-size:20px;font-weight:bold;">ELZER</div><div style="font-size:9px;letter-spacing:2px;">DISTRIBUTION</div></div>'
-    +'<div style="text-align:right;"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;">Bon Fournisseur</div><div style="font-size:18px;font-weight:bold;">'+new Date(today).toLocaleDateString('fr-FR')+'</div></div></div>'
-    +'<div style="padding:16px 24px;background:#f7faf4;border-bottom:1px solid #eee;"><div style="font-size:12px;color:#5a7050;">📦 '+todayOrders.length+' commande(s) - '+Object.keys(prods).length+' produit(s) à approvisionner</div></div>'
-    +'<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f7faf4;"><th style="padding:10px 24px;text-align:left;font-size:10px;color:#5a7050;text-transform:uppercase;">Produit</th><th style="padding:10px;font-size:10px;color:#5a7050;text-transform:uppercase;">Unité</th><th style="padding:10px 24px;text-align:right;font-size:10px;color:#5a7050;text-transform:uppercase;">Quantité Totale</th></tr></thead><tbody>'+rows+'</tbody></table>'
-    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
+  var prodList=Object.values(prods).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var dateStr=new Date(targetDate+'T12:00:00').toLocaleDateString('fr-FR');
+  // Compact: 3 colonnes de produits pour tenir sur 1 page
+  var cells=prodList.map(function(p){
+    return '<td style="padding:4px 8px;border:1px solid #ccc;font-size:11px;">'+p.name+'</td>'
+      +'<td style="padding:4px 6px;border:1px solid #ccc;font-size:11px;text-align:center;color:#666;">'+p.unit+'</td>'
+      +'<td style="padding:4px 8px;border:1px solid #ccc;font-size:12px;font-weight:bold;text-align:right;color:#5a7050;">'+p.qty.toFixed(2).replace('.',',')+'</td>';
+  });
+  // Grouper en lignes de 2 produits (6 colonnes)
+  var rows='';
+  for(var i=0;i<cells.length;i+=2){
+    rows+='<tr>'+cells[i]+(cells[i+1]||'<td colspan="3" style="border:1px solid #ccc;"></td>')+'</tr>';
+  }
+  var html='<div style="font-family:Arial,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:15px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #5a7050;padding-bottom:10px;margin-bottom:12px;">'
+    +'<div><div style="font-size:20px;font-weight:bold;color:#5a7050;">ELZER DISTRIBUTION</div>'
+    +'<div style="font-size:11px;color:#888;">Bon d approvisionnement fournisseur</div></div>'
+    +'<div style="text-align:right;"><div style="font-size:13px;font-weight:bold;">'+dateStr+'</div>'
+    +'<div style="font-size:11px;color:#888;">'+dayOrders.length+' commande(s) · '+prodList.length+' produit(s)</div></div></div>'
+    +'<table style="width:100%;border-collapse:collapse;">'
+    +'<thead><tr style="background:#f7faf4;">'
+    +'<th style="padding:5px 8px;border:1px solid #ccc;font-size:10px;text-align:left;color:#5a7050;">PRODUIT</th>'
+    +'<th style="padding:5px 6px;border:1px solid #ccc;font-size:10px;color:#5a7050;">U</th>'
+    +'<th style="padding:5px 8px;border:1px solid #ccc;font-size:10px;color:#5a7050;">QTE</th>'
+    +'<th style="padding:5px 8px;border:1px solid #ccc;font-size:10px;text-align:left;color:#5a7050;">PRODUIT</th>'
+    +'<th style="padding:5px 6px;border:1px solid #ccc;font-size:10px;color:#5a7050;">U</th>'
+    +'<th style="padding:5px 8px;border:1px solid #ccc;font-size:10px;color:#5a7050;">QTE</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:20px;font-size:9px;color:#999;text-align:center;border-top:1px solid #ddd;padding-top:8px;">'
+    +'ELZER DISTRIBUTION · Marrakech · Tél: +212 6 73 95 83 37</div></div>';
   var win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bon Fournisseur '+today+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Bon Fournisseur '+dateStr+'</title><style>@media print{@page{margin:1cm;size:A4;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
-
-// ── IMPRIMER FACTURE ──
 function printFacture(){
   var sel=document.getElementById('fact-mois');
   var cliSel=document.getElementById('fact-client');
