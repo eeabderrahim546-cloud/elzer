@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781644836</title>
+<title>Admin ELZER v1781646115</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -957,6 +957,21 @@ document.addEventListener('click',function(e){
     var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
     if(o){o.facture=true;save('terrasse_orders',orders);toast('✅ BL marqué facturé');renderHistorique();}
   }
+  else if(a==='delete-bl'){
+    var did=el.dataset.id;
+    if(!confirm('SUPPRIMER définitivement le BL '+did+' ?\n\nLa commande sera effacée. Le numéro '+did+' sera réutilisé par la prochaine commande de ce client.')) return;
+    orders=load('terrasse_orders',[]);
+    var o=orders.find(function(x){return String(x.id)===String(did);});
+    var cliName=o?o.client:'';
+    orders=orders.filter(function(x){return String(x.id)!==String(did);});
+    save('terrasse_orders',orders);
+    // Supprimer de Supabase
+    try{ supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(did)); }catch(e){}
+    toast('🗑️ BL '+did+' supprimé - numéro libéré');
+    renderHistorique();
+    if(typeof renderCommandes==='function') renderCommandes();
+    if(typeof renderDashboard==='function') renderDashboard();
+  }
   else if(a==='archive-bl'){
     if(!confirm('Archiver ce BL ? Il sera caché mais conservé.')) return;
     orders=load('terrasse_orders',[]);
@@ -1153,23 +1168,24 @@ function getNextBLNumForClient(clientName){
   var orders=load('terrasse_orders',[]);
   var clientBLs=orders.filter(function(o){return normName(o.client)===normName(clientName) && !o.archived;});
   var blFormat=localStorage.getItem('elzer_bl_format')||(new Date().getFullYear()+'/001');
+  var fmtMatch=blFormat.match(/^(.*?)(\d+)$/);
+  var prefix=fmtMatch?fmtMatch[1]:(new Date().getFullYear()+'/');
+  var startNum=fmtMatch?parseInt(fmtMatch[2]):1;
+  var numLen=fmtMatch?fmtMatch[2].length:3;
   if(!clientBLs.length){
     return blFormat;
   }
-  // Trouver le numero max de ce client
-  var maxNum=-1, bestId='';
+  // Recuperer tous les numeros existants de ce client
+  var usedNums={};
+  var existingPrefix=prefix, existingLen=numLen;
   clientBLs.forEach(function(o){
-    var m=String(o.id).match(/(\d+)$/);
-    if(m){var n=parseInt(m[1]);if(n>maxNum){maxNum=n;bestId=String(o.id);}}
+    var m=String(o.id).match(/^(.*?)(\d+)$/);
+    if(m){ usedNums[parseInt(m[2])]=true; existingPrefix=m[1]; existingLen=m[2].length; }
   });
-  if(bestId){
-    var m=bestId.match(/^(.*?)(\d+)$/);
-    if(m){
-      var nextNum=String(parseInt(m[2])+1).padStart(m[2].length,'0');
-      return m[1]+nextNum;
-    }
-  }
-  return blFormat;
+  // REMPLIR LES TROUS: chercher le plus petit numero libre a partir de startNum
+  var n=startNum;
+  while(usedNums[n]){ n++; }
+  return existingPrefix+String(n).padStart(existingLen,'0');
 }
 
 // Appliquer le format BL a toutes les commandes existantes
@@ -3789,6 +3805,7 @@ function renderHistorique(){
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
         +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
         +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
+        +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer définitivement">🗑️</button>'
         +'</div></td></tr>';
     }).join('')
     +'</tbody></table></div>';
@@ -4171,6 +4188,7 @@ function renderHistorique(){
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
         +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
         +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
+        +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer définitivement">🗑️</button>'
         +'</div></td></tr>';
     }).join('')
     +'</tbody></table></div>';
@@ -4533,23 +4551,18 @@ function getNextNum2(){
   var prefix=fm?fm[1]:'ELD'+new Date().getFullYear()+'/';
   var startNum=fm?parseInt(fm[2]):1;
   var numLen=fm?fm[2].length:4;
-  // Numero continu GLOBAL (tous clients confondus)
-  var allNums=[];
+  // Numero continu GLOBAL (tous clients) avec REUTILISATION des numeros supprimes
+  var usedNums={};
+  var existingPrefix=prefix, existingLen=numLen;
   SUIVI2.forEach(function(r){
-    var m=String(r.num||'').match(/(\d+)$/);
-    if(m) allNums.push(parseInt(m[1]));
+    var m=String(r.num||'').match(/^(.*?)(\d+)$/);
+    if(m){ usedNums[parseInt(m[2])]=true; existingPrefix=m[1]; existingLen=m[2].length; }
   });
-  if(!allNums.length){
-    // Premiere facture: utiliser le numero de depart du format
-    return prefix+String(startNum).padStart(numLen,'0');
-  }
-  var maxNum=Math.max.apply(null,allNums);
-  // Le prochain est max+1, mais au minimum le startNum du format
-  var next=Math.max(maxNum+1, startNum);
-  return prefix+String(next).padStart(numLen,'0');
+  // REMPLIR LES TROUS: chercher le plus petit numero libre
+  var n=startNum;
+  while(usedNums[n]){ n++; }
+  return existingPrefix+String(n).padStart(existingLen,'0');
 }
-
-// Definir manuellement le prochain numero de facture
 function setNextFactNum(num){
   var m=String(num).match(/(\d+)$/);
   if(m){
