@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781615306</title>
+<title>Admin ELZER v1781616691</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -297,6 +297,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <button class="sbi" data-panel="facturation"><span class="ico">🧾</span><span>Facturation</span></button>
     <button class="sbi" data-panel="devis"><span class="ico">📋</span><span>Devis</span></button>
     <button class="sbi" data-panel="stock"><span class="ico">📦</span><span>Stock</span></button>
+    <button class="sbi" data-panel="reglages"><span class="ico">⚙️</span><span>Réglages</span></button>
   </div>
   <div class="sb-foot" style="display:flex;flex-direction:column;gap:4px;">
   <button data-action="change-admin-pwd" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.5);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;text-align:left;width:100%;margin-bottom:3px;">Changer mot de passe</button>
@@ -604,6 +605,39 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
 </div>
 </div>
 
+
+    <div class="panel" id="panel-reglages">
+      <div class="sec-hd"><div class="sec-t">⚙️ Réglages</div></div>
+      
+      <div style="background:#fff;border:1px solid #e2e8dd;border-radius:12px;padding:18px;margin-bottom:16px;max-width:600px;">
+        <div style="font-size:15px;font-weight:600;color:#5a7050;margin-bottom:6px;">🔢 Format des numéros BL</div>
+        <div style="font-size:12px;color:#888;margin-bottom:12px;">Définissez le format de départ. Chaque client suivra sa propre suite à partir de ce numéro.</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="set-bl-format" placeholder="Ex: 2026/001" style="padding:9px 12px;border:1.5px solid #c0dd97;border-radius:8px;font-size:14px;font-family:monospace;width:180px;"/>
+          <button class="btn btn-p" data-action="save-bl-format">💾 Enregistrer</button>
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:8px;">Exemples: 2026/001 · BL-001 · TER001 · 0726/0001</div>
+        <div id="bl-format-current" style="font-size:12px;color:#5a7050;margin-top:8px;font-weight:600;"></div>
+      </div>
+      
+      <div style="background:#fff;border:1px solid #e2e8dd;border-radius:12px;padding:18px;margin-bottom:16px;max-width:600px;">
+        <div style="font-size:15px;font-weight:600;color:#5a7050;margin-bottom:6px;">🧾 Format des numéros Facture</div>
+        <div style="font-size:12px;color:#888;margin-bottom:12px;">Format de départ pour les factures. Continue globalement (tous clients).</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="text" id="set-fact-format" placeholder="Ex: ELD2026/0021" style="padding:9px 12px;border:1.5px solid #c0dd97;border-radius:8px;font-size:14px;font-family:monospace;width:180px;"/>
+          <button class="btn btn-p" data-action="save-fact-format">💾 Enregistrer</button>
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:8px;">Exemples: ELD2026/0001 · F-2026-001 · 2026/0021</div>
+        <div id="fact-format-current" style="font-size:12px;color:#5a7050;margin-top:8px;font-weight:600;"></div>
+      </div>
+      
+      <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;">
+        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter tous les BL existants</div>
+        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format à toutes les commandes existantes, par client et par date.</div>
+        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-bl-format-all">🔄 Appliquer le format à tous les BL</button>
+      </div>
+    </div>
+
 <!-- MODALS -->
 <div class="ov" id="modal-client">
   <div class="modal">
@@ -873,6 +907,9 @@ document.addEventListener('click',function(e){
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
   else if(a==='renum-bl'){renumeroterBL();}
+  else if(a==='save-bl-format'){saveBLFormat();}
+  else if(a==='save-fact-format'){saveFactFormat();}
+  else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='mark-bl-facture'){
     orders=load('terrasse_orders',[]);
     var o=orders.find(function(x){return String(x.id)===String(el.dataset.id);});
@@ -1001,6 +1038,112 @@ function statusBadge(s){
 }
 
 // ── DASHBOARD ──
+
+// ── REGLAGES : Formats BL et Facture ──
+function loadReglages(){
+  var blFmt=localStorage.getItem('elzer_bl_format')||'';
+  var factFmt=localStorage.getItem('elzer_fact_format')||'';
+  var blInp=document.getElementById('set-bl-format');
+  var factInp=document.getElementById('set-fact-format');
+  if(blInp) blInp.value=blFmt;
+  if(factInp) factInp.value=factFmt;
+  var blCur=document.getElementById('bl-format-current');
+  var factCur=document.getElementById('fact-format-current');
+  if(blCur) blCur.textContent=blFmt?'Format actuel: '+blFmt:'Aucun format défini (défaut: ANNÉE/001)';
+  if(factCur) factCur.textContent=factFmt?'Format actuel: '+factFmt:'Aucun format défini (défaut: ELD+ANNÉE/0001)';
+}
+
+function saveBLFormat(){
+  var inp=document.getElementById('set-bl-format');
+  var fmt=inp?inp.value.trim():'';
+  if(!fmt){toast('Entrez un format');return;}
+  // Verifier que le format contient des chiffres
+  if(!/\d/.test(fmt)){toast('Le format doit contenir des chiffres');return;}
+  localStorage.setItem('elzer_bl_format',fmt);
+  toast('✅ Format BL enregistré: '+fmt);
+  loadReglages();
+}
+
+function saveFactFormat(){
+  var inp=document.getElementById('set-fact-format');
+  var fmt=inp?inp.value.trim():'';
+  if(!fmt){toast('Entrez un format');return;}
+  if(!/\d/.test(fmt)){toast('Le format doit contenir des chiffres');return;}
+  localStorage.setItem('elzer_fact_format',fmt);
+  // Mettre a jour le compteur facture
+  var m=fmt.match(/(\d+)$/);
+  if(m) localStorage.setItem('elzer_fact_counter',String(parseInt(m[1])));
+  toast('✅ Format Facture enregistré: '+fmt);
+  loadReglages();
+}
+
+// Generer le prochain numero BL selon le format defini, pour un client
+function getNextBLNumForClient(clientName){
+  var orders=load('terrasse_orders',[]);
+  var clientBLs=orders.filter(function(o){return normName(o.client)===normName(clientName) && !o.archived;});
+  var blFormat=localStorage.getItem('elzer_bl_format')||(new Date().getFullYear()+'/001');
+  if(!clientBLs.length){
+    return blFormat;
+  }
+  // Trouver le numero max de ce client
+  var maxNum=-1, bestId='';
+  clientBLs.forEach(function(o){
+    var m=String(o.id).match(/(\d+)$/);
+    if(m){var n=parseInt(m[1]);if(n>maxNum){maxNum=n;bestId=String(o.id);}}
+  });
+  if(bestId){
+    var m=bestId.match(/^(.*?)(\d+)$/);
+    if(m){
+      var nextNum=String(parseInt(m[2])+1).padStart(m[2].length,'0');
+      return m[1]+nextNum;
+    }
+  }
+  return blFormat;
+}
+
+// Appliquer le format BL a toutes les commandes existantes
+function applyBLFormatToAll(){
+  var blFormat=localStorage.getItem('elzer_bl_format');
+  if(!blFormat){toast('Définissez d abord un format BL');return;}
+  if(!confirm('Renuméroter TOUTES les commandes avec le format '+blFormat+' ?\n\nChaque client repart de '+blFormat+' par ordre de date.')) return;
+  orders=load('terrasse_orders',[]);
+  // Extraire prefix et numero de depart du format
+  var fm=blFormat.match(/^(.*?)(\d+)$/);
+  if(!fm){toast('Format invalide');return;}
+  var prefix=fm[1];
+  var startNum=parseInt(fm[2]);
+  var numLen=fm[2].length;
+  // Grouper par client
+  var byCli={};
+  orders.forEach(function(o){
+    if(o.archived) return;
+    var k=normName(o.client);
+    if(!byCli[k]) byCli[k]=[];
+    byCli[k].push(o);
+  });
+  var changed=0;
+  Object.keys(byCli).forEach(function(cliKey){
+    var cliOrders=byCli[cliKey];
+    cliOrders.sort(function(a,b){return new Date(a.createdAt||a.delivDate||0)-new Date(b.createdAt||b.delivDate||0);});
+    cliOrders.forEach(function(o,i){
+      var newId=prefix+String(startNum+i).padStart(numLen,'0');
+      if(String(o.id)!==newId){
+        var oldId=o.id;
+        o.id=newId;
+        changed++;
+        try{
+          supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(oldId));
+          supaFetch('POST','commandes',{id:newId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(o.items),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+        }catch(e){}
+      }
+    });
+  });
+  save('terrasse_orders',orders);
+  toast('✅ '+changed+' BL renumérotés au format '+blFormat);
+  renderHistorique();
+  renderCommandes();
+}
+
 function renderDashboard(){
   orders=load('terrasse_orders',[]);
   var today=new Date().toISOString().split('T')[0];
@@ -2095,39 +2238,7 @@ function viewBL(id){
 
 
 // ── NUMEROTATION BL AUTO-CONTINUE PAR CLIENT ──
-function getNextBLNumForClient(clientName){
-  var orders=load('terrasse_orders',[]);
-  var clientBLs=orders.filter(function(o){return normName(o.client)===normName(clientName);});
-  if(!clientBLs.length){
-    return new Date().getFullYear()+'001';
-  }
-  // Trouver le BL avec le numero le plus eleve
-  var maxNum=-1;
-  var bestId='';
-  clientBLs.forEach(function(o){
-    var idStr=String(o.id);
-    var numPart=idStr.match(/(\d+)$/);
-    if(numPart){
-      var n=parseInt(numPart[1]);
-      if(n>maxNum){
-        maxNum=n;
-        bestId=idStr;
-      }
-    }
-  });
-  if(bestId){
-    var m=bestId.match(/^(.*?)(\d+)$/);
-    if(m){
-      var pre=m[1];
-      var num=m[2];
-      var nextNum=String(parseInt(num)+1).padStart(num.length,'0');
-      return pre+nextNum;
-    }
-  }
-  return new Date().getFullYear()+'001';
-}
 
-// Renumeroter automatiquement le prochain BL d'un client
 function suggestNextBLNum(clientName){
   return getNextBLNumForClient(clientName);
 }
