@@ -476,26 +476,19 @@ function getBLNum(){
     }
     return blFormat;
   }
-  // Trouver le numero le PLUS ELEVE (pas le dernier de la liste)
-  var maxNum=-1, bestId='';
+  // REMPLIR LES TROUS: reutiliser les numeros supprimes
+  var fmtMatch=blFormat.match(/^(.*?)(\d+)$/);
+  var startNum=fmtMatch?parseInt(fmtMatch[2]):1;
+  var usedNums={};
+  var existingPrefix=fmtMatch?fmtMatch[1]:(new Date().getFullYear()+'/');
+  var existingLen=fmtMatch?fmtMatch[2].length:3;
   clientBLs.forEach(function(o){
-    var idStr=String(o.id);
-    var m=idStr.match(/(\d+)$/);
-    if(m){
-      var n=parseInt(m[1]);
-      if(n>maxNum){ maxNum=n; bestId=idStr; }
-    }
+    var m=String(o.id).match(/^(.*?)(\d+)$/);
+    if(m){ usedNums[parseInt(m[2])]=true; existingPrefix=m[1]; existingLen=m[2].length; }
   });
-  if(bestId){
-    var m=bestId.match(/^(.*?)(\d+)$/);
-    if(m){
-      var pre=m[1];
-      var num=m[2];
-      var nextNum=String(parseInt(num)+1).padStart(num.length,'0');
-      return pre+nextNum;
-    }
-  }
-  return blFormat;
+  var n=startNum;
+  while(usedNums[n]){ n++; }
+  return existingPrefix+String(n).padStart(existingLen,'0');
 }
 function formatBL(n){
   if(typeof n==='string' && n.indexOf('/')>=0) return n;
