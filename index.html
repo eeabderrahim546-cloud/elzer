@@ -447,28 +447,46 @@ document.getElementById('cdtxt').textContent=now.toLocaleDateString('fr-FR',{wee
 document.getElementById('dd').value=new Date().toISOString().split('T')[0];
 
 // Lire numéro BL depuis localStorage admin
+var SUPA_ORDERS_CACHE=[];
+function norm(s){return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+
+// Charger toutes les commandes depuis Supabase pour calculer le bon numero
+async function loadAllOrdersForBL(){
+  try{
+    var data=await supaFetch('GET','commandes?select=id,client');
+    if(Array.isArray(data)) SUPA_ORDERS_CACHE=data;
+  }catch(e){}
+}
+
 function getBLNum(){
-  // Numerotation continue par client
-  const orders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
   const cliName=(CLI&&CLI.name)||'';
-  function norm(s){return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
-  const clientBLs=orders.filter(o=>norm(o.client)===norm(cliName));
+  // Combiner local + cache Supabase
+  const localOrders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+  const allOrders=localOrders.concat(SUPA_ORDERS_CACHE);
+  const clientBLs=allOrders.filter(o=>norm(o.client)===norm(cliName));
   if(!clientBLs.length){
-    // Premier BL du client
-    const n=parseInt(localStorage.getItem('elzer_next_bl')||'1');
-    return n;
+    return new Date().getFullYear()+'/001';
   }
-  // Prendre le dernier BL du client et incrementer
-  const lastId=String(clientBLs[clientBLs.length-1].id);
-  const m=lastId.match(/^(.*?)(\d+)$/);
-  if(m){
-    const pre=m[1];
-    const num=m[2];
-    const nextNum=String(parseInt(num)+1).padStart(num.length,'0');
-    return pre+nextNum;
+  // Trouver le numero le PLUS ELEVE (pas le dernier de la liste)
+  var maxNum=-1, bestId='';
+  clientBLs.forEach(function(o){
+    var idStr=String(o.id);
+    var m=idStr.match(/(\d+)$/);
+    if(m){
+      var n=parseInt(m[1]);
+      if(n>maxNum){ maxNum=n; bestId=idStr; }
+    }
+  });
+  if(bestId){
+    var m=bestId.match(/^(.*?)(\d+)$/);
+    if(m){
+      var pre=m[1];
+      var num=m[2];
+      var nextNum=String(parseInt(num)+1).padStart(num.length,'0');
+      return pre+nextNum;
+    }
   }
-  const n=parseInt(localStorage.getItem('elzer_next_bl')||'1');
-  return n;
+  return new Date().getFullYear()+'/001';
 }
 function formatBL(n){
   return String(n).padStart(3,'0');
@@ -503,7 +521,7 @@ if(!CLI){
 }
 
 let mode='s',rows=[];
-if(CLI) build();
+if(CLI){ build(); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); }
 
 function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
 
