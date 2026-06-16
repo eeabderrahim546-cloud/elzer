@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781619154</title>
+<title>Admin ELZER v1781619852</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -2053,9 +2053,9 @@ function buildFactureMensuelleHtml(cliName, month, factNum){
     +'<tr><td style="padding:6px 20px;text-align:right;color:#c0392b;font-size:13px;">TVA</td><td style="padding:6px 20px;text-align:right;font-size:13px;border-bottom:1px solid #ccc;">0,00%</td></tr>'
     +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#c0392b;font-size:14px;">TOTAL A PAYER</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:14px;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
     +'</table></div>'
-    +'<div style="margin-top:40px;padding-top:12px;border-top:1px solid #ddd;text-align:center;font-size:8px;color:#888;line-height:1.5;">'
+    +'<div class="doc-footer"><div class="doc-footer-text" style="color:#d4e0cc;">'
     +'ELZER DIST S.A.R.L au capital de 100 000 DH- siège social :Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC.<br>'
-    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div>';
+    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div></div>';
 }
 
 // ── RELEVE MENSUEL (recapitulatif factures du client) ──
@@ -2092,9 +2092,9 @@ function buildReleveMensuelHtml(cliName, month){
     +'<tr><td style="padding:6px 20px;text-align:right;color:#2d6a1f;font-size:13px;border:1px solid #ddd;">TVA 0%</td><td style="padding:6px 20px;text-align:right;font-size:13px;border:1px solid #ddd;">0,00</td></tr>'
     +'<tr><td style="padding:6px 20px;text-align:right;font-weight:bold;color:#2d6a1f;font-size:14px;border:1px solid #ddd;">TOTAL A PAYER</td><td style="padding:6px 20px;text-align:right;font-weight:bold;font-size:14px;border:1px solid #ddd;">'+total.toFixed(2).replace('.',',')+'</td></tr>'
     +'</table></div>'
-    +'<div style="margin-top:40px;padding-top:12px;border-top:1px solid #ddd;text-align:center;font-size:8px;color:#888;line-height:1.5;">'
+    +'<div class="doc-footer"><div class="doc-footer-text" style="color:#d4e0cc;">'
     +'ELZER DIST S.A.R.L au capital de 100 000 DH- siège social :Appt N°15 Imm12 lot Sine AV alla lfassi - Marrakech - MAROC.<br>'
-    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div>';
+    +'RC : 129615- IF:06298456 - ICE: 003711905000045 / Tél : +212 6 73 95 8337 - Mail :elzerdist@gmail.com</div></div></div>';
 }
 
 // Imprimer facture mensuelle
@@ -2124,7 +2124,7 @@ function printFactureMensuelle(){
   }
   
   var win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+factNum+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+factNum+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}body{padding-bottom:60px;}}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
@@ -2135,7 +2135,7 @@ function printReleveMensuel(){
   if(!moisSel||!moisSel.value){toast('Sélectionnez un mois');return;}
   var html=buildReleveMensuelHtml(cliSel.value, moisSel.value);
   var win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relevé '+cliSel.value+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relevé '+cliSel.value+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}body{padding-bottom:60px;}}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
@@ -2506,8 +2506,7 @@ function buildBLHtml(o){
     +'<div style="font-size:11px;color:#666;">'+(o.items||[]).length+' ligne(s) · Total quantité: <strong>'+totalQty.toFixed(2).replace('.',',')+'</strong></div>'
     +'<div style="text-align:right;"><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span>'
     +'<span style="font-size:22px;font-weight:bold;color:#5a7050;">'+(hasPrix?totalGeneral.toFixed(2).replace('.',',')+' Dh':(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'—'))+'</span></div></div>'
-    +'<div style="padding:12px 24px;background:#5a7050;text-align:center;">'
-    +'<div style="font-size:8px;color:#d4e0cc;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH \u00b7 Marrakech \u00b7 MAROC<br>'
+    +'<div class="doc-footer"><div class="doc-footer-text">ELZER DIST S.A.R.L au capital de 100 000 DH \u00b7 Marrakech \u00b7 MAROC<br>'
     +'RC: 129615 \u00b7 IF: 06298456 \u00b7 ICE: 003711905000045 \u00b7 T\u00e9l: +212 6 73 95 83 37</div></div></div>';
 }
 
@@ -2523,7 +2522,7 @@ function printBL(id){
   if(!o) return;
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BL '+o.id+'</title>'
-    +'<style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'
+    +'<style>@media print{@page{margin:1cm;}}body{margin:0;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}body{padding-bottom:60px;}}</style></head><body>'
     +buildBLHtml(o)+getBLFooter()
     +'</body></html>');
   win.document.close();
@@ -2576,7 +2575,7 @@ function printDevis(id){
     +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;"><div><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span><span style="font-size:22px;font-weight:bold;color:#5a7050;">'+total.toFixed(2).replace('.',',')+' Dh</span></div></div>'
     +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
   var win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Devis '+(d.numero||d.id)+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Devis '+(d.numero||d.id)+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}body{padding-bottom:60px;}}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
@@ -2709,7 +2708,7 @@ function printFacture(){
     +'<div style="display:flex;justify-content:flex-end;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;"><div><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span><span style="font-size:22px;font-weight:bold;color:#5a7050;">'+totalMois.toFixed(2).replace('.',',')+' Dh</span></div></div>'
     +'<div style="padding:12px 24px;background:#5a7050;text-align:center;color:#d4e0cc;font-size:8px;line-height:1.5;">ELZER DIST S.A.R.L au capital de 100 000 DH · Marrakech · MAROC<br>RC: 129615 · IF: 06298456 · ICE: 003711905000045 · Tél: +212 6 73 95 83 37</div></div>';
   var win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+numFact+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}</style></head><body>'+html+'</body></html>');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+numFact+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}body{padding-bottom:60px;}}</style></head><body>'+html+'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
 }
