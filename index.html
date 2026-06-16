@@ -489,6 +489,7 @@ function getBLNum(){
   return new Date().getFullYear()+'/001';
 }
 function formatBL(n){
+  if(typeof n==='string' && n.indexOf('/')>=0) return n;
   return String(n).padStart(3,'0');
 }
 document.getElementById('bl-num').textContent='BL #'+formatBL(getBLNum());
