@@ -201,6 +201,11 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
   <button class="mpill" id="pt" onclick="sm('t')">Cuisine · Bar · Personnel</button>
 </div>
 <div class="content" id="ct"></div>
+<div style="padding:12px 16px;">
+  <div id="custom-items-list"></div>
+  <button onclick="addCustomItem()" style="width:100%;padding:12px;background:#fff3e0;border:2px dashed #f0a030;border-radius:10px;color:#c47a00;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;">➕ Ajouter un article (non listé)</button>
+  <div style="font-size:11px;color:#999;text-align:center;margin-top:6px;">Pour un produit qui n'est pas dans la liste. Le prix sera vérifié par ELZER.</div>
+</div>
 <div class="elzer-foot">
   ELZER DISTRIBUTION &nbsp;·&nbsp; N°15 Imm 12 Lot Sine Av Allal Fassi, Marrakech<br/>
   Tél : +212 6 73 95 83 37 &nbsp;·&nbsp; elzerdist@gmail.com &nbsp;·&nbsp; RC:52057 · IF:06526715 · ICE:000073472000003
@@ -589,7 +594,48 @@ function fp(){const q=document.getElementById('srch').value.toLowerCase().trim()
 function pp(s){if(!s)return 0;const m=s.match(/\d+([,.]\d+)?/);return m?parseFloat(m[0].replace(',','.')):0;}
 function ut(){let t=0,n=0;rows.forEach(({ic,ib,ip,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0){t+=pp(price)*(c+b+p);n++;}});document.getElementById('gt').textContent=Math.round(t).toLocaleString('fr-FR')+' Dh';document.getElementById('bc').textContent=n+' article'+(n>1?'s':'');}
 function ca(){rows.forEach(({ic,ib,ip,row})=>{ic.value='';ic.className='qi';if(ib){ib.value='';ib.className='qi';}if(ip){ip.value='';ip.className='qi';}const tc=row.querySelector('.tc');if(tc)tc.textContent='—';row.classList.remove('ok');});document.getElementById('srch').value='';fp();ut();}
-function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0)l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});});return l;}
+
+// ── ARTICLES PERSONNALISES (non listés au catalogue) ──
+var CUSTOM_ITEMS=[];
+function addCustomItem(){
+  CUSTOM_ITEMS.push({id:Date.now()+Math.random(),name:'',qty:'',unit:'kg'});
+  renderCustomItems();
+}
+function removeCustomItem(id){
+  CUSTOM_ITEMS=CUSTOM_ITEMS.filter(function(c){return c.id!==id;});
+  renderCustomItems();
+}
+function renderCustomItems(){
+  var el=document.getElementById('custom-items-list');
+  if(!el)return;
+  el.innerHTML=CUSTOM_ITEMS.map(function(c){
+    return '<div style="background:#fff8ee;border:1.5px solid #f0a030;border-radius:10px;padding:10px;margin-bottom:8px;">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+      +'<span style="font-size:10px;background:#f0a030;color:#fff;padding:2px 6px;border-radius:4px;font-weight:600;">NOUVEAU</span>'
+      +'<button onclick="removeCustomItem('+c.id+')" style="margin-left:auto;background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer;">✕</button>'
+      +'</div>'
+      +'<input type="text" placeholder="Nom du produit" value="'+(c.name||'')+'" oninput="updateCustomItem('+c.id+',\'name\',this.value)" style="width:100%;padding:8px;border:1px solid #f0c98a;border-radius:6px;font-size:14px;margin-bottom:6px;box-sizing:border-box;"/>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<input type="number" placeholder="Quantité" value="'+(c.qty||'')+'" oninput="updateCustomItem('+c.id+',\'qty\',this.value)" style="flex:1;padding:8px;border:1px solid #f0c98a;border-radius:6px;font-size:14px;box-sizing:border-box;"/>'
+      +'<select onchange="updateCustomItem('+c.id+',\'unit\',this.value)" style="padding:8px;border:1px solid #f0c98a;border-radius:6px;font-size:14px;">'
+      +['kg','piece','botte','caisse','sac','barquette','litre'].map(function(u){return '<option value="'+u+'"'+(c.unit===u?' selected':'')+'>'+u+'</option>';}).join('')
+      +'</select></div></div>';
+  }).join('');
+}
+function updateCustomItem(id,field,val){
+  var c=CUSTOM_ITEMS.find(function(x){return x.id===id;});
+  if(c){ c[field]=val; }
+}
+
+function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0)l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});});
+  // Ajouter les articles personnalisés
+  CUSTOM_ITEMS.forEach(function(ci){
+    var q=parseFloat(ci.qty)||0;
+    if(ci.name && q>0){
+      l.push({name:ci.name,cuisine:0,bar:0,perso:0,total:q,unit:ci.unit,price:'',custom:true});
+    }
+  });
+  return l;}
 function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
 function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
@@ -616,7 +662,7 @@ async function co(){
   }
   const items=[];
   if(mode==='t'){lines.forEach(l=>{if(l.cuisine>0)items.push({name:l.name,qty:l.cuisine,unit:l.unit,type:'Cuisine',prix:l.price});if(l.bar>0)items.push({name:l.name,qty:l.bar,unit:l.unit,type:'Bar',prix:l.price});if(l.perso>0)items.push({name:l.name,qty:l.perso,unit:l.unit,type:'Personnel',prix:l.price});});}
-  else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit,prix:l.price}));}
+  else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit,prix:l.price,custom:l.custom||false}));}
   orders.push({id:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode});
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(orders[orders.length-1]);
