@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781689582</title>
+<title>Admin ELZER v1781690371</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -532,6 +532,16 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button onclick="openSuiviForm(-1)" style="background:#6b8a5e;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">+ Ajouter</button>
           <button onclick="exportSuiviCSV()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;">📥 CSV</button>
         </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+        <input type="text" id="suivi-search" oninput="renderSuivi2()" placeholder="🔍 Rechercher: N° facture, client, montant..." style="flex:1;min-width:200px;padding:9px 12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;outline:none;"/>
+        <select id="suivi-filter-etat" onchange="renderSuivi2()" style="padding:9px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;">
+          <option value="">Tous les états</option>
+          <option value="REGLER">Réglées</option>
+          <option value="EN COURS">En cours</option>
+          <option value="IMPAYE">Impayées</option>
+        </select>
+        <button onclick="document.getElementById('suivi-search').value='';document.getElementById('suivi-filter-etat').value='';renderSuivi2();" style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;">✕ Réinit</button>
       </div>
       <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -4624,13 +4634,31 @@ function renderSuivi2(){
   if(!tbody){setTimeout(renderSuivi2,200);return;}
   var sc={'REGLER':'#eaf3de','EN COURS':'#fff3e0','IMPAYE':'#ffecec'};
   var tc={'REGLER':'#27500a','EN COURS':'#854f0b','IMPAYE':'#d32f2f'};
-  var total=SUIVI2.reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
-  if(!SUIVI2.length){
-    tbody.innerHTML='<tr><td colspan="9" style="padding:20px;text-align:center;color:#888;font-size:12px;">Aucune facture — cliquez + Ajouter</td></tr>';
-    document.getElementById('suivi-total2').style.display='none';
+  // RECHERCHE + FILTRE
+  var searchEl=document.getElementById('suivi-search');
+  var q=searchEl?searchEl.value.trim().toLowerCase():'';
+  var etatEl=document.getElementById('suivi-filter-etat');
+  var etatFilter=etatEl?etatEl.value:'';
+  // Garder les index originaux pour edit/delete
+  var indexed=SUIVI2.map(function(r,i){return {r:r,origIdx:i};});
+  var filtered=indexed.filter(function(o){
+    var r=o.r;
+    if(etatFilter && (r.reglement||r.etat||'')!==etatFilter) return false;
+    if(!q) return true;
+    var hay=((r.num||'')+' '+(r.client||'')+' '+(r.mt||'')+' '+(r.date||'')+' '+(r.comment||'')).toLowerCase();
+    // Recherche aussi par montant arrondi
+    var mtRound=Math.round(parseFloat(r.mt||0)).toString();
+    return hay.indexOf(q)>=0 || mtRound.indexOf(q)>=0;
+  });
+  var total=filtered.reduce(function(s,o){return s+parseFloat(o.r.mt||0);},0);
+  if(!filtered.length){
+    var msg=SUIVI2.length?'Aucun résultat pour cette recherche':'Aucune facture — cliquez + Ajouter';
+    tbody.innerHTML='<tr><td colspan="9" style="padding:20px;text-align:center;color:#888;font-size:12px;">'+msg+'</td></tr>';
+    var totEl=document.getElementById('suivi-total2');if(totEl)totEl.style.display='none';
     return;
   }
-  tbody.innerHTML=SUIVI2.map(function(r,i){
+  tbody.innerHTML=filtered.map(function(o){
+    var r=o.r; var i=o.origIdx;
     var bg=i%2===0?'#fff':'#f9fdf5';
     return '<tr style="background:'+bg+';border-bottom:0.5px solid #f0f0f0;">'
       +'<td style="padding:7px 12px;font-weight:600;color:#5a7050;font-size:12px;white-space:nowrap;">'+r.num+'</td>'
