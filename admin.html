@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781734821</title>
+<title>Admin ELZER v1781735414</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1136,6 +1136,21 @@ function statusBadge(s){
 // ── DASHBOARD ──
 
 // ── REGLAGES : Formats BL et Facture ──
+
+// Charger format facture/BL + suivi depuis Supabase au demarrage
+async function loadReglagesFromSupabase(){
+  try{
+    var data=await supaFetch('GET','clients_elzer?id=in.(elzer_fact_format,elzer_bl_format,elzer_suivi_factures)');
+    if(Array.isArray(data)){
+      data.forEach(function(row){
+        if(row.id==='elzer_fact_format' && row.data){ localStorage.setItem('elzer_fact_format',row.data); var m=String(row.data).match(/(\d+)$/); if(m) localStorage.setItem('elzer_fact_counter',String(parseInt(m[1]))); }
+        if(row.id==='elzer_bl_format' && row.data){ localStorage.setItem('elzer_bl_format',row.data); }
+        if(row.id==='elzer_suivi_factures' && row.data){ try{ localStorage.setItem('elzer_suivi_factures',row.data); }catch(e){} }
+      });
+    }
+  }catch(e){ console.error('Load reglages err',e); }
+}
+
 function loadReglages(){
   var blFmt=localStorage.getItem('elzer_bl_format')||'';
   var factFmt=localStorage.getItem('elzer_fact_format')||'';
@@ -1156,6 +1171,7 @@ function saveBLFormat(){
   // Verifier que le format contient des chiffres
   if(!/\d/.test(fmt)){toast('Le format doit contenir des chiffres');return;}
   localStorage.setItem('elzer_bl_format',fmt);
+  try{ supaFetch('POST','clients_elzer',{id:'elzer_bl_format',data:fmt},'Prefer','resolution=merge-duplicates'); }catch(e){}
   toast('✅ Format BL enregistré: '+fmt);
   loadReglages();
 }
@@ -1169,6 +1185,8 @@ function saveFactFormat(){
   // Mettre a jour le compteur facture
   var m=fmt.match(/(\d+)$/);
   if(m) localStorage.setItem('elzer_fact_counter',String(parseInt(m[1])));
+  // Sauvegarder dans Supabase (partagé entre appareils)
+  try{ supaFetch('POST','clients_elzer',{id:'elzer_fact_format',data:fmt},'Prefer','resolution=merge-duplicates'); }catch(e){}
   toast('✅ Format Facture enregistré: '+fmt);
   loadReglages();
 }
@@ -4649,6 +4667,17 @@ var editSuivi2=-1;
 function loadSuivi2(){
   SUIVI2=load('elzer_suivi_factures',[]);
 }
+
+// Sauvegarder le suivi des factures dans Supabase (partagé)
+async function saveSuivi2ToSupabase(){
+  try{
+    await supaFetch('POST','clients_elzer',{
+      id:'elzer_suivi_factures',
+      data:JSON.stringify(SUIVI2)
+    },'Prefer','resolution=merge-duplicates');
+  }catch(e){ console.error('Sync suivi err',e); }
+}
+
 function saveSuivi2(){
   save('elzer_suivi_factures',SUIVI2);
   if(typeof saveSuivi2ToSupabase==='function') saveSuivi2ToSupabase();
@@ -4852,6 +4881,7 @@ document.addEventListener('click', function(e){
 // Charger depuis Supabase en priorite
 (async function(){
   try{
+    await loadReglagesFromSupabase();
     var data=await supaFetch('GET','commandes?order=created_at.desc');
     if(Array.isArray(data)){
       var mapped=data.map(function(r){
