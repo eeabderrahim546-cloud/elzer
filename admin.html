@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781712193</title>
+<title>Admin ELZER v1781734821</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -972,10 +972,11 @@ document.addEventListener('click',function(e){
     orders=load('terrasse_orders',[]);
     var o=orders.find(function(x){return String(x.id)===String(did);});
     var cliName=o?o.client:'';
+    var supaId=(o&&o._uid)?o._uid:did;
     orders=orders.filter(function(x){return String(x.id)!==String(did);});
     save('terrasse_orders',orders);
-    // Supprimer de Supabase
-    try{ supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(did)); }catch(e){}
+    // Supprimer de Supabase via le vrai id unique
+    try{ supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(supaId)); }catch(e){}
     toast('🗑️ BL '+did+' supprimé - numéro libéré');
     renderHistorique();
     if(typeof renderCommandes==='function') renderCommandes();
@@ -1481,7 +1482,8 @@ function setStatus(id,status){
   if(i>=0){
     orders[i].status=status;
     save('terrasse_orders',orders);
-    supaFetch('PATCH','commandes?id=eq.'+id,{status:status});
+    var supaId=orders[i]._uid||id;
+    supaFetch('PATCH','commandes?id=eq.'+encodeURIComponent(supaId),{status:status});
     renderCommandes();
     renderDashboard();
     toast('Statut: '+status);
@@ -4786,8 +4788,8 @@ async function syncFromSupabase(){
     var data=await supaFetch('GET','commandes?order=created_at.desc');
     if(Array.isArray(data)){
       var mapped=data.map(function(r){
-        var items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}
-        return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
+        var items=[];var blNum=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){blNum=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}
+        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
       var oldCount=orders.length;
       // FUSIONNER: garder les commandes locales qui ne sont pas encore dans Supabase
@@ -4853,8 +4855,8 @@ document.addEventListener('click', function(e){
     var data=await supaFetch('GET','commandes?order=created_at.desc');
     if(Array.isArray(data)){
       var mapped=data.map(function(r){
-        var items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}
-        return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
+        var items=[];var blNum=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){blNum=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}
+        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
       // FUSIONNER avec le local (ne pas perdre les commandes locales)
       var localOrders=load('terrasse_orders',[]);
