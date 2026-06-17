@@ -615,8 +615,8 @@ async function co(){
     guard++;
   }
   const items=[];
-  if(mode==='t'){lines.forEach(l=>{if(l.cuisine>0)items.push({name:l.name,qty:l.cuisine,unit:l.unit,type:'Cuisine'});if(l.bar>0)items.push({name:l.name,qty:l.bar,unit:l.unit,type:'Bar'});if(l.perso>0)items.push({name:l.name,qty:l.perso,unit:l.unit,type:'Personnel'});});}
-  else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit}));}
+  if(mode==='t'){lines.forEach(l=>{if(l.cuisine>0)items.push({name:l.name,qty:l.cuisine,unit:l.unit,type:'Cuisine',prix:l.price});if(l.bar>0)items.push({name:l.name,qty:l.bar,unit:l.unit,type:'Bar',prix:l.price});if(l.perso>0)items.push({name:l.name,qty:l.perso,unit:l.unit,type:'Personnel',prix:l.price});});}
+  else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit,prix:l.price}));}
   orders.push({id:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode});
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(orders[orders.length-1]);
