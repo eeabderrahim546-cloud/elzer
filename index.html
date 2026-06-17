@@ -326,7 +326,7 @@ if(!CLI && CID){
   else CLI={name:CID,wa:PHONE}; // Fallback: utiliser l'ID comme nom
 }
 const UNITS=['kg','bt','pc','g','L','caisse','plt','brq','boite'];
-const CAT=[
+var CAT=[
   {title:'🥦 Légumes',items:[
     {n:'Ail',u:'kg'},{n:'Ail épluché 1kg',u:'kg',p:'85dh'},{n:'Artichaut',u:'kg'},
     {n:'Asperges vertes',u:'kg'},{n:'Aubergine',u:'kg',p:'4dh'},
@@ -524,9 +524,29 @@ if(!CLI){
 }
 
 let mode='s',rows=[];
-if(CLI){ build(); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); }
+if(CLI){ loadCustomProducts().then(function(){build();}); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); }
 
 function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
+
+
+// Charger les produits ajoutes par l'admin depuis Supabase
+async function loadCustomProducts(){
+  try{
+    var data=await supaFetch('GET','app_config?key=eq.custom_products');
+    if(Array.isArray(data) && data.length){
+      var custom=JSON.parse(data[0].value||'[]');
+      custom.forEach(function(cp){
+        var si=cp.secIdx||0;
+        if(CAT[si]){
+          // Eviter doublon
+          if(!CAT[si].items.find(function(i){return i.n===cp.n;})){
+            CAT[si].items.push({n:cp.n,u:cp.u,p:cp.p});
+          }
+        }
+      });
+    }
+  }catch(e){ /* table absente ou vide: ignorer */ }
+}
 
 function build(){
   rows=[];const ct=document.getElementById('ct');ct.innerHTML='';
