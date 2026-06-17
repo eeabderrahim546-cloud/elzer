@@ -275,11 +275,13 @@ async function supaFetch(method,path,body=null){
 async function saveOrderToSupabase(order){
   console.log('ELZER: Envoi commande vers Supabase...', order.id, order.client);
   try{
+    // Stocker le numero BL dans le JSON items (pas besoin de colonne dediee)
+    var payload={__bl:order.bl||order.id, items:order.items};
     var result = await supaFetch('POST','commandes',{
       id:order.id,
       client:order.client,
       deliver_date:order.delivDate,
-      items:JSON.stringify(order.items),
+      items:JSON.stringify(payload),
       total:order.total||0,
       status:order.status||'nouvelle',
       mode:order.mode||'simple',
@@ -290,7 +292,7 @@ async function saveOrderToSupabase(order){
     console.error('ELZER: Erreur Supabase', e);
   }
 }
-async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}return{id:r.id,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
+async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];let bl=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){bl=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}return{id:r.id,bl:bl,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
 const P=new URLSearchParams(window.location.search);
@@ -458,8 +460,14 @@ function norm(s){return (s||'').toString().normalize('NFD').replace(/[\u0300-\u0
 // Charger toutes les commandes depuis Supabase pour calculer le bon numero
 async function loadAllOrdersForBL(){
   try{
-    var data=await supaFetch('GET','commandes?select=id,client');
-    if(Array.isArray(data)) SUPA_ORDERS_CACHE=data;
+    var data=await supaFetch('GET','commandes?select=id,client,items');
+    if(Array.isArray(data)){
+      SUPA_ORDERS_CACHE=data.map(function(r){
+        var bl=r.id;
+        try{var p=typeof r.items==='string'?JSON.parse(r.items):r.items;if(p&&p.__bl!==undefined)bl=p.__bl;}catch(e){}
+        return {id:r.id,bl:bl,client:r.client};
+      });
+    }
   }catch(e){}
 }
 
@@ -475,7 +483,7 @@ function getBLNum(){
     // Pas de BL pour ce client: utiliser le format admin OU deduire d'un autre client
     if(allOrders.length){
       // Deduire le format d'une commande existante (n'importe quel client)
-      var sample=String(allOrders[0].id);
+      var sample=String(allOrders[0].bl||allOrders[0].id);
       var sm=sample.match(/^(.*?)(\d+)$/);
       if(sm) return sm[1]+'1'.padStart(sm[2].length,'0');
     }
@@ -488,7 +496,7 @@ function getBLNum(){
   var existingPrefix=fmtMatch?fmtMatch[1]:(new Date().getFullYear()+'/');
   var existingLen=fmtMatch?fmtMatch[2].length:3;
   clientBLs.forEach(function(o){
-    var m=String(o.id).match(/^(.*?)(\d+)$/);
+    var m=String(o.bl||o.id).match(/^(.*?)(\d+)$/);
     if(m){ usedNums[parseInt(m[2])]=true; existingPrefix=m[1]; existingLen=m[2].length; }
   });
   var n=startNum;
@@ -651,7 +659,7 @@ async function co(){
   // ANTI-COLLISION: verifier que ce numero n'existe pas deja pour ce client
   function blExists(num){
     var all=orders.concat(SUPA_ORDERS_CACHE);
-    return all.some(function(o){return norm(o.client)===norm(CLI.name) && String(o.id)===String(num);});
+    return all.some(function(o){return norm(o.client)===norm(CLI.name) && String(o.bl||o.id)===String(num);});
   }
   // Si collision, incrementer jusqu'a trouver un libre
   var guard=0;
@@ -663,11 +671,13 @@ async function co(){
   const items=[];
   if(mode==='t'){lines.forEach(l=>{if(l.cuisine>0)items.push({name:l.name,qty:l.cuisine,unit:l.unit,type:'Cuisine',prix:l.price});if(l.bar>0)items.push({name:l.name,qty:l.bar,unit:l.unit,type:'Bar',prix:l.price});if(l.perso>0)items.push({name:l.name,qty:l.perso,unit:l.unit,type:'Personnel',prix:l.price});});}
   else{lines.forEach(l=>items.push({name:l.name,qty:l.total,unit:l.unit,prix:l.price,custom:l.custom||false}));}
-  orders.push({id:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode});
+  var uniqueId='o'+Date.now()+Math.floor(Math.random()*100000);
+  var newOrder={id:uniqueId,bl:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode};
+  orders.push(newOrder);
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
-  saveOrderToSupabase(orders[orders.length-1]);
+  saveOrderToSupabase(newOrder);
   // Recharger cache et calculer le prochain numero pour affichage
-  SUPA_ORDERS_CACHE.push({id:String(blNum),client:CLI.name});
+  SUPA_ORDERS_CACHE.push({id:uniqueId,bl:String(blNum),client:CLI.name});
   document.getElementById('bl-num').textContent='BL #'+getBLNum();
   let msg='🌿 *BL #'+blNum+'*\n👤 '+CLI.name+'\n📅 Livraison : '+ds+'\n\n';
   if(mode==='t'){const c=lines.filter(l=>l.cuisine>0),b=lines.filter(l=>l.bar>0),p=lines.filter(l=>l.perso>0);if(c.length)msg+='CUISINE\n'+c.map(l=>'• '+l.name+' : '+l.cuisine+' '+l.unit).join('\n')+'\n\n';if(b.length)msg+='BAR\n'+b.map(l=>'• '+l.name+' : '+l.bar+' '+l.unit).join('\n')+'\n\n';if(p.length)msg+='PERSONNEL\n'+p.map(l=>'• '+l.name+' : '+l.perso+' '+l.unit).join('\n')+'\n\n';}
