@@ -532,20 +532,19 @@ function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s
 // Charger les produits ajoutes par l'admin depuis Supabase
 async function loadCustomProducts(){
   try{
-    var data=await supaFetch('GET','app_config?key=eq.custom_products');
+    var data=await supaFetch('GET','clients_elzer?id=eq.elzer_catalogue');
     if(Array.isArray(data) && data.length){
-      var custom=JSON.parse(data[0].value||'[]');
+      var custom=JSON.parse(data[0].data||'[]');
       custom.forEach(function(cp){
         var si=cp.secIdx||0;
         if(CAT[si]){
-          // Eviter doublon
           if(!CAT[si].items.find(function(i){return i.n===cp.n;})){
             CAT[si].items.push({n:cp.n,u:cp.u,p:cp.p});
           }
         }
       });
     }
-  }catch(e){ /* table absente ou vide: ignorer */ }
+  }catch(e){ /* vide: ignorer */ }
 }
 
 function build(){
