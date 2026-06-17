@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781646115</title>
+<title>Admin ELZER v1781689388</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1631,6 +1631,16 @@ function openProdModal(si,pi){
   openModal('modal-prod');
 }
 
+
+// ── SYNC CATALOGUE vers Supabase (pour que les clients voient les nouveaux produits) ──
+async function syncCatalogueToSupabase(){
+  var custom=load('custom_products',[]);
+  try{
+    // Stocker dans la table app_config (key/value)
+    await supaFetch('POST','app_config',{key:'custom_products',value:JSON.stringify(custom),updated_at:new Date().toISOString()});
+  }catch(e){ console.error('Sync catalogue err',e); }
+}
+
 function saveProd(){
   var name=document.getElementById('pr-name').value.trim();
   if(!name){alert('Nom requis.');return;}
@@ -1641,7 +1651,7 @@ function saveProd(){
   else{
     if(CATALOGUE[si].items.find(function(i){return i.n.toLowerCase()===name.toLowerCase();})){alert('Existe deja!');return;}
     CATALOGUE[si].items.push({n:name,u:u,p:p});
-    var c=load('custom_products',[]);c.push({n:name,u:u,p:p,secIdx:si});save('custom_products',c);
+    var c=load('custom_products',[]);c.push({n:name,u:u,p:p,secIdx:si});save('custom_products',c);syncCatalogueToSupabase();
   }
   closeModal('modal-prod');renderCatalogue();toast('Produit enregistre!');
 }
@@ -1650,7 +1660,7 @@ function deleteProd(si,pi){
   if(!confirm('Supprimer "'+CATALOGUE[si].items[pi].n+'" ?'))return;
   var name=CATALOGUE[si].items[pi].n;
   CATALOGUE[si].items.splice(pi,1);
-  var c=load('custom_products',[]).filter(function(x){return !(x.n===name&&x.secIdx===si);});save('custom_products',c);
+  var c=load('custom_products',[]).filter(function(x){return !(x.n===name&&x.secIdx===si);});save('custom_products',c);syncCatalogueToSupabase();
   renderCatalogue();toast('Produit supprime.');
 }
 
@@ -4663,8 +4673,33 @@ async function syncFromSupabase(){
         return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
       var oldCount=orders.length;
-      save('terrasse_orders',mapped);
-      orders=mapped;
+      // FUSIONNER: garder les commandes locales qui ne sont pas encore dans Supabase
+      var localOrders=load('terrasse_orders',[]);
+      var supaIds={};
+      mapped.forEach(function(o){supaIds[String(o.id)]=true;});
+      // Ajouter les commandes locales absentes de Supabase (statut local seulement)
+      var localOnly=localOrders.filter(function(o){
+        return !supaIds[String(o.id)] && !o._deleted;
+      });
+      // Pour les commandes presentes dans les 2, garder le statut local s'il est plus avance
+      var statusRank={nouvelle:0,preparation:1,livree:2,annulee:3};
+      var merged=mapped.map(function(so){
+        var lo=localOrders.find(function(x){return String(x.id)===String(so.id);});
+        if(lo){
+          // Garder le statut le plus avance + les champs locaux (facture, archived)
+          if((statusRank[lo.status]||0)>(statusRank[so.status]||0)) so.status=lo.status;
+          if(lo.facture) so.facture=true;
+          if(lo.archived) so.archived=true;
+        }
+        return so;
+      });
+      merged=merged.concat(localOnly);
+      // Re-uploader les commandes locales manquantes vers Supabase
+      localOnly.forEach(function(o){
+        try{ supaFetch('POST','commandes',{id:o.id,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(o.items),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()}); }catch(e){}
+      });
+      save('terrasse_orders',merged);
+      orders=merged;
       var newCount=orders.filter(function(o){return o.status==='nouvelle';}).length;
       document.getElementById('nb-new').textContent=newCount;
       // Mettre a jour affichage
@@ -4699,13 +4734,19 @@ document.addEventListener('click', function(e){
 (async function(){
   try{
     var data=await supaFetch('GET','commandes?order=created_at.desc');
-    if(Array.isArray(data)&&data.length){
+    if(Array.isArray(data)){
       var mapped=data.map(function(r){
         var items=[];try{items=typeof r.items==='string'?JSON.parse(r.items):r.items||[];}catch(e){}
         return{id:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
-      save('terrasse_orders',mapped);
-      orders=mapped;
+      // FUSIONNER avec le local (ne pas perdre les commandes locales)
+      var localOrders=load('terrasse_orders',[]);
+      var supaIds={};
+      mapped.forEach(function(o){supaIds[String(o.id)]=true;});
+      var localOnly=localOrders.filter(function(o){return !supaIds[String(o.id)];});
+      var merged=mapped.concat(localOnly);
+      save('terrasse_orders',merged);
+      orders=merged;
     }
   }catch(e){}
   renderDashboard();
