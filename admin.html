@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781689388</title>
+<title>Admin ELZER v1781689582</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1636,8 +1636,12 @@ function openProdModal(si,pi){
 async function syncCatalogueToSupabase(){
   var custom=load('custom_products',[]);
   try{
-    // Stocker dans la table app_config (key/value)
-    await supaFetch('POST','app_config',{key:'custom_products',value:JSON.stringify(custom),updated_at:new Date().toISOString()});
+    // Stocker dans clients_elzer (table existante) sous id=elzer_catalogue
+    await supaFetch('POST','clients_elzer',{
+      id:'elzer_catalogue',
+      data:JSON.stringify(custom)
+    },'Prefer','resolution=merge-duplicates');
+    toast('Catalogue synchronisé');
   }catch(e){ console.error('Sync catalogue err',e); }
 }
 
