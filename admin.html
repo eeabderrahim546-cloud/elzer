@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781690371</title>
+<title>Admin ELZER v1781691702</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -364,11 +364,9 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <div style="font-size:11px;color:#3b6d11;margin-top:6px;">Les commandes clients seront envoyees a ce numero de groupe</div>
       </div>
-      <div class="cg" id="clients-grid"></div>
-      <div style="margin-top:24px;border-top:2px solid #e2e8dd;padding-top:16px;">
-        <div style="font-size:15px;font-weight:600;color:#5a7050;margin-bottom:12px;">🔗 Liens d'application par client</div>
-        <div id="liens-grid"></div>
-      </div>
+      <input type="text" id="cli-search" oninput="renderClientsUnified()" placeholder="🔍 Rechercher un client..." style="width:100%;max-width:400px;padding:9px 12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;margin-bottom:16px;outline:none;"/>
+      <div id="clients-grid"></div>
+      <div id="liens-grid" style="display:none;"></div>
     </div>
     <div class="panel" id="panel-catalogue">
       <div class="sec-hd">
@@ -868,11 +866,11 @@ function showPanel(id){
   var active=document.querySelector('[data-panel="'+id+'"]');
   if(active)active.classList.add('active');
   if(id==='commandes')renderCommandes();
-  if(id==='clients')renderClients();renderLiens();
+  if(id==='clients')renderClientsUnified();
   if(id==='catalogue')renderCatalogue();
   if(id==='dashboard')renderDashboard();
   if(id==='fournisseur')renderFournisseur();
-  if(id==='liens')renderLiens();
+  if(id==='liens')renderClientsUnified();
   if(id==='facturation')renderFacturation();
   if(id==='stats'){renderStats();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
   if(id==='calendrier'){renderCalendrier();var m=document.querySelector('.main');if(m)m.scrollTop=0;}
@@ -960,7 +958,7 @@ document.addEventListener('click',function(e){
     if(hidden.indexOf(nm)<0){hidden.push(nm);save('hidden_base_clients',hidden);}
     try{ supaFetch('DELETE','clients_elzer?name=eq.'+encodeURIComponent(nm)); }catch(e){}
     toast('Client supprimé');
-    renderClients();renderLiens();
+    renderClientsUnified();
   }
   else if(a==='mark-bl-facture'){
     orders=load('terrasse_orders',[]);
@@ -1520,6 +1518,105 @@ function openCmdDetail(id){
 }
 
 // ── CLIENTS ──
+
+// ── LISTE CLIENTS UNIFIEE (nom + coords + liens + boutons, sans doublon) ──
+function renderClientsUnified(){
+  clients=load('admin_clients',clients);
+  var waInput=document.getElementById('wa-group-input');
+  if(waInput && !waInput.value) waInput.value=load('wa_group',PHONE);
+  var grid=document.getElementById('clients-grid');
+  if(!grid) return;
+  
+  // Clients de base (codes en dur) avec leur urlId fixe
+  var baseClients=[
+    {id:'terrasse',name:'La Terrasse des Epices'},
+    {id:'altasna',name:'Altasna Legumes'},
+    {id:'claude',name:'CLAUDE'},
+    {id:'meda',name:'MEDA'},
+    {id:'mida',name:'MIDA'},
+    {id:'elzer',name:'ELZER DIS'}
+  ];
+  var hiddenBase=load('hidden_base_clients',[]);
+  
+  // Construire une liste UNIFIEE sans doublon (cle = nom normalisé)
+  var byName={};
+  // D'abord les clients de base
+  baseClients.forEach(function(b){
+    if(hiddenBase.indexOf(b.name)>=0) return;
+    byName[normName(b.name)]={name:b.name, urlId:b.id, base:true};
+  });
+  // Puis fusionner avec admin_clients (qui ont les coordonnees)
+  clients.forEach(function(c){
+    var key=normName(c.name);
+    var uid=c.urlId||(c.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20));
+    if(byName[key]){
+      // Fusionner: garder l'urlId de base, ajouter les coords
+      byName[key]=Object.assign(byName[key], c, {urlId:byName[key].urlId});
+    } else {
+      byName[key]={name:c.name, urlId:uid};
+      Object.assign(byName[key], c);
+      byName[key].urlId=uid;
+    }
+  });
+  
+  var allClients=Object.values(byName);
+  
+  // Recherche
+  var sq=document.getElementById('cli-search');
+  var q=sq?sq.value.trim().toLowerCase():'';
+  if(q) allClients=allClients.filter(function(c){return c.name.toLowerCase().indexOf(q)>=0;});
+  
+  // Trier alphabetiquement
+  allClients.sort(function(a,b){return a.name.localeCompare(b.name);});
+  
+  if(!allClients.length){
+    grid.innerHTML='<div class="empty"><div class="empty-i">👥</div><p>Aucun client trouvé.</p></div>';
+    return;
+  }
+  
+  var GHPAGES='https://eeabderrahim546-cloud.github.io/elzer/index.html?client=';
+  
+  grid.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;">'+allClients.map(function(c){
+    var url=GHPAGES+c.urlId;
+    var initials=c.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+    var nbOrders=orders.filter(function(o){return normName(o.client)===normName(c.name);}).length;
+    var waNum=c.wa||c.tel||'';
+    var waMsg='Bonjour '+c.name+', voici votre lien de commande ELZER: '+url;
+    
+    // Coordonnees
+    var coords='';
+    if(c.tel||c.email||c.adresse||c.ice){
+      coords='<div style="background:#f7faf4;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:11px;color:#5a7050;line-height:1.6;">';
+      if(c.tel) coords+='📞 '+c.tel+'  ';
+      if(c.email) coords+='✉️ '+c.email+'<br>';
+      if(c.adresse) coords+='📍 '+c.adresse+'<br>';
+      if(c.ice) coords+='ICE: '+c.ice;
+      if(c.rc) coords+=' · RC: '+c.rc;
+      coords+='</div>';
+    } else {
+      coords='<div style="background:#fff3e0;padding:6px 10px;border-radius:6px;margin:8px 0;font-size:10px;color:#c47a00;">⚠️ Coordonnées manquantes — cliquez Modifier</div>';
+    }
+    
+    return '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8dd;padding:14px;">'
+      +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+      +'<div style="width:40px;height:40px;border-radius:10px;background:#5a7050;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0;">'+initials+'</div>'
+      +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:15px;color:#333;">'+c.name+'</div>'
+      +'<div style="font-size:11px;color:#999;">'+(c.type||'Client')+' · '+nbOrders+' commande(s)</div></div>'
+      +(c.pwd?'<span style="font-size:9px;background:#fff3e0;color:#c47a00;padding:2px 6px;border-radius:4px;">🔒 '+c.pwd+'</span>':'')
+      +'</div>'
+      +coords
+      +'<div style="font-size:10px;background:#f0f0f0;border-radius:5px;padding:6px 8px;margin-bottom:8px;word-break:break-all;font-family:monospace;color:#666;">'+url+'</div>'
+      +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
+      +'<button class="btn btn-p btn-sm" data-action="copy-link" data-url="'+url+'">📋 Copier</button>'
+      +'<button class="btn btn-b btn-sm" data-action="test-link" data-url="'+url+'">🔗 Tester</button>'
+      +'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="send-wa-link" data-wa="'+waNum+'" data-msg="'+encodeURIComponent(waMsg)+'">📱 WhatsApp</button>'
+      +'<button class="btn btn-a btn-sm" data-action="edit-client" data-name="'+encodeURIComponent(c.name)+'">✏️ Modifier</button>'
+      +'<button class="btn btn-d btn-sm" data-action="delete-client-link" data-name="'+encodeURIComponent(c.name)+'">🗑️</button>'
+      +'</div></div>';
+  }).join('')+'</div>';
+}
+window.renderClientsUnified=renderClientsUnified;
+
 function renderClients(){
   var grid=document.getElementById('clients-grid');
   if(!clients.length){grid.innerHTML='<div class="empty"><div class="empty-i">👥</div><p>Aucun client.</p></div>';return;}
@@ -1590,7 +1687,7 @@ function saveClient(){
   save('admin_clients',clients);
 
   closeModal('modal-client');
-  renderClients();renderLiens();
+  renderClientsUnified();
   toast('Client enregistre!');
 }
 
@@ -1598,7 +1695,7 @@ function deleteClient(id){
   if(!confirm('Supprimer ce client ?'))return;
   clients=clients.filter(function(c){return c.id!==id;});
   save('admin_clients',clients);
-  renderClients();renderLiens();
+  renderClientsUnified();
   toast('Client supprime.');
 }
 
@@ -1976,45 +2073,7 @@ function sendFournisseurWA(){
 }
 
 // ── LIENS CLIENTS ──
-function renderLiens(){
-  clients=load('admin_clients',clients);
-  // Initialiser le champ groupe WA
-  var waInput=document.getElementById('wa-group-input');
-  if(waInput) waInput.value=load('wa_group',PHONE);
-  var grid=document.getElementById('liens-grid');
-  var base=[
-    {id:'terrasse',name:'La Terrasse des Epices'},
-    {id:'altasna',name:'Altasna Legumes'},
-    {id:'claude',name:'CLAUDE'},{id:'meda',name:'MEDA'},{id:'mida',name:'MIDA'},{id:'elzer',name:'ELZER DIS'},
-  ];
-  var extra=clients.filter(function(c){return !base.find(function(b){return b.name===c.name;});}).map(function(c){
-    var uid=c.urlId||(c.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20));
-    return{id:uid,name:c.name};
-  });
-  var hiddenBase=load('hidden_base_clients',[]);
-  var all=base.concat(extra).filter(function(c){return hiddenBase.indexOf(c.name)<0;});
-  grid.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;">'+all.map(function(c){
-    var allCli=load('admin_clients',[]);
-    var cFull=allCli.find(function(x){return x.name===c.name||x.urlId===c.id;})||
-              allCli.find(function(x){
-                return x.name.toLowerCase().replace(/[^a-z]/g,'')===c.name.toLowerCase().replace(/[^a-z]/g,'');
-              })||{};
-    var hasPwd=cFull.pwd&&cFull.pwd.trim();
-    var url=NETLIFY_URL+'/index.html?client='+c.id+(hasPwd?'&k='+cFull.pwd:'');
-    var waNum=cFull.wa||PHONE;
-    var waMsg='Voici votre lien de commande ELZER Distribution :\n'+url+(hasPwd?'\nMot de passe: '+cFull.pwd:'');
-    return '<div style="background:#fff;border-radius:12px;border:1px solid #e0e8d8;padding:16px;">'
-      +'<div style="font-weight:600;font-size:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;"><span>'+c.name+'</span>'+(hasPwd?'<span style="font-size:9px;background:#fff3e0;color:#c47a00;padding:2px 6px;border-radius:4px;">🔒 '+cFull.pwd+'</span>':'')+'</div>'
-      +'<div style="font-size:11px;background:var(--g0);border-radius:6px;padding:8px;margin-bottom:10px;word-break:break-all;font-family:monospace;">'+url+'</div>'
-      +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
-      +'<button class="btn btn-p btn-sm" data-action="copy-link" data-url="'+url+'">📋 Copier</button>'
-      +'<button class="btn btn-b btn-sm" data-action="test-link" data-url="'+url+'">🔗 Tester</button>'
-      +'<button class="btn btn-s btn-sm" data-action="send-wa-link" data-wa="'+waNum+'" data-msg="'+encodeURIComponent(waMsg)+'">📱 WhatsApp</button>'
-      +'<button class="btn btn-a btn-sm" data-action="edit-client" data-name="'+encodeURIComponent(c.name)+'">✏️ Modifier</button>'
-      +'<button class="btn btn-d btn-sm" data-action="delete-client-link" data-name="'+encodeURIComponent(c.name)+'">🗑️</button>' 
-      +'</div></div>';
-  }).join('')+'</div>';
-}
+
 
 // ── FACTURATION ──
 function getNextFactNum(){
