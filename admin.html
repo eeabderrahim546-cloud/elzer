@@ -2191,14 +2191,14 @@ function renderFacturation(){
   var _prefix=_fm?_fm[1]:'ELD'+new Date().getFullYear()+'/';
   var _startNum=_fm?parseInt(_fm[2]):1;
   var _numLen=_fm?_fm[2].length:4;
-  // Numeros deja utilises (SUIVI2 enregistre) avec ce prefixe
+  // Numeros deja utilises (SUIVI2 enregistre) avec ce prefixe - on cherche le PLUS GRAND
   loadSuivi2();
-  var _usedNums={};
+  var _maxNum=_startNum-1;
   SUIVI2.forEach(function(r){
     var s=String(r.num||'');
-    if(s.indexOf(_prefix)===0){ var m=s.substring(_prefix.length).match(/^(\d+)$/); if(m){_usedNums[parseInt(m[1])]=true;} }
+    if(s.indexOf(_prefix)===0){ var m=s.substring(_prefix.length).match(/^(\d+)$/); if(m){ var v=parseInt(m[1]); if(v>_maxNum)_maxNum=v; } }
   });
-  function _nextFreeNum(){ var n=_startNum; while(_usedNums[n]){n++;} _usedNums[n]=true; return _prefix+String(n).padStart(_numLen,'0'); }
+  function _nextFreeNum(){ _maxNum++; if(_maxNum<_startNum)_maxNum=_startNum; return _prefix+String(_maxNum).padStart(_numLen,'0'); }
   Object.entries(byClient).forEach(function(entry){
     var cli=entry[0],bls=entry[1];
     // Calculer le total depuis les articles
@@ -2216,13 +2216,13 @@ function renderFacturation(){
     var clientFactNum=load(factKey,'');
     var curPrefix=_prefix;
     if(!clientFactNum || (curPrefix && clientFactNum.indexOf(curPrefix)!==0)){
-      // Pas de numero, OU format des Reglages a change => attribuer le prochain numero libre
+      // Pas de numero, OU format des Reglages a change => attribuer le prochain numero (plus grand+1)
       clientFactNum=_nextFreeNum();
       save(factKey,clientFactNum);
     } else {
-      // Numero deja attribue: le marquer comme utilise pour ne pas le redonner a un autre client
+      // Numero deja attribue: s'assurer que _maxNum le prend en compte
       var mm=clientFactNum.substring(curPrefix.length).match(/^(\d+)$/);
-      if(mm){_usedNums[parseInt(mm[1])]=true;}
+      if(mm){ var vv=parseInt(mm[1]); if(vv>_maxNum)_maxNum=vv; }
     }
     var factNum=clientFactNum;
     html+='<div style="background:var(--wh);border-radius:12px;border:1px solid #e0e8d8;margin-bottom:20px;overflow:hidden;">';
@@ -4746,19 +4746,18 @@ function getNextNum2(){
   var prefix=fm?fm[1]:'ELD'+new Date().getFullYear()+'/';
   var startNum=fm?parseInt(fm[2]):1;
   var numLen=fm?fm[2].length:4;
-  // Recuperer SEULEMENT les numeros deja utilises avec le MEME prefixe
-  var usedNums={};
+  // Trouver le PLUS GRAND numero deja utilise avec ce prefixe (jamais reculer / jamais reutiliser)
+  var maxNum=startNum-1;
   SUIVI2.forEach(function(r){
     var s=String(r.num||'');
     if(s.indexOf(prefix)===0){
       var m=s.substring(prefix.length).match(/^(\d+)$/);
-      if(m){ usedNums[parseInt(m[1])]=true; }
+      if(m){ var v=parseInt(m[1]); if(v>maxNum) maxNum=v; }
     }
   });
-  // REMPLIR LES TROUS: chercher le plus petit numero libre >= startNum
-  var n=startNum;
-  while(usedNums[n]){ n++; }
-  return prefix+String(n).padStart(numLen,'0');
+  var next=maxNum+1;
+  if(next<startNum) next=startNum;
+  return prefix+String(next).padStart(numLen,'0');
 }
 function setNextFactNum(num){
   var m=String(num).match(/(\d+)$/);
