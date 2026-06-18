@@ -1324,6 +1324,7 @@ function renderDashboard(){
     if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
     else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
     else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:12px;margin-bottom:8px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
       +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+o.id+'</span>'
       +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
@@ -1444,6 +1445,7 @@ function renderCommandes(){
     if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
     else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
     else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
+    html+='<div style="background:#fff;border-radius:12px;border:1px solid #e2e8dd;border-left:4px solid '+borderC+';padding:14px;margin-bottom:10px;'+(isNew?'box-shadow:0 2px 8px rgba(26,122,255,0.12);':'')+'">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
       +'<div style="flex:1;">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
