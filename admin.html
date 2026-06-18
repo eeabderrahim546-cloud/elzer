@@ -766,9 +766,17 @@ loadCustomTrad();
 function saveTrad(prod,val){var s=load('custom_traductions',{});if(val.trim())s[prod]=val.trim();else delete s[prod];save('custom_traductions',s);TRAD[prod]=val.trim();toast('Trad sauvegardee!');}
 
 async function supaFetch(method,path,body){
-  var opts={method:method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'}};
+  var headers={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'};
+  // POST => upsert (merge-duplicates) pour que les mises a jour sur cle primaire existante reussissent (sinon 409)
+  if(method==='POST') headers['Prefer']='resolution=merge-duplicates,return=minimal';
+  var opts={method:method,headers:headers};
   if(body)opts.body=JSON.stringify(body);
-  try{var r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(method==='GET')return r.json();}catch(e){}
+  try{
+    var r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
+    if(method==='GET')return r.json();
+    if(!r.ok && r.status!==409){ console.error('ELZER supaFetch '+method+' '+path+' -> HTTP '+r.status); }
+    return r.ok || r.status===409;
+  }catch(e){ console.error('ELZER supaFetch erreur',e); }
   return null;
 }
 
@@ -905,7 +913,7 @@ function showPanel(id){
 }
 
 // ── GLOBAL EVENT DELEGATION - tout passe par ici ──
-document.addEventListener('click',function(e){
+document.addEventListener('click',async function(e){
   var el=e.target.closest('[data-action]');
   if(el){
     var a=el.dataset.action;
@@ -1042,9 +1050,12 @@ document.addEventListener('click',function(e){
       }catch(e){}
     }
     SUIVI2.splice(ix,1);
-    saveSuivi2();
+    save('elzer_suivi_factures',SUIVI2);
     renderSuivi2();
-    toast('Facture supprimée');
+    toast('Facture supprimée...');
+    // Attendre la confirmation Supabase pour que la suppression persiste (sinon elle revient au rechargement)
+    await saveSuivi2ToSupabase();
+    toast('✅ Facture supprimée définitivement');
   }
   else if(a==='edit-suivi'){openSuiviModal(parseInt(el.dataset.idx));}
   else if(a==='del-suivi'){
@@ -1182,7 +1193,7 @@ function saveBLFormat(){
   // Verifier que le format contient des chiffres
   if(!/\d/.test(fmt)){toast('Le format doit contenir des chiffres');return;}
   localStorage.setItem('elzer_bl_format',fmt);
-  try{ supaFetch('POST','clients_elzer',{id:'elzer_bl_format',data:fmt},'Prefer','resolution=merge-duplicates'); }catch(e){}
+  try{ supaFetch('POST','clients_elzer',{id:'elzer_bl_format',data:fmt}); }catch(e){}
   toast('✅ Format BL enregistré: '+fmt);
   loadReglages();
 }
@@ -1196,9 +1207,20 @@ function saveFactFormat(){
   // Mettre a jour le compteur facture
   var m=fmt.match(/(\d+)$/);
   if(m) localStorage.setItem('elzer_fact_counter',String(parseInt(m[1])));
+  // IMPORTANT: effacer les numeros de factures memorises pour qu'ils adoptent le nouveau format
+  try{
+    var toRemove=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k && k.indexOf('fact_num_')===0){ toRemove.push(k); }
+    }
+    toRemove.forEach(function(k){ localStorage.removeItem(k); });
+  }catch(e){}
   // Sauvegarder dans Supabase (partagé entre appareils)
-  try{ supaFetch('POST','clients_elzer',{id:'elzer_fact_format',data:fmt},'Prefer','resolution=merge-duplicates'); }catch(e){}
+  try{ supaFetch('POST','clients_elzer',{id:'elzer_fact_format',data:fmt}); }catch(e){}
   toast('✅ Format Facture enregistré: '+fmt);
+  // Re-render la facturation si on y est, pour appliquer immediatement
+  if(typeof renderFacturation==='function'){ try{ renderFacturation(); }catch(e){} }
   loadReglages();
 }
 
@@ -1787,7 +1809,7 @@ async function syncCatalogueToSupabase(){
     await supaFetch('POST','clients_elzer',{
       id:'elzer_catalogue',
       data:JSON.stringify(custom)
-    },'Prefer','resolution=merge-duplicates');
+    });
     toast('Catalogue synchronisé');
   }catch(e){ console.error('Sync catalogue err',e); }
 }
@@ -4031,7 +4053,7 @@ async function saveDevisToSupabase(d){
       items:JSON.stringify(d.items||[]),
       excluded:JSON.stringify(d.excluded||{}),
       date_from:d.dateFrom||'', date_to:d.dateTo||''
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Devis sync error:',e);}
 }
 
@@ -4061,7 +4083,7 @@ async function saveClientsToSupabase(){
     await supaFetch('POST','clients_elzer',{
       id:'elzer_clients',
       data:JSON.stringify(cls)
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Clients sync error:',e);}
 }
 
@@ -4086,7 +4108,7 @@ async function saveStockToSupabase(){
       return {prod:k, qty:parseFloat(stock[k])||0, seuil:parseFloat(seuil[k]||5)};
     });
     if(!rows.length) return;
-    await supaFetch('POST','stock',rows,'Prefer','resolution=merge-duplicates');
+    await supaFetch('POST','stock',rows);
   }catch(e){console.log('Stock sync error:',e);}
 }
 
@@ -4112,7 +4134,7 @@ async function saveFactureToSupabase(factNum, client, mois, total, bls){
       id:key, client:client, mois:mois,
       numero:factNum, total:total,
       bls:JSON.stringify(bls||[])
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Facture sync error:',e);}
 }
 
@@ -4414,7 +4436,7 @@ async function saveDevisToSupabase(d){
       items:JSON.stringify(d.items||[]),
       excluded:JSON.stringify(d.excluded||{}),
       date_from:d.dateFrom||'', date_to:d.dateTo||''
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Devis sync error:',e);}
 }
 
@@ -4444,7 +4466,7 @@ async function saveClientsToSupabase(){
     await supaFetch('POST','clients_elzer',{
       id:'elzer_clients',
       data:JSON.stringify(cls)
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Clients sync error:',e);}
 }
 
@@ -4469,7 +4491,7 @@ async function saveStockToSupabase(){
       return {prod:k, qty:parseFloat(stock[k])||0, seuil:parseFloat(seuil[k]||5)};
     });
     if(!rows.length) return;
-    await supaFetch('POST','stock',rows,'Prefer','resolution=merge-duplicates');
+    await supaFetch('POST','stock',rows);
   }catch(e){console.log('Stock sync error:',e);}
 }
 
@@ -4495,7 +4517,7 @@ async function saveFactureToSupabase(factNum, client, mois, total, bls){
       id:key, client:client, mois:mois,
       numero:factNum, total:total,
       bls:JSON.stringify(bls||[])
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){console.log('Facture sync error:',e);}
 }
 
@@ -4707,7 +4729,7 @@ async function saveSuivi2ToSupabase(){
     await supaFetch('POST','clients_elzer',{
       id:'elzer_suivi_factures',
       data:JSON.stringify(SUIVI2)
-    },'Prefer','resolution=merge-duplicates');
+    });
   }catch(e){ console.error('Sync suivi err',e); }
 }
 
