@@ -225,7 +225,7 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
     <div class="sh-tot"><span class="sh-tot-l">Total estimé</span><span class="sh-tot-v" id="st"></span></div>
     <div class="sh-btns">
       <button class="sh-bk" onclick="cm()">← Modifier</button>
-      <button class="sh-ok" onclick="co()">✅ Confirmer & envoyer</button>
+      <button class="sh-ok" id="btn-confirm-order" onclick="co()">✅ Confirmer & envoyer</button>
     </div>
   </div>
 </div>
@@ -647,6 +647,12 @@ function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=pars
 function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
 function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
+  // Verrou anti-double-submit (empeche les commandes en triple suite a clics multiples)
+  if(window._coSubmitLock){return;}
+  window._coSubmitLock=true;
+  var _btnCo=document.getElementById('btn-confirm-order');
+  if(_btnCo){_btnCo.disabled=true;_btnCo.style.opacity='0.6';_btnCo.textContent='⏳ Envoi en cours...';}
+  try{
   cm();
   const dat=document.getElementById('dd').value;
   const lines=gl();
@@ -718,6 +724,14 @@ async function co(){
       window.open('https://wa.me/'+CLI.wa+'?text='+encodeURIComponent(confMsg),'_blank');
     }, 2000);
   }
+  }catch(e){
+    // En cas d erreur, liberer le verrou pour permettre nouvelle tentative
+    window._coSubmitLock=false;
+    if(_btnCo){_btnCo.disabled=false;_btnCo.style.opacity='1';_btnCo.textContent='✅ Confirmer & envoyer';}
+    console.error('Erreur co():',e);
+    alert('Erreur lors de envoi de la commande. Reessayez.');
+  }
+  // Le verrou reste actif jusqu a no() = nouvelle commande
 }
 function saveClientNote(){
   var note=document.getElementById('client-note').value.trim();
@@ -813,7 +827,14 @@ function saveModifCmd(){
   toast('Commande modifiee!');
 }
 
-function no(){document.getElementById('mc').classList.remove('on');ca();}
+function no(){
+  // Liberer le verrou anti-double-submit + restaurer le bouton
+  window._coSubmitLock=false;
+  var b=document.getElementById('btn-confirm-order');
+  if(b){b.disabled=false;b.style.opacity='1';b.textContent='✅ Confirmer & envoyer';}
+  document.getElementById('mc').classList.remove('on');
+  ca();
+}
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 </script>
 </body>
