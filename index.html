@@ -288,10 +288,42 @@ async function saveOrderToSupabase(order){
       created_at:order.createdAt||new Date().toISOString()
     });
     console.log('ELZER: Commande envoyee OK', result);
+    // Succes: retirer de la file d'attente si presente
+    removeFromPending(order.id);
+    return true;
   }catch(e){
-    console.error('ELZER: Erreur Supabase', e);
+    console.error('ELZER: Erreur Supabase - mise en file attente', e);
+    // Echec (Supabase lent/en pause): garder dans une file pour reessayer
+    addToPending(order);
+    return false;
   }
 }
+// File d'attente locale: commandes pas encore confirmees par Supabase
+function addToPending(order){
+  try{
+    var q=JSON.parse(localStorage.getItem('elzer_pending_orders')||'[]');
+    if(!q.some(function(o){return o.id===order.id;})){ q.push(order); }
+    localStorage.setItem('elzer_pending_orders',JSON.stringify(q));
+  }catch(e){}
+}
+function removeFromPending(id){
+  try{
+    var q=JSON.parse(localStorage.getItem('elzer_pending_orders')||'[]');
+    q=q.filter(function(o){return o.id!==id;});
+    localStorage.setItem('elzer_pending_orders',JSON.stringify(q));
+  }catch(e){}
+}
+// Reessayer d'envoyer les commandes en attente (Supabase reveille)
+async function flushPendingOrders(){
+  var q=[];
+  try{ q=JSON.parse(localStorage.getItem('elzer_pending_orders')||'[]'); }catch(e){}
+  if(!q.length) return;
+  console.log('ELZER: '+q.length+' commande(s) en attente, nouvel essai...');
+  for(var i=0;i<q.length;i++){ await saveOrderToSupabase(q[i]); }
+}
+// Au chargement de la page + toutes les 30s, vider la file
+setTimeout(flushPendingOrders, 3000);
+setInterval(flushPendingOrders, 30000);
 async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];let bl=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){bl=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}return{id:r.id,bl:bl,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
@@ -649,17 +681,20 @@ function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
   // Verrou anti-double-submit 1: en memoire (meme onglet)
   if(window._coSubmitLock){return;}
-  // Verrou anti-double-submit 2: localStorage (persiste meme apres reload, expire apres 15s)
+  // Verrou anti-double-submit 2: localStorage (bloque uniquement un RE-CLIC sur la MEME commande, 5s)
   try{
+    var lines0=gl();
+    var cartSig=JSON.stringify(lines0.map(function(l){return [l.name,l.total,l.cuisine,l.bar,l.perso];}));
     var lockKey='elzer_co_lock_'+(CLI?CLI.name:'_');
-    var lockTs=parseInt(localStorage.getItem(lockKey)||'0');
+    var prev={};
+    try{ prev=JSON.parse(localStorage.getItem(lockKey)||'{}'); }catch(e){}
     var now=Date.now();
-    if(lockTs && (now-lockTs) < 15000){
-      console.log('ELZER: doublon bloque par lock localStorage', now-lockTs,'ms');
-      alert('Une commande a deja ete envoyee il y a moins de 15 secondes. Patientez avant de reessayer.');
+    // Bloque seulement si MEME panier ET moins de 5s
+    if(prev.sig===cartSig && prev.ts && (now-prev.ts) < 5000){
+      console.log('ELZER: re-clic identique bloque', now-prev.ts,'ms');
       return;
     }
-    localStorage.setItem(lockKey,String(now));
+    localStorage.setItem(lockKey,JSON.stringify({sig:cartSig,ts:now}));
   }catch(e){}
   window._coSubmitLock=true;
   var _btnCo=document.getElementById('btn-confirm-order');
@@ -671,7 +706,13 @@ async function co(){
   const total=lines.reduce((s,l)=>s+pp(l.price)*l.total,0);
   const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR');
   // Recharger les commandes depuis Supabase pour avoir le bon numero
-  await loadAllOrdersForBL();
+  // (avec timeout 4s: si Supabase dort, on continue avec le cache local plutot que de bloquer)
+  try{
+    await Promise.race([
+      loadAllOrdersForBL(),
+      new Promise(function(res){ setTimeout(res, 4000); })
+    ]);
+  }catch(e){}
   var blNum=getBLNum();
   const orders=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
   // ANTI-COLLISION: verifier que ce numero n'existe pas deja pour ce client
