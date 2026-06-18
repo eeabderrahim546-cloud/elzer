@@ -4859,17 +4859,25 @@ async function syncFromSupabase(){
       // FUSIONNER: garder les commandes locales qui ne sont pas encore dans Supabase
       var localOrders=load('terrasse_orders',[]);
       var supaIds={};
-      mapped.forEach(function(o){supaIds[String(o.id)]=true;});
-      // Ajouter les commandes locales absentes de Supabase (statut local seulement)
+      // Indexer par BL (o.id) ET par uid d'origine (o._uid) pour eviter les faux doublons
+      mapped.forEach(function(o){
+        supaIds[String(o.id)]=true;
+        if(o._uid!==undefined) supaIds[String(o._uid)]=true;
+      });
+      // Une commande locale est "absente de Supabase" seulement si NI son id NI son bl n'y sont
       var localOnly=localOrders.filter(function(o){
-        return !supaIds[String(o.id)] && !o._deleted;
+        var byId=supaIds[String(o.id)];
+        var byBl=o.bl!==undefined && supaIds[String(o.bl)];
+        return !byId && !byBl && !o._deleted;
       });
       // Pour les commandes presentes dans les 2, garder le statut local s'il est plus avance
       var statusRank={nouvelle:0,preparation:1,livree:2,annulee:3};
       var merged=mapped.map(function(so){
-        var lo=localOrders.find(function(x){return String(x.id)===String(so.id);});
+        // Matcher la commande locale par uid d'origine OU par bl
+        var lo=localOrders.find(function(x){
+          return String(x.id)===String(so._uid) || String(x.id)===String(so.id) || (x.bl!==undefined && String(x.bl)===String(so.id));
+        });
         if(lo){
-          // Garder le statut le plus avance + les champs locaux (facture, archived)
           if((statusRank[lo.status]||0)>(statusRank[so.status]||0)) so.status=lo.status;
           if(lo.facture) so.facture=true;
           if(lo.archived) so.archived=true;
@@ -4923,11 +4931,18 @@ document.addEventListener('click', function(e){
         var items=[];var blNum=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){blNum=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}
         return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
       });
-      // FUSIONNER avec le local (ne pas perdre les commandes locales)
+      // FUSIONNER avec le local (ne pas perdre les commandes locales, sans creer de doublons)
       var localOrders=load('terrasse_orders',[]);
       var supaIds={};
-      mapped.forEach(function(o){supaIds[String(o.id)]=true;});
-      var localOnly=localOrders.filter(function(o){return !supaIds[String(o.id)];});
+      mapped.forEach(function(o){
+        supaIds[String(o.id)]=true;
+        if(o._uid!==undefined) supaIds[String(o._uid)]=true;
+      });
+      var localOnly=localOrders.filter(function(o){
+        var byId=supaIds[String(o.id)];
+        var byBl=o.bl!==undefined && supaIds[String(o.bl)];
+        return !byId && !byBl && !o._deleted;
+      });
       var merged=mapped.concat(localOnly);
       save('terrasse_orders',merged);
       orders=merged;
