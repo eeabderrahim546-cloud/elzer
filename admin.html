@@ -2165,13 +2165,15 @@ function renderFacturation(){
       if(!totalClient&&o.total) totalClient+=o.total;
     });
     var cliData=clients.find(function(c){return c.name===cli;})||{};
-    // Numero unique par client/mois - recupere ou genere
+    // Numero unique par client/mois - utilise le format defini dans Reglages
     var factKey='fact_num_'+cli.replace(/[^a-z0-9]/gi,'_')+'_'+moisSel.value;
     var clientFactNum=load(factKey,'');
-    if(!clientFactNum){
-      var globalCounter=load('elzer_fact_counter',0)+1;
-      save('elzer_fact_counter',globalCounter);
-      clientFactNum='F-'+new Date().getFullYear()+'-'+String(globalCounter).padStart(3,'0');
+    // Verifier que le numero memorise correspond TOUJOURS au format actuel des Reglages
+    var curFormat=localStorage.getItem('elzer_fact_format')||'';
+    var curPrefix=curFormat?(curFormat.match(/^(.*?)\d+$/)||[])[1]:'';
+    if(!clientFactNum || (curPrefix && clientFactNum.indexOf(curPrefix)!==0)){
+      // Pas de numero, OU format des Reglages a change => regenerer selon le format actuel
+      clientFactNum=getNextNum2();
       save(factKey,clientFactNum);
     }
     var factNum=clientFactNum;
