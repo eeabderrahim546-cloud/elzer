@@ -431,7 +431,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <select class="fs" style="width:180px;" id="fact-mois"></select>
-        <select class="fs" style="width:180px;" id="fact-client"><option value="">Choisir client</option></select>
+        <select class="fs" style="width:180px;" id="fact-client"><option value="">Tous les clients</option></select>
       </div>
       <div style="background:#f7faf4;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5a7050;cursor:pointer;">
@@ -4780,7 +4780,7 @@ function openSuiviForm(idx){
   document.getElementById('suivi-form-inline').style.display='block';
 }
 
-function saveSuiviRow2(){
+async function saveSuiviRow2(){
   loadSuivi2();
   var r={
     num:document.getElementById('sf2-num').value.trim(),
@@ -4797,7 +4797,10 @@ function saveSuiviRow2(){
   save('elzer_suivi_factures',SUIVI2);
   document.getElementById('suivi-form-inline').style.display='none';
   renderSuivi2();
-  toast('Facture sauvegardee!');
+  toast('Sauvegarde en cours...');
+  // Pousser vers Supabase pour que la facture persiste (sinon elle disparait au rechargement)
+  await saveSuivi2ToSupabase();
+  toast('✅ Facture sauvegardée');
 }
 
 function renderSuivi2(){
