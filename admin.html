@@ -1031,6 +1031,16 @@ document.addEventListener('click',function(e){
     if(!confirm('Supprimer cette facture du suivi ?'))return;
     loadSuivi2();
     var ix=parseInt(el.dataset.idx);
+    var removed=SUIVI2[ix];
+    // Memoriser cette facture comme supprimee volontairement (ne pas la recreer auto)
+    if(removed){
+      try{
+        var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');
+        var sig=(removed.client||'')+'|'+(removed.mois||'');
+        if(tomb.indexOf(sig)<0){ tomb.push(sig); }
+        localStorage.setItem('elzer_factures_supprimees',JSON.stringify(tomb));
+      }catch(e){}
+    }
     SUIVI2.splice(ix,1);
     saveSuivi2();
     renderSuivi2();
@@ -2153,6 +2163,20 @@ function renderFacturation(){
   var byClient={};
   filtered.forEach(function(o){if(!byClient[o.client])byClient[o.client]=[];byClient[o.client].push(o);});
   var html='';
+  // Pour numerotation sequentielle: prefixe + longueur depuis Reglages
+  var _fmt=localStorage.getItem('elzer_fact_format')||('ELD'+new Date().getFullYear()+'/0001');
+  var _fm=_fmt.match(/^(.*?)(\d+)$/);
+  var _prefix=_fm?_fm[1]:'ELD'+new Date().getFullYear()+'/';
+  var _startNum=_fm?parseInt(_fm[2]):1;
+  var _numLen=_fm?_fm[2].length:4;
+  // Numeros deja utilises (SUIVI2 enregistre) avec ce prefixe
+  loadSuivi2();
+  var _usedNums={};
+  SUIVI2.forEach(function(r){
+    var s=String(r.num||'');
+    if(s.indexOf(_prefix)===0){ var m=s.substring(_prefix.length).match(/^(\d+)$/); if(m){_usedNums[parseInt(m[1])]=true;} }
+  });
+  function _nextFreeNum(){ var n=_startNum; while(_usedNums[n]){n++;} _usedNums[n]=true; return _prefix+String(n).padStart(_numLen,'0'); }
   Object.entries(byClient).forEach(function(entry){
     var cli=entry[0],bls=entry[1];
     // Calculer le total depuis les articles
@@ -2165,16 +2189,18 @@ function renderFacturation(){
       if(!totalClient&&o.total) totalClient+=o.total;
     });
     var cliData=clients.find(function(c){return c.name===cli;})||{};
-    // Numero unique par client/mois - utilise le format defini dans Reglages
+    // Numero unique par client/mois - sequentiel, format Reglages
     var factKey='fact_num_'+cli.replace(/[^a-z0-9]/gi,'_')+'_'+moisSel.value;
     var clientFactNum=load(factKey,'');
-    // Verifier que le numero memorise correspond TOUJOURS au format actuel des Reglages
-    var curFormat=localStorage.getItem('elzer_fact_format')||'';
-    var curPrefix=curFormat?(curFormat.match(/^(.*?)\d+$/)||[])[1]:'';
+    var curPrefix=_prefix;
     if(!clientFactNum || (curPrefix && clientFactNum.indexOf(curPrefix)!==0)){
-      // Pas de numero, OU format des Reglages a change => regenerer selon le format actuel
-      clientFactNum=getNextNum2();
+      // Pas de numero, OU format des Reglages a change => attribuer le prochain numero libre
+      clientFactNum=_nextFreeNum();
       save(factKey,clientFactNum);
+    } else {
+      // Numero deja attribue: le marquer comme utilise pour ne pas le redonner a un autre client
+      var mm=clientFactNum.substring(curPrefix.length).match(/^(\d+)$/);
+      if(mm){_usedNums[parseInt(mm[1])]=true;}
     }
     var factNum=clientFactNum;
     html+='<div style="background:var(--wh);border-radius:12px;border:1px solid #e0e8d8;margin-bottom:20px;overflow:hidden;">';
@@ -2390,7 +2416,13 @@ function printFactureMensuelle(){
   // Enregistrer au Suivi (si pas deja present pour ce client+mois)
   loadSuivi2();
   var exists=SUIVI2.find(function(f){return normName(f.client)===normName(cliName)&&f.mois===month;});
-  if(!exists && moInv.length){
+  // Ne pas recreer une facture supprimee volontairement
+  var wasDeleted=false;
+  try{
+    var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');
+    wasDeleted=tomb.indexOf(cliName+'|'+month)>=0;
+  }catch(e){}
+  if(!exists && !wasDeleted && moInv.length){
     SUIVI2.push({
       num:factNum, client:cliName, mois:month,
       mt:totMois.toFixed(2), montant:totMois.toFixed(2),
