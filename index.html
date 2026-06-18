@@ -689,9 +689,12 @@ async function co(){
     var prev={};
     try{ prev=JSON.parse(localStorage.getItem(lockKey)||'{}'); }catch(e){}
     var now=Date.now();
-    // Bloque seulement si MEME panier ET moins de 5s
-    if(prev.sig===cartSig && prev.ts && (now-prev.ts) < 5000){
-      console.log('ELZER: re-clic identique bloque', now-prev.ts,'ms');
+    // Bloque si MEME panier ET moins de 60s (couvre les reclics apres lenteur Supabase / reload)
+    if(prev.sig===cartSig && prev.ts && (now-prev.ts) < 60000){
+      console.log('ELZER: commande identique deja envoyee', now-prev.ts,'ms');
+      alert('Cette commande vient deja etre envoyee. Verifiez avant de renvoyer.');
+      var _b=document.getElementById('btn-confirm-order');
+      if(_b){_b.disabled=true;_b.style.opacity='0.6';}
       return;
     }
     localStorage.setItem(lockKey,JSON.stringify({sig:cartSig,ts:now}));
