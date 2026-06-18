@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Admin ELZER v1781770484</title>
+<title>Admin ELZER v1781798431</title>
 <meta name="theme-color" content="#5a7050"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -608,7 +608,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
         <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
         <input type="text" id="histo-search" placeholder="Rechercher..." oninput="renderHistorique()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
-        <button class="btn btn-a btn-sm" data-action="renum-bl" style="white-space:nowrap;">🔢 Renuméroter BL</button>
+        <button class="btn btn-a btn-sm" data-action="renum-bl" style="white-space:nowrap;display:none;">🔢 Renuméroter BL</button>
         <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#666;white-space:nowrap;cursor:pointer;"><input type="checkbox" id="histo-show-archived" onchange="renderHistorique()"/> 🗄️ Archivés</label>
       </div>
       <div style="font-size:12px;color:var(--gy5);margin-bottom:8px;" id="histo-count"></div>
@@ -4688,23 +4688,25 @@ function saveSuivi2(){
 
 function getNextNum2(){
   loadSuivi2();
-  // Format defini dans les Reglages
+  // Format defini dans les Reglages - TOUJOURS prioritaire
   var factFormat=localStorage.getItem('elzer_fact_format')||('ELD'+new Date().getFullYear()+'/0001');
   var fm=factFormat.match(/^(.*?)(\d+)$/);
   var prefix=fm?fm[1]:'ELD'+new Date().getFullYear()+'/';
   var startNum=fm?parseInt(fm[2]):1;
   var numLen=fm?fm[2].length:4;
-  // Numero continu GLOBAL (tous clients) avec REUTILISATION des numeros supprimes
+  // Recuperer SEULEMENT les numeros deja utilises avec le MEME prefixe
   var usedNums={};
-  var existingPrefix=prefix, existingLen=numLen;
   SUIVI2.forEach(function(r){
-    var m=String(r.num||'').match(/^(.*?)(\d+)$/);
-    if(m){ usedNums[parseInt(m[2])]=true; existingPrefix=m[1]; existingLen=m[2].length; }
+    var s=String(r.num||'');
+    if(s.indexOf(prefix)===0){
+      var m=s.substring(prefix.length).match(/^(\d+)$/);
+      if(m){ usedNums[parseInt(m[1])]=true; }
+    }
   });
-  // REMPLIR LES TROUS: chercher le plus petit numero libre
+  // REMPLIR LES TROUS: chercher le plus petit numero libre >= startNum
   var n=startNum;
   while(usedNums[n]){ n++; }
-  return existingPrefix+String(n).padStart(existingLen,'0');
+  return prefix+String(n).padStart(numLen,'0');
 }
 function setNextFactNum(num){
   var m=String(num).match(/(\d+)$/);
