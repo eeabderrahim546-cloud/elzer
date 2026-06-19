@@ -988,19 +988,44 @@ document.addEventListener('click',async function(e){
   }
   else if(a==='delete-bl'){
     var did=el.dataset.id;
-    if(!confirm('SUPPRIMER définitivement le BL '+did+' ?\n\nLa commande sera effacée. Le numéro '+did+' sera réutilisé par la prochaine commande de ce client.')) return;
+    if(!confirm('SUPPRIMER définitivement cette commande ?\n\nLa commande ET sa facture seront effacées.')) return;
     orders=load('terrasse_orders',[]);
     var o=orders.find(function(x){return String(x.id)===String(did);});
     var cliName=o?o.client:'';
+    var blShown=o?(o.bl||o.id):did;
     var supaId=(o&&o._uid)?o._uid:did;
     orders=orders.filter(function(x){return String(x.id)!==String(did);});
     save('terrasse_orders',orders);
-    // Supprimer de Supabase via le vrai id unique
-    try{ supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(supaId)); }catch(e){}
-    toast('🗑️ BL '+did+' supprimé - numéro libéré');
+    // Supprimer la commande de Supabase
+    try{ await supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(supaId)); }catch(e){}
+    // Supprimer AUSSI la facture liee (meme client + meme mois) du Suivi
+    if(o){
+      try{
+        var moisCmd=(o.delivDate||o.createdAt||'').substring(0,7); // AAAA-MM
+        loadSuivi2();
+        var before=SUIVI2.length;
+        SUIVI2=SUIVI2.filter(function(f){
+          var sameClient=normName(f.client)===normName(cliName);
+          var sameNum=String(f.num)===String(blShown);
+          return !(sameClient && sameNum);
+        });
+        if(SUIVI2.length!==before){
+          save('elzer_suivi_factures',SUIVI2);
+          await saveSuivi2ToSupabase();
+        }
+        // Tombstone: empecher la recreation auto dans Facturation
+        if(moisCmd){
+          var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');
+          var sig=cliName+'|'+moisCmd;
+          if(tomb.indexOf(sig)<0){ tomb.push(sig); localStorage.setItem('elzer_factures_supprimees',JSON.stringify(tomb)); }
+        }
+      }catch(e){}
+    }
+    toast('🗑️ Commande et facture supprimées');
     renderHistorique();
     if(typeof renderCommandes==='function') renderCommandes();
     if(typeof renderDashboard==='function') renderDashboard();
+    if(typeof renderSuivi2==='function') renderSuivi2();
   }
   else if(a==='archive-bl'){
     if(!confirm('Archiver ce BL ? Il sera caché mais conservé.')) return;
@@ -2678,37 +2703,34 @@ function suggestNextBLNum(clientName){
 }
 
 // ── MODIFIER NUMERO BL ──
-function editBLNum(id){
+async function editBLNum(id){
   orders=load('terrasse_orders',[]);
   var o=orders.find(function(x){return String(x.id)===String(id);});
-  var suggestion=o?getNextBLNumForClient(o.client):id;
-  var msg='Numéro BL actuel: '+id+'\n\nEntrez le nouveau numéro.\nLes prochains BL de ce client suivront automatiquement.\n\nExemple: si vous mettez 2026001, le suivant sera 2026002';
-  var newNum=prompt(msg, id);
-  if(!newNum||newNum===id) return;
+  if(!o){toast('BL introuvable');return;}
+  var currentBL=o.bl||o.id;
+  var msg='Numéro BL actuel: '+currentBL+'\n\nEntrez le nouveau numéro BL pour CETTE commande.';
+  var newNum=prompt(msg, currentBL);
+  if(!newNum) return;
   newNum=String(newNum).trim();
-  orders=load('terrasse_orders',[]);
-  // Verifier doublon
-  if(orders.find(function(x){return String(x.id)===newNum && x.id!==id;})){
-    toast('❌ Numéro déjà utilisé');return;
+  if(newNum===String(currentBL)) return;
+  // Verifier doublon de BL (sur le champ bl affiche)
+  if(orders.find(function(x){return String(x.bl||x.id)===newNum && String(x.id)!==String(id);})){
+    toast('❌ Ce numéro BL est déjà utilisé');return;
   }
   var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
-  if(idx<0){toast('BL introuvable');return;}
-  orders[idx].id=newNum;
+  orders[idx].bl=newNum;
   save('terrasse_orders',orders);
-  // Synchroniser avec Supabase (supprimer ancien + creer nouveau)
+  toast('Mise à jour...');
+  // Garder le meme id technique, changer juste le bl (stocke dans items.__bl pour Supabase)
   try {
-    supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(id));
     var no=orders[idx];
-    supaFetch('POST','commandes',{id:no.id,client:no.client,deliver_date:no.delivDate,items:JSON.stringify(no.items),total:no.total||0,status:no.status||'nouvelle',mode:no.mode||'simple',created_at:no.createdAt||new Date().toISOString()});
+    var payload={__bl:newNum, items:no.items};
+    await supaFetch('POST','commandes',{id:no.id,client:no.client,deliver_date:no.delivDate,items:JSON.stringify(payload),total:no.total||0,status:no.status||'nouvelle',mode:no.mode||'simple',created_at:no.createdAt||new Date().toISOString()});
   } catch(e){}
-  // Mettre a jour le compteur si necessaire
-  var maxN=0;
-  orders.forEach(function(o){var n=parseInt(o.id)||0;if(n>maxN)maxN=n;});
-  localStorage.setItem('elzer_next_bl',String(maxN+1));
   toast('✅ N° BL modifié: '+newNum);
-  renderHistorique();
-  renderCommandes();
-  viewBL(newNum);
+  if(typeof renderHistorique==='function') renderHistorique();
+  if(typeof renderCommandes==='function') renderCommandes();
+  if(typeof renderDashboard==='function') renderDashboard();
 }
 
 function editBLItems(id){
