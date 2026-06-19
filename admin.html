@@ -1116,6 +1116,9 @@ document.addEventListener('click',async function(e){
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
     else if(a==='export-facture-pdf'){exportFacturePDF();}
+    else if(a==='generate-fact-cli'){generateFactureForClient(decodeURIComponent(el.dataset.cli),el.dataset.mois,parseInt(el.dataset.total)||0);}
+    else if(a==='delete-fact-cli'){deleteFactureForClient(decodeURIComponent(el.dataset.cli),el.dataset.mois,decodeURIComponent(el.dataset.num));}
+    else if(a==='print-fact-cli'){printFactureClientMois(decodeURIComponent(el.dataset.cli),el.dataset.mois);}
     else if(a==='set-status'){setStatus(el.dataset.id,el.dataset.status);}
     else if(a==='set-status-close'){setStatus(el.dataset.id,el.dataset.status);closeModal('modal-cmd');}
     else if(a==='open-detail'){openCmdDetail(el.dataset.id);}
@@ -2259,20 +2262,19 @@ function renderFacturation(){
       if(!totalClient&&o.total) totalClient+=o.total;
     });
     var cliData=clients.find(function(c){return c.name===cli;})||{};
-    // Numero unique par client/mois - sequentiel, format Reglages
-    var factKey='fact_num_'+cli.replace(/[^a-z0-9]/gi,'_')+'_'+moisSel.value;
-    var clientFactNum=load(factKey,'');
-    var curPrefix=_prefix;
-    if(!clientFactNum || (curPrefix && clientFactNum.indexOf(curPrefix)!==0)){
-      // Pas de numero, OU format des Reglages a change => attribuer le prochain numero (plus grand+1)
-      clientFactNum=_nextFreeNum();
-      save(factKey,clientFactNum);
-    } else {
-      // Numero deja attribue: s'assurer que _maxNum le prend en compte
-      var mm=clientFactNum.substring(curPrefix.length).match(/^(\d+)$/);
+    // CHERCHER si une facture a DEJA ete generee pour ce client/mois (dans Suivi Factures)
+    var existingFact=SUIVI2.find(function(f){return normName(f.client)===normName(cli)&&f.mois===moisSel.value;});
+    var factNum, factGenerated;
+    if(existingFact){
+      factNum=existingFact.num;
+      factGenerated=true;
+      var mm=String(factNum).indexOf(_prefix)===0?String(factNum).substring(_prefix.length).match(/^(\d+)$/):null;
       if(mm){ var vv=parseInt(mm[1]); if(vv>_maxNum)_maxNum=vv; }
+    } else {
+      // PAS encore generee: afficher un apercu SANS attribuer de numero (pas de sauvegarde auto)
+      factNum='(non générée)';
+      factGenerated=false;
     }
-    var factNum=clientFactNum;
     html+='<div style="background:var(--wh);border-radius:12px;border:1px solid #e0e8d8;margin-bottom:20px;overflow:hidden;">';
     // Header avec numero de facture
     html+='<div style="background:#5a7050;padding:14px 18px;">';
@@ -2362,13 +2364,77 @@ function renderFacturation(){
     html+='<div style="font-size:13px;color:rgba(255,255,255,0.7);">TOTAL MENSUEL — '+moisSel.options[moisSel.selectedIndex].text.toUpperCase()+'</div>';
     html+='<div style="font-size:22px;font-weight:700;color:#fff;">'+Math.round(totalClient).toLocaleString('fr-FR')+' Dh</div>';
     html+='</div>';
+    // Barre d'action: generer / regenerer / supprimer la facture
+    var encCli=encodeURIComponent(cli);
+    html+='<div style="background:#f4fbed;padding:12px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid #e0e8d8;">';
+    if(factGenerated){
+      html+='<span style="font-size:12px;color:#27500a;font-weight:600;">✅ Facture générée : '+factNum+'</span>';
+      html+='<button class="btn btn-s btn-sm" data-action="print-fact-cli" data-cli="'+encCli+'" data-mois="'+moisSel.value+'" style="margin-left:auto;">🖨️ Imprimer</button>';
+      html+='<button class="btn btn-d btn-sm" data-action="delete-fact-cli" data-cli="'+encCli+'" data-mois="'+moisSel.value+'" data-num="'+encodeURIComponent(factNum)+'">🗑️ Supprimer facture</button>';
+    } else {
+      html+='<span style="font-size:12px;color:#999;">Facture pas encore générée</span>';
+      html+='<button class="btn btn-a btn-sm" data-action="generate-fact-cli" data-cli="'+encCli+'" data-mois="'+moisSel.value+'" data-total="'+Math.round(totalClient)+'" style="margin-left:auto;background:#27500a;color:#fff;">📄 Générer la facture</button>';
+    }
+    html+='</div>';
     html+='</div>';
   });
   document.getElementById('facturation-content').innerHTML=html;
 }
 
+// GENERER une facture pour un client/mois (seulement sur clic) - attribue le numero et l'enregistre au Suivi
+async function generateFactureForClient(cliName, mois, totalMontant){
+  loadSuivi2();
+  // Si deja generee, ne pas dupliquer
+  if(SUIVI2.find(function(f){return normName(f.client)===normName(cliName)&&f.mois===mois;})){
+    toast('Facture déjà générée pour ce client/mois');renderFacturation();return;
+  }
+  // Calculer le prochain numero (plus grand+1, format Reglages)
+  var fmt=localStorage.getItem('elzer_fact_format')||('ELD'+new Date().getFullYear()+'/0001');
+  var fm=fmt.match(/^(.*?)(\d+)$/);
+  var prefix=fm?fm[1]:'ELD'+new Date().getFullYear()+'/';
+  var startNum=fm?parseInt(fm[2]):1;
+  var numLen=fm?fm[2].length:4;
+  var maxNum=startNum-1;
+  SUIVI2.forEach(function(r){var s=String(r.num||'');if(s.indexOf(prefix)===0){var m=s.substring(prefix.length).match(/^(\d+)$/);if(m){var v=parseInt(m[1]);if(v>maxNum)maxNum=v;}}});
+  var next=maxNum+1; if(next<startNum)next=startNum;
+  var factNum=prefix+String(next).padStart(numLen,'0');
+  // Enregistrer la facture au Suivi
+  var newFact={num:factNum,client:cliName,mois:mois,mt:String(totalMontant),chq:'',date:new Date().toLocaleDateString('fr-FR'),reglement:'',etat:'Non payé',comment:''};
+  SUIVI2.push(newFact);
+  save('elzer_suivi_factures',SUIVI2);
+  // Retirer du tombstone si present (on regenere volontairement)
+  try{var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');tomb=tomb.filter(function(s){return s!==cliName+'|'+mois;});localStorage.setItem('elzer_factures_supprimees',JSON.stringify(tomb));}catch(e){}
+  toast('Génération...');
+  await saveSuivi2ToSupabase();
+  toast('✅ Facture '+factNum+' générée');
+  renderFacturation();
+  if(typeof renderSuivi2==='function') renderSuivi2();
+}
 
-// ── FACTURE MENSUELLE (format ELZER reel: liste BL du mois) ──
+// SUPPRIMER la facture generee d'un client/mois (reste supprimee)
+async function deleteFactureForClient(cliName, mois, factNum){
+  if(!confirm('Supprimer la facture '+factNum+' de '+cliName+' ?'))return;
+  loadSuivi2();
+  SUIVI2=SUIVI2.filter(function(f){return !(normName(f.client)===normName(cliName)&&f.mois===mois);});
+  save('elzer_suivi_factures',SUIVI2);
+  // Tombstone pour empecher recreation auto
+  try{var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');var sig=cliName+'|'+mois;if(tomb.indexOf(sig)<0){tomb.push(sig);localStorage.setItem('elzer_factures_supprimees',JSON.stringify(tomb));}}catch(e){}
+  toast('Suppression...');
+  await saveSuivi2ToSupabase();
+  toast('🗑️ Facture supprimée');
+  renderFacturation();
+  if(typeof renderSuivi2==='function') renderSuivi2();
+}
+
+// IMPRIMER la facture d'un client/mois
+function printFactureClientMois(cliName, mois){
+  loadSuivi2();
+  var f=SUIVI2.find(function(x){return normName(x.client)===normName(cliName)&&x.mois===mois;});
+  var factNum=f?f.num:'(non générée)';
+  var html=buildFactureMensuelleHtml(cliName, mois, factNum);
+  var w=window.open('','_blank');
+  if(w){ w.document.write('<html><head><title>Facture '+factNum+'</title></head><body>'+html+'</body></html>'); w.document.close(); setTimeout(function(){w.print();},300); }
+}
 function buildFactureMensuelleHtml(cliName, month, factNum){
   orders=load('terrasse_orders',[]);
   var cli=findClient(cliName);
@@ -2483,33 +2549,17 @@ function printFactureMensuelle(){
     if(blT===0&&o.total)blT=o.total;
     totMois+=blT;
   });
-  // Enregistrer au Suivi (si pas deja present pour ce client+mois)
+  // Enregistrer au Suivi: SEULEMENT si la facture a deja ete generee (pas de creation auto ici)
   loadSuivi2();
   var exists=SUIVI2.find(function(f){return normName(f.client)===normName(cliName)&&f.mois===month;});
-  // Ne pas recreer une facture supprimee volontairement
-  var wasDeleted=false;
-  try{
-    var tomb=JSON.parse(localStorage.getItem('elzer_factures_supprimees')||'[]');
-    wasDeleted=tomb.indexOf(cliName+'|'+month)>=0;
-  }catch(e){}
-  if(!exists && !wasDeleted && moInv.length){
-    SUIVI2.push({
-      num:factNum, client:cliName, mois:month,
-      mt:totMois.toFixed(2), montant:totMois.toFixed(2),
-      regl:'EN COURS', reglement:'EN COURS',
-      date:new Date().toISOString().split('T')[0],
-      mtchq:'', chq:'', etat:'Non regle',
-      comment:'Facture '+month+' - '+moInv.length+' BL',
-      blIds:moInv.map(function(o){return o.id;})
-    });
-    saveSuivi2();
-    // Marquer les BL comme factures
+  // La generation se fait via le bouton "Générer la facture" dans Facturation.
+  // Ici on ne fait que marquer les BL comme factures si la facture existe deja.
+  if(exists && moInv.length){
     moInv.forEach(function(o){
       var oo=orders.find(function(x){return String(x.id)===String(o.id);});
       if(oo)oo.facture=true;
     });
     save('terrasse_orders',orders);
-    toast('✅ Facture '+factNum+' enregistrée au Suivi');
   }
   
   var html=buildFactureMensuelleHtml(cliName, month, factNum);
