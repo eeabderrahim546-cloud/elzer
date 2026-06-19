@@ -757,6 +757,17 @@ function getNextBLNum(){
 })();
 
 function load(k,d){try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(d));}catch(e){return d;}}
+// Affiche un numero BL propre. Si c'est un id technique brut (o+timestamp), affiche un label court.
+function niceBL(o){
+  var v=String((o&&(o.bl||o.id))||'');
+  // id technique: commence par 'o' suivi de >=10 chiffres -> pas un vrai BL
+  if(/^o\d{10,}$/.test(v)){
+    var b=String((o&&o.bl)||'');
+    if(b && !/^o\d{10,}$/.test(b)) return b; // un vrai bl existe
+    return 'BL-'+v.slice(-4); // label court lisible
+  }
+  return v;
+}
 function toast(m){var n=document.getElementById('notif');n.textContent=m;n.classList.add('show');setTimeout(function(){n.classList.remove('show');},3000);}
 function openModal(id){document.getElementById(id).classList.add('show');}
 function closeModal(id){document.getElementById(id).classList.remove('show');}
@@ -1358,7 +1369,7 @@ function renderDashboard(){
     else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:12px;margin-bottom:8px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
-      +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+o.id+'</span>'
+      +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
       +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div></div>'
       +statusBadge(o.status)+'</div>'
@@ -1482,7 +1493,7 @@ function renderCommandes(){
       +'<div style="flex:1;">'
       +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
       +(isNew?'<span style="background:#1a7aff;color:#fff;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:10px;">NOUVEAU</span>':'')
-      +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+o.id+'</span>'
+      +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
       +'</div>'
       +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
@@ -1704,18 +1715,23 @@ function renderClients(){
 
 function openClientModal(id){
   editClientId=id||null;
+  if(typeof clients==='undefined'||!Array.isArray(clients)) clients=[];
+  clients=load('admin_clients',clients);
+  if(!Array.isArray(clients)) clients=[];
   var c=id?clients.find(function(x){return x.id===id;}):null;
-  document.getElementById('modal-client-title').textContent=id?'Modifier '+c.name:'Nouveau client';
-  document.getElementById('cl-name').value=c?c.name:'';
-  document.getElementById('cl-type').value=c?c.type:'Hotel';
-  document.getElementById('cl-tel').value=c?c.tel:'';
-  document.getElementById('cl-wa').value=c?c.wa:'';
-  document.getElementById('cl-email').value=c?c.email||'':'';
-  document.getElementById('cl-adresse').value=c?c.adresse||'':'';
-  document.getElementById('cl-ice').value=c?c.ice||'':'';
-  document.getElementById('cl-rc').value=c?c.rc||'':'';
-  document.getElementById('cl-if').value=c?c.iff||'':'';
-  document.getElementById('cl-pwd').value=c?c.pwd||'':'';
+  function setV(elId,val){var e=document.getElementById(elId);if(e)e.value=val;}
+  var titleEl=document.getElementById('modal-client-title');
+  if(titleEl) titleEl.textContent=(id&&c)?'Modifier '+c.name:'Nouveau client';
+  setV('cl-name',c?c.name:'');
+  setV('cl-type',c?c.type:'Hotel');
+  setV('cl-tel',c?c.tel:'');
+  setV('cl-wa',c?c.wa:'');
+  setV('cl-email',c?(c.email||''):'');
+  setV('cl-adresse',c?(c.adresse||''):'');
+  setV('cl-ice',c?(c.ice||''):'');
+  setV('cl-rc',c?(c.rc||''):'');
+  setV('cl-if',c?(c.iff||''):'');
+  setV('cl-pwd',c?(c.pwd||''):'');
   buildPrixTable(c?c.prix:{});
   openModal('modal-client');
 }
@@ -1724,33 +1740,40 @@ function editClient(id){openClientModal(id);}
 function buildPrixTable(px){
   px=px||{};
   var rows='';
-  CATALOGUE.forEach(function(sec){
+  var cat=(typeof CATALOGUE!=='undefined'&&Array.isArray(CATALOGUE))?CATALOGUE:[];
+  cat.forEach(function(sec){
+    if(!sec||!Array.isArray(sec.items))return;
     sec.items.forEach(function(item){
       rows+='<tr><td style="padding:5px 8px;font-size:12px;border-bottom:.5px solid #f5f5f5;">'+item.n+'</td><td style="padding:5px 8px;font-size:12px;color:var(--g6);border-bottom:.5px solid #f5f5f5;">'+(item.p||'')+'</td><td style="padding:4px 6px;border-bottom:.5px solid #f5f5f5;"><input class="pi" type="text" value="'+(px[item.n]||'')+'" data-prod="'+item.n+'"/></td></tr>';
     });
   });
-  document.getElementById('prix-tbody').innerHTML=rows;
+  var tb=document.getElementById('prix-tbody');
+  if(tb) tb.innerHTML=rows;
 }
 
-function saveClient(){
+async function saveClient(){
   var name=document.getElementById('cl-name').value.trim();
   if(!name){alert('Nom requis.');return;}
   var prix={};
   document.querySelectorAll('#prix-tbody input[data-prod]').forEach(function(inp){if(inp.value.trim())prix[inp.dataset.prod]=inp.value.trim();});
-  function uid(n){return n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20);}
+  function uid(n){return n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0,20);}
   var pwd=document.getElementById('cl-pwd').value.trim();
   var data={name:name,type:document.getElementById('cl-type').value,tel:document.getElementById('cl-tel').value,wa:document.getElementById('cl-wa').value,email:document.getElementById('cl-email').value,adresse:document.getElementById('cl-adresse').value,ice:document.getElementById('cl-ice').value,rc:document.getElementById('cl-rc').value,iff:document.getElementById('cl-if').value,pwd:pwd,prix:prix};
+  clients=load('admin_clients',clients);
   if(editClientId){
     var i=clients.findIndex(function(c){return c.id===editClientId;});
     if(i>=0)clients[i]=Object.assign({},clients[i],data);
+    else clients.push(Object.assign({id:editClientId,urlId:uid(name)},data));
   } else {
     clients.push(Object.assign({id:'c'+Date.now(),urlId:uid(name)},data));
   }
   save('admin_clients',clients);
-
   closeModal('modal-client');
   renderClientsUnified();
-  toast('Client enregistre!');
+  toast('Enregistrement...');
+  // Synchroniser vers Supabase pour que la modif persiste (sinon perdue au rechargement)
+  if(typeof saveClientsToSupabase==='function'){ try{ await saveClientsToSupabase(); }catch(e){} }
+  toast('✅ Client enregistré');
 }
 
 function deleteClient(id){
