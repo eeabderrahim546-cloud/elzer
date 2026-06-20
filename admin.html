@@ -1175,6 +1175,8 @@ document.addEventListener('click',async function(e){
 var _fs=document.getElementById('filter-status');if(_fs)_fs.addEventListener('change',renderCommandes);
   var fdEl2=document.getElementById('filter-date');if(fdEl2)fdEl2.addEventListener('change',renderCommandes);
 var _fc=document.getElementById('filter-client');if(_fc)_fc.addEventListener('change',renderCommandes);
+var _fm2=document.getElementById('fact-mois');if(_fm2)_fm2.addEventListener('change',renderFacturation);
+var _fcl=document.getElementById('fact-client');if(_fcl)_fcl.addEventListener('change',renderFacturation);
 var _cs=document.getElementById('cat-search');if(_cs)_cs.addEventListener('input',renderCatalogue);
 // Listener pour prix achat dans fournisseur
 document.addEventListener('change',function(e){
