@@ -632,6 +632,11 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <div style="font-size:11px;color:#999;margin-top:8px;">Exemples: 2026/001 · BL-001 · TER001 · 0726/0001</div>
         <div id="bl-format-current" style="font-size:12px;color:#5a7050;margin-top:8px;font-weight:600;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:12px;">
+          <button class="btn btn-a btn-sm" data-action="apply-bl-format-all">🔄 Renuméroter les BL existants</button>
+          <button class="btn btn-d btn-sm" data-action="clean-bl-doublons">🧹 Nettoyer les doublons</button>
+        </div>
+        <div style="font-size:11px;color:#999;margin-top:6px;">« Renuméroter » applique le format à toutes les commandes déjà passées. « Nettoyer » supprime les BL en double.</div>
       </div>
       
       <div style="background:#fff;border:1px solid #e2e8dd;border-radius:12px;padding:18px;margin-bottom:16px;max-width:600px;">
@@ -951,6 +956,7 @@ document.addEventListener('click',async function(e){
   else if(a==='save-bl-format'){saveBLFormat();}
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
+  else if(a==='clean-bl-doublons'){nettoyerDoublonsBL();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1319,50 +1325,69 @@ function applyFactFormatToAll(){
   renderSuivi2();
 }
 
-function applyBLFormatToAll(){
+async function applyBLFormatToAll(){
   var inp=document.getElementById('set-bl-format');
   var blFormat=(inp&&inp.value.trim())||localStorage.getItem('elzer_bl_format');
   if(blFormat && inp && inp.value.trim()){
     localStorage.setItem('elzer_bl_format',blFormat);
   }
   if(!blFormat){toast('Définissez d abord un format BL dans le champ ci-dessus');return;}
-  if(!confirm('Renuméroter TOUTES les commandes avec le format '+blFormat+' ?\n\nChaque client repart de '+blFormat+' par ordre de date.')) return;
+  if(!confirm('Renuméroter TOUTES les commandes avec le format '+blFormat+' ?\n\nLes BL existants seront renumérotés par ordre de date (sans doublons).')) return;
   orders=load('terrasse_orders',[]);
-  // Extraire prefix et numero de depart du format
   var fm=blFormat.match(/^(.*?)(\d+)$/);
   if(!fm){toast('Format invalide');return;}
   var prefix=fm[1];
   var startNum=parseInt(fm[2]);
   var numLen=fm[2].length;
-  // Grouper par client
-  var byCli={};
-  orders.forEach(function(o){
-    if(o.archived) return;
-    var k=normName(o.client);
-    if(!byCli[k]) byCli[k]=[];
-    byCli[k].push(o);
-  });
+  // Numerotation GLOBALE continue (tous clients), par ordre de date
+  var actifs=orders.filter(function(o){return !o.archived;});
+  actifs.sort(function(a,b){return new Date(a.createdAt||a.delivDate||0)-new Date(b.createdAt||b.delivDate||0);});
   var changed=0;
-  Object.keys(byCli).forEach(function(cliKey){
-    var cliOrders=byCli[cliKey];
-    cliOrders.sort(function(a,b){return new Date(a.createdAt||a.delivDate||0)-new Date(b.createdAt||b.delivDate||0);});
-    cliOrders.forEach(function(o,i){
-      var newId=prefix+String(startNum+i).padStart(numLen,'0');
-      if(String(o.id)!==newId){
-        var oldId=o.id;
-        o.id=newId;
-        changed++;
-        try{
-          supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(oldId));
-          supaFetch('POST','commandes',{id:newId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(o.items),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
-        }catch(e){}
-      }
-    });
-  });
+  toast('Renumérotation...');
+  for(var i=0;i<actifs.length;i++){
+    var o=actifs[i];
+    var newBL=prefix+String(startNum+i).padStart(numLen,'0');
+    if(String(o.bl||'')!==newBL){
+      o.bl=newBL;
+      changed++;
+      // UPSERT: meme id technique (o.id reste stable), on met a jour le bl dans items.__bl
+      try{
+        var supaId=o._uid||o.id;
+        var payload={__bl:newBL, items:o.items};
+        await supaFetch('POST','commandes',{id:supaId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(payload),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+      }catch(e){}
+    }
+  }
   save('terrasse_orders',orders);
   toast('✅ '+changed+' BL renumérotés au format '+blFormat);
   renderHistorique();
-  renderCommandes();
+  if(typeof renderCommandes==='function') renderCommandes();
+  if(typeof renderDashboard==='function') renderDashboard();
+}
+
+// Nettoyer les doublons existants (meme client + meme total + meme date = doublon)
+async function nettoyerDoublonsBL(){
+  if(!confirm('Supprimer les BL en double ?\n\nPour chaque groupe de commandes identiques (meme client, meme montant, meme date), une seule sera gardee.')) return;
+  orders=load('terrasse_orders',[]);
+  var seen={};
+  var toKeep=[];
+  var toDelete=[];
+  // Trier pour garder le plus ancien de chaque doublon
+  orders.slice().sort(function(a,b){return new Date(a.createdAt||0)-new Date(b.createdAt||0);}).forEach(function(o){
+    var sig=normName(o.client)+'|'+(o.total||0)+'|'+(o.delivDate||'')+'|'+JSON.stringify((o.items||[]).map(function(i){return [i.name,i.qty];}));
+    if(seen[sig]){ toDelete.push(o); } else { seen[sig]=true; toKeep.push(o); }
+  });
+  if(!toDelete.length){toast('Aucun doublon trouvé');return;}
+  toast('Suppression de '+toDelete.length+' doublon(s)...');
+  for(var i=0;i<toDelete.length;i++){
+    var supaId=toDelete[i]._uid||toDelete[i].id;
+    try{ await supaFetch('DELETE','commandes?id=eq.'+encodeURIComponent(supaId)); }catch(e){}
+  }
+  save('terrasse_orders',toKeep);
+  toast('✅ '+toDelete.length+' doublon(s) supprimé(s)');
+  renderHistorique();
+  if(typeof renderCommandes==='function') renderCommandes();
+  if(typeof renderDashboard==='function') renderDashboard();
 }
 
 function renderDashboard(){
