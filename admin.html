@@ -2843,7 +2843,7 @@ function editBLItems(id){
 }
 
 
-function saveBLItems(id){
+async function saveBLItems(id){
   orders=load('terrasse_orders',[]);
   var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
   if(idx<0) return;
@@ -2851,7 +2851,6 @@ function saveBLItems(id){
   var cli=findClient(o.client);
   var newItems=[];
   var newTotal=0;
-  // Mettre a jour les prix du client aussi
   var cliList=load('admin_clients',[]);
   var cliIdx=cliList.findIndex(function(c){return normName(c.name)===normName(o.client);});
   document.querySelectorAll('#bl-edit-rows [data-row]').forEach(function(row){
@@ -2862,7 +2861,6 @@ function saveBLItems(id){
     if(name){
       newItems.push({name:name,unit:unit,qty:qty,prix:prix,type:o.items[0]?o.items[0].type:undefined});
       newTotal+=prix*qty;
-      // Sauvegarder le prix dans la fiche client
       if(prix>0 && cliIdx>=0){
         if(!cliList[cliIdx].prix) cliList[cliIdx].prix={};
         cliList[cliIdx].prix[name]=String(prix);
@@ -2871,15 +2869,42 @@ function saveBLItems(id){
   });
   orders[idx].items=newItems;
   orders[idx].total=Math.round(newTotal);
+  var cliName=o.client;
+  var mois=(o.delivDate||o.createdAt||'').substring(0,7);
   save('terrasse_orders',orders);
   if(cliIdx>=0){
     save('admin_clients',cliList);
     if(typeof saveClientsToSupabase==='function') saveClientsToSupabase();
   }
-  if(typeof saveOrderToSupabase==='function') saveOrderToSupabase(orders[idx]);
-  toast('✅ BL modifié et prix sauvegardés!');
+  toast('Enregistrement...');
+  // Sauvegarder dans Supabase via UPSERT (meme id technique, bl conserve dans items.__bl)
+  try{
+    var supaId=orders[idx]._uid||orders[idx].id;
+    var payload={__bl:orders[idx].bl||orders[idx].id, items:newItems};
+    await supaFetch('POST','commandes',{id:supaId,client:cliName,deliver_date:orders[idx].delivDate,items:JSON.stringify(payload),total:orders[idx].total,status:orders[idx].status||'nouvelle',mode:orders[idx].mode||'simple',created_at:orders[idx].createdAt||new Date().toISOString()});
+  }catch(e){}
+  // SI une facture a deja ete generee pour ce client/mois -> recalculer son montant
+  try{
+    loadSuivi2();
+    var factIdx=SUIVI2.findIndex(function(f){return normName(f.client)===normName(cliName)&&f.mois===mois;});
+    if(factIdx>=0){
+      var totMois=0;
+      orders.forEach(function(x){
+        var xMois=(x.delivDate||x.createdAt||'').substring(0,7);
+        if(normName(x.client)===normName(cliName) && xMois===mois && x.status!=='annulee'){ totMois+=(x.total||0); }
+      });
+      SUIVI2[factIdx].mt=String(Math.round(totMois));
+      save('elzer_suivi_factures',SUIVI2);
+      await saveSuivi2ToSupabase();
+      toast('✅ BL et facture mis à jour');
+    } else {
+      toast('✅ BL modifié et prix sauvegardés');
+    }
+  }catch(e){ toast('✅ BL modifié'); }
   viewBL(id);
   renderHistorique();
+  if(typeof renderFacturation==='function'){ try{ renderFacturation(); }catch(e){} }
+  if(typeof renderSuivi2==='function'){ try{ renderSuivi2(); }catch(e){} }
 }
 
 
