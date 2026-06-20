@@ -2458,7 +2458,12 @@ function printFactureClientMois(cliName, mois){
   var factNum=f?f.num:'(non générée)';
   var html=buildFactureMensuelleHtml(cliName, mois, factNum);
   var w=window.open('','_blank');
-  if(w){ w.document.write('<html><head><title>Facture '+factNum+'</title></head><body>'+html+'</body></html>'); w.document.close(); setTimeout(function(){w.print();},300); }
+  if(w){
+    var css='<style>@media print{@page{margin:1cm;}}body{margin:0;padding-bottom:70px;font-family:Arial,sans-serif;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;z-index:999;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}}</style>';
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+factNum+'</title>'+css+'</head><body>'+html+'</body></html>');
+    w.document.close();
+    setTimeout(function(){w.print();},300);
+  }
 }
 function buildFactureMensuelleHtml(cliName, month, factNum){
   orders=load('terrasse_orders',[]);
@@ -3754,7 +3759,7 @@ function openBLEdit(orderId){
   openModal('modal-cmd');
 }
 
-function saveBLEdit(orderId){
+async function saveBLEdit(orderId){
   orders=load('terrasse_orders',[]);
   var i=orders.findIndex(function(o){return o.id===orderId;});
   if(i<0){toast('Commande non trouvee!');return;}
@@ -3779,11 +3784,43 @@ function saveBLEdit(orderId){
   
   orders[i].items=newItems;
   orders[i].total=newTotal||orders[i].total;
+  var cliName=orders[i].client;
+  var mois=(orders[i].delivDate||orders[i].createdAt||'').substring(0,7);
   save('terrasse_orders',orders);
-  supaFetch('PATCH','commandes?id=eq.'+orderId,{items:JSON.stringify(newItems),total:newTotal||orders[i].total});
+  // Mettre a jour Supabase (upsert via POST avec __bl conserve)
+  toast('Enregistrement...');
+  try{
+    var supaId=orders[i]._uid||orders[i].id;
+    var payload={__bl:orders[i].bl||orders[i].id, items:newItems};
+    await supaFetch('POST','commandes',{id:supaId,client:cliName,deliver_date:orders[i].delivDate,items:JSON.stringify(payload),total:orders[i].total,status:orders[i].status||'nouvelle',mode:orders[i].mode||'simple',created_at:orders[i].createdAt||new Date().toISOString()});
+  }catch(e){}
+  // SI une facture a deja ete generee pour ce client/mois -> recalculer son montant
+  try{
+    loadSuivi2();
+    var factIdx=SUIVI2.findIndex(function(f){return normName(f.client)===normName(cliName)&&f.mois===mois;});
+    if(factIdx>=0){
+      // Recalculer le total mensuel de toutes les commandes du client pour ce mois
+      var totMois=0;
+      orders.forEach(function(o){
+        var oMois=(o.delivDate||o.createdAt||'').substring(0,7);
+        if(normName(o.client)===normName(cliName) && oMois===mois && o.status!=='annulee'){
+          totMois+=(o.total||0);
+        }
+      });
+      SUIVI2[factIdx].mt=String(Math.round(totMois));
+      save('elzer_suivi_factures',SUIVI2);
+      await saveSuivi2ToSupabase();
+      toast('✅ BL et facture mis à jour');
+    } else {
+      toast('✅ BL modifié');
+    }
+  }catch(e){ toast('✅ BL modifié'); }
   closeModal('modal-cmd');
-  renderCommandes();
-  toast('BL modifie avec succes!');
+  if(typeof renderCommandes==='function') renderCommandes();
+  if(typeof renderHistorique==='function') renderHistorique();
+  if(typeof renderDashboard==='function') renderDashboard();
+  if(typeof renderSuivi2==='function') renderSuivi2();
+  if(typeof renderFacturation==='function'){ try{ renderFacturation(); }catch(e){} }
 }
 
 // ── NOTIFICATION NOUVELLES COMMANDES ──
