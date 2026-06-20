@@ -1111,11 +1111,8 @@ document.addEventListener('click',async function(e){
   else if(a==='save-suivi'){saveSuiviRow(parseInt(el.dataset.idx));}
   else if(a==='cal-day'){ if(typeof onCalDay==='function') onCalDay(el.dataset.day); }
   else if(a==='set-prix-achat'){
-    var prod=el.dataset.prod;var val=el.value.trim();
-    var pa=load('prix_achat',{});
-    if(val) pa[prod]=val; else delete pa[prod];
-    save('prix_achat',pa);
-    renderFournisseur();
+    // Gere par l'evenement 'change' (voir plus bas), pas par le clic.
+    // Ne rien faire ici pour ne pas redessiner le tableau pendant la saisie.
   }
   else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
@@ -1180,14 +1177,14 @@ var _fcl=document.getElementById('fact-client');if(_fcl)_fcl.addEventListener('c
 var _cs=document.getElementById('cat-search');if(_cs)_cs.addEventListener('input',renderCatalogue);
 // Listener pour prix achat dans fournisseur
 document.addEventListener('change',function(e){
-  var el=e.target.closest('[data-action="save-prix-achat"]');
+  var el=e.target.closest('[data-action="save-prix-achat"],[data-action="set-prix-achat"]');
   if(!el) return;
   var prod=el.dataset.prod;
   var val=el.value.trim();
   var pa=load('prix_achat',{});
   if(val) pa[prod]=val; else delete pa[prod];
   save('prix_achat',pa);
-  toast('Prix achat: '+val);
+  toast('Prix achat: '+(val||'effacé'));
 });
 document.getElementById('prix-filter').addEventListener('input',function(){
   var q=this.value.toLowerCase();
