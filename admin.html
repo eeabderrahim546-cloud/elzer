@@ -2457,6 +2457,19 @@ function printFactureClientMois(cliName, mois){
   var f=SUIVI2.find(function(x){return normName(x.client)===normName(cliName)&&x.mois===mois;});
   var factNum=f?f.num:'(non générée)';
   var html=buildFactureMensuelleHtml(cliName, mois, factNum);
+  // Joindre les BL detailles si la case est cochee
+  var joindreBL=document.getElementById('fact-joindre-bl');
+  if(joindreBL && joindreBL.checked){
+    orders=load('terrasse_orders',[]);
+    var monthOrders=orders.filter(function(o){
+      var oMois=(o.delivDate||o.createdAt||'').substring(0,7);
+      return normName(o.client)===normName(cliName) && oMois===mois && o.status!=='annulee';
+    });
+    monthOrders.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
+    monthOrders.forEach(function(o){
+      html+='<div style="page-break-before:always;"></div>'+buildBLHtml(o);
+    });
+  }
   var w=window.open('','_blank');
   if(w){
     var css='<style>@media print{@page{margin:1cm;}}body{margin:0;padding-bottom:70px;font-family:Arial,sans-serif;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;z-index:999;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}}</style>';
@@ -2553,6 +2566,53 @@ function buildReleveMensuelHtml(cliName, month){
 
 // Imprimer facture mensuelle
 function printFactureMensuelle(){
+  var cliSel=document.getElementById('fact-client');
+  var moisSel=document.getElementById('fact-mois');
+  if(!moisSel||!moisSel.value){toast('Sélectionnez un mois');return;}
+  var month=moisSel.value;
+  var joindreBLEl=document.getElementById('fact-joindre-bl');
+  var joindre=joindreBLEl && joindreBLEl.checked;
+
+  // Determiner la liste des clients a imprimer
+  loadSuivi2();
+  orders=load('terrasse_orders',[]);
+  var clientsToPrint=[];
+  if(cliSel && cliSel.value){
+    clientsToPrint=[cliSel.value];
+  } else {
+    // "Tous les clients": prendre tous ceux qui ont une facture generee ce mois
+    var seen={};
+    SUIVI2.forEach(function(f){
+      if(f.mois===month && !seen[normName(f.client)]){ seen[normName(f.client)]=true; clientsToPrint.push(f.client); }
+    });
+    if(!clientsToPrint.length){ toast('Aucune facture générée ce mois. Générez d\'abord une facture.'); return; }
+  }
+
+  // Construire le HTML de toutes les factures (+ BL joints si coche)
+  var fullHtml='';
+  clientsToPrint.forEach(function(cliName, ci){
+    var f=SUIVI2.find(function(x){return normName(x.client)===normName(cliName)&&x.mois===month;});
+    var factNum=f?f.num:getNextNum2();
+    if(ci>0) fullHtml+='<div style="page-break-before:always;"></div>';
+    fullHtml+=buildFactureMensuelleHtml(cliName, month, factNum);
+    if(joindre){
+      var monthOrders=orders.filter(function(o){
+        var oMois=(o.delivDate||o.createdAt||'').substring(0,7);
+        return normName(o.client)===normName(cliName) && oMois===month && o.status!=='annulee';
+      });
+      monthOrders.sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');});
+      monthOrders.forEach(function(o){
+        fullHtml+='<div style="page-break-before:always;"></div>'+buildBLHtml(o);
+      });
+    }
+  });
+
+  var win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Facture '+month+'</title><style>@media print{@page{margin:1cm;}}body{margin:0;padding-bottom:70px;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;z-index:999;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}}</style></head><body>'+fullHtml+'</body></html>');
+  win.document.close();
+  setTimeout(function(){win.print();},400);
+}
+function printFactureMensuelle_OLD_UNUSED(){
   var cliSel=document.getElementById('fact-client');
   var moisSel=document.getElementById('fact-mois');
   if(!cliSel||!cliSel.value){toast('Sélectionnez un client');return;}
