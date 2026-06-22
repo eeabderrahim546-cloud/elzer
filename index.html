@@ -561,7 +561,26 @@ if(!CLI){
 }
 
 let mode='s',rows=[];
-if(CLI){ loadCustomProducts().then(function(){build();}); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); }
+// Favoris du client (charges depuis admin_clients) - affiches en haut
+var CLI_FAVS={};
+try{
+  var _sc=JSON.parse(localStorage.getItem('admin_clients')||'[]');
+  var _cd=_sc.find(function(c){return c.name===(CLI&&CLI.name);});
+  if(_cd && _cd.favoris) CLI_FAVS=_cd.favoris;
+}catch(e){}
+if(CLI){ loadCustomProducts().then(function(){loadClientFavoris().then(function(){build();});}); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); }
+
+// Charger les favoris du client depuis Supabase (a jour meme si localStorage vide)
+async function loadClientFavoris(){
+  try{
+    var data=await supaFetch('GET','clients_elzer?id=eq.elzer_clients');
+    if(Array.isArray(data) && data.length){
+      var arr=JSON.parse(data[0].data||'[]');
+      var cd=arr.find(function(c){return c.name===(CLI&&CLI.name);});
+      if(cd && cd.favoris) CLI_FAVS=cd.favoris;
+    }
+  }catch(e){}
+}
 
 function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
 
@@ -594,18 +613,24 @@ function build(){
     if(mode==='s'){ch.innerHTML='<div class="ch l">Désignation</div><div class="ch">Prix</div><div class="ch">Unité</div><div class="ch">Qté</div>';}
     else{ch.innerHTML='<div class="ch l">Désignation</div><div class="ch">Prix</div><div class="ch cui">CUISINE</div><div class="ch bar">BAR</div><div class="ch per">PERS.</div><div class="ch">Unité</div><div class="ch">∑</div>';}
     const pl=document.getElementById('pl'+si);
-    sec.items.forEach(item=>{
+    // Trier: produits favoris du client en haut
+    var sortedItems=sec.items.slice().sort(function(a,b){
+      var fa=CLI_FAVS[a.n]?1:0, fb=CLI_FAVS[b.n]?1:0;
+      return fb-fa;
+    });
+    sortedItems.forEach(item=>{
       const row=document.createElement('div');
       row.className='prow '+mode;row.dataset.name=item.n.toLowerCase();
       const opts=UNITS.map(u=>'<option'+(u===item.u?' selected':'')+'>'+u+'</option>').join('');
+      var favStar=CLI_FAVS[item.n]?'<span style="color:#f1c40f;margin-right:3px;">⭐</span>':'';
       if(mode==='s'){
-        row.innerHTML='<div class="pnc"><span class="pn">'+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
+        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
         pl.appendChild(row);
         const inp=row.querySelector('input'),sel=row.querySelector('select');
         inp.addEventListener('input',()=>{const v=parseFloat(inp.value)||0;inp.classList.toggle('vc',v>0);row.classList.toggle('ok',v>0);ut();});
         rows.push({row,ic:inp,ib:null,ip:null,sel,name:item.n,price:item.p||''});
       }else{
-        row.innerHTML='<div class="pnc"><span class="pn">'+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><select>'+opts+'</select></div><div class="tc">—</div>';
+        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><select>'+opts+'</select></div><div class="tc">—</div>';
         pl.appendChild(row);
         const ins=row.querySelectorAll('input');const iC=ins[0],iB=ins[1],iP=ins[2];
         const sel=row.querySelector('select');const tc=row.querySelector('.tc');
