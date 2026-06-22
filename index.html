@@ -35,6 +35,18 @@ body{font-family:"DM Sans",Arial,sans-serif;background:#f0f4ec;min-height:100vh;
 .mpill.on{background:#2d6a1f;border-color:#2d6a1f;color:#fff;}
 .content{padding:10px 14px 130px;}
 .sec-blk{margin-bottom:12px;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.sec-blk.hide{display:none;}
+.cat-tabs{display:flex;gap:6px;padding:8px 12px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.cat-tabs::-webkit-scrollbar{height:0;}
+.cat-tab{padding:7px 14px;background:#fff;border:1px solid #d6e6cc;border-radius:18px;cursor:pointer;font-size:12px;white-space:nowrap;color:#5a7050;font-weight:500;}
+.cat-tab.on{background:#2d6a1f;border-color:#2d6a1f;color:#fff;}
+.reorder-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff3e0;border:1.5px dashed #f0a030;border-radius:10px;color:#c47a00;font-size:13px;font-weight:600;cursor:pointer;margin:10px 12px 0;width:calc(100% - 24px);justify-content:center;}
+.reorder-btn:active{background:#ffe7c2;}
+.reorder-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:none;align-items:flex-end;justify-content:center;}
+.reorder-modal.on{display:flex;}
+.reorder-sheet{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px;max-height:80vh;overflow-y:auto;}
+.reorder-item{padding:12px;border:1px solid #e0e8d8;border-radius:10px;margin-bottom:8px;cursor:pointer;background:#fff;}
+.reorder-item:active{background:#f4fbed;}
 .sec-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f2d0a;cursor:pointer;user-select:none;}
 .sec-hd-l{display:flex;align-items:center;gap:10px;}
 .sec-ttl{font-size:12px;font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.6px;}
@@ -200,7 +212,19 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
   <button class="mpill on" id="ps" onclick="sm('s')">Simple</button>
   <button class="mpill" id="pt" onclick="sm('t')">Cuisine · Bar · Personnel</button>
 </div>
+<button class="reorder-btn" onclick="openReorderModal()">🔄 Refaire une commande récente</button>
+<div class="cat-tabs" id="cat-tabs"></div>
 <div class="content" id="ct"></div>
+<div class="reorder-modal" id="reorder-modal" onclick="if(event.target===this)closeReorderModal()">
+  <div class="reorder-sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:600;">Refaire une commande</div>
+      <button onclick="closeReorderModal()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px;">Choisis une de tes 3 dernières commandes. Les quantités seront pré-remplies, tu peux ensuite les ajuster.</div>
+    <div id="reorder-list"></div>
+  </div>
+</div>
 <div style="padding:12px 16px;">
   <div id="custom-items-list"></div>
   <button onclick="addCustomItem()" style="width:100%;padding:12px;background:#fff3e0;border:2px dashed #f0a030;border-radius:10px;color:#c47a00;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px;">➕ Ajouter un article (non listé)</button>
@@ -644,9 +668,131 @@ function build(){
     });
   });
   fp();ut();
+  // Construire les onglets de categories + appliquer le filtre actif
+  try{ buildCatTabs(); applyCatFilter(); }catch(e){}
 }
 
 function ts(el){el.closest('.sec-blk').classList.toggle('closed');}
+
+// === Onglets categories ===
+var ACTIVE_CAT='all'; // par defaut: Tous (Favoris accessible en 1 clic via l'onglet)
+function buildCatTabs(){
+  var bar=document.getElementById('cat-tabs');
+  if(!bar) return;
+  var tabs=[{k:'fav',label:'⭐ Favoris'},{k:'all',label:'Tous'}];
+  CAT.forEach(function(sec,i){ tabs.push({k:'s'+i,label:sec.title}); });
+  bar.innerHTML=tabs.map(function(t){return '<button class="cat-tab'+(t.k===ACTIVE_CAT?' on':'')+'" data-k="'+t.k+'">'+t.label+'</button>';}).join('');
+  bar.querySelectorAll('.cat-tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      ACTIVE_CAT=btn.dataset.k;
+      bar.querySelectorAll('.cat-tab').forEach(function(b){b.classList.remove('on');});
+      btn.classList.add('on');
+      applyCatFilter();
+    });
+  });
+}
+function applyCatFilter(){
+  var blocks=document.querySelectorAll('.sec-blk');
+  blocks.forEach(function(blk,i){
+    if(ACTIVE_CAT==='all'){
+      blk.classList.remove('hide');
+      // afficher toutes les lignes
+      blk.querySelectorAll('.prow').forEach(function(r){r.style.display='';});
+    } else if(ACTIVE_CAT==='fav'){
+      // n'afficher que les lignes dont le nom est dans CLI_FAVS (data-name est en minuscules)
+      var favsLower={};
+      Object.keys(CLI_FAVS||{}).forEach(function(k){favsLower[k.toLowerCase()]=true;});
+      var any=false;
+      blk.querySelectorAll('.prow').forEach(function(r){
+        var nm=r.dataset.name;
+        var isFav=!!favsLower[nm];
+        r.style.display=isFav?'':'none';
+        if(isFav) any=true;
+      });
+      blk.classList.toggle('hide',!any);
+    } else {
+      // section specifique: s0,s1,s2...
+      var idx=parseInt(ACTIVE_CAT.substring(1));
+      blk.classList.toggle('hide',i!==idx);
+      blk.querySelectorAll('.prow').forEach(function(r){r.style.display='';});
+    }
+  });
+}
+
+// === Refaire une commande ===
+function openReorderModal(){
+  var list=document.getElementById('reorder-list');
+  if(!list) return;
+  // Combiner local + cache Supabase, filtrer par client courant, garder les 3 plus recentes
+  var locals=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+  var all=locals.concat(SUPA_ORDERS_CACHE||[]);
+  var cliName=(CLI&&CLI.name)||'';
+  var seen={};
+  var mine=all.filter(function(o){
+    if(!o || !o.items || !o.items.length) return false;
+    if(String(o.client||'').toLowerCase()!==cliName.toLowerCase()) return false;
+    if(o.status==='annulee') return false;
+    var k=String(o.id||o.bl);
+    if(seen[k]) return false; seen[k]=true; return true;
+  });
+  mine.sort(function(a,b){ return new Date(b.createdAt||b.delivDate||0)-new Date(a.createdAt||a.delivDate||0); });
+  var top3=mine.slice(0,3);
+  if(!top3.length){
+    list.innerHTML='<div style="text-align:center;color:#888;padding:30px 10px;font-size:13px;">Aucune commande précédente.<br/>Passe ta première commande, elle sera disponible ici la prochaine fois.</div>';
+  } else {
+    list.innerHTML=top3.map(function(o,i){
+      var d=new Date(o.createdAt||o.delivDate||Date.now());
+      var ds=d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+      var items=(o.items||[]).slice(0,4).map(function(it){return it.name+' '+(it.qty||0)+(it.unit||'');}).join(' · ');
+      if((o.items||[]).length>4) items+=' …';
+      return '<div class="reorder-item" data-idx="'+i+'"><div style="font-size:13px;font-weight:600;color:#27500a;margin-bottom:4px;">📅 '+ds+' — '+(o.items.length)+' produits</div><div style="font-size:12px;color:#666;line-height:1.5;">'+items+'</div></div>';
+    }).join('');
+    list.querySelectorAll('.reorder-item').forEach(function(el){
+      el.addEventListener('click',function(){
+        var o=top3[parseInt(el.dataset.idx)];
+        applyReorder(o);
+        closeReorderModal();
+      });
+    });
+  }
+  document.getElementById('reorder-modal').classList.add('on');
+}
+function closeReorderModal(){
+  var m=document.getElementById('reorder-modal');
+  if(m) m.classList.remove('on');
+}
+function applyReorder(o){
+  // Pre-remplir les champs qty pour chaque article de la commande choisie
+  if(!o || !o.items) return;
+  var byName={};
+  o.items.forEach(function(it){
+    byName[String(it.name||'').toLowerCase()]={qty:it.qty,unit:it.unit,cuisine:it.cuisine,bar:it.bar,perso:it.perso};
+  });
+  // Parcourir toutes les lignes affichees et remplir
+  document.querySelectorAll('.prow').forEach(function(row){
+    var nm=row.dataset.name;
+    var data=byName[nm];
+    if(!data) return;
+    if(mode==='s'){
+      var inp=row.querySelector('input.qi');
+      if(inp){ inp.value=data.qty||0; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+      var sel=row.querySelector('select');
+      if(sel && data.unit){ sel.value=data.unit; }
+    } else {
+      var ins=row.querySelectorAll('input.qi');
+      if(ins[0] && data.cuisine!=null){ ins[0].value=data.cuisine; ins[0].dispatchEvent(new Event('input',{bubbles:true})); }
+      if(ins[1] && data.bar!=null){ ins[1].value=data.bar; ins[1].dispatchEvent(new Event('input',{bubbles:true})); }
+      if(ins[2] && data.perso!=null){ ins[2].value=data.perso; ins[2].dispatchEvent(new Event('input',{bubbles:true})); }
+    }
+  });
+  // Revenir sur "Tous" pour que l'utilisateur voie tout ce qui est rempli
+  ACTIVE_CAT='all';
+  var bar=document.getElementById('cat-tabs');
+  if(bar){ bar.querySelectorAll('.cat-tab').forEach(function(b){b.classList.toggle('on',b.dataset.k==='all');}); }
+  applyCatFilter();
+}
+window.openReorderModal=openReorderModal;
+window.closeReorderModal=closeReorderModal;
 function fp(){const q=document.getElementById('srch').value.toLowerCase().trim();document.querySelectorAll('.prow').forEach(r=>r.classList.toggle('hidden',q!==''&&!r.dataset.name.includes(q)));}
 function pp(s){if(!s)return 0;const m=s.match(/\d+([,.]\d+)?/);return m?parseFloat(m[0].replace(',','.')):0;}
 function ut(){let t=0,n=0;rows.forEach(({ic,ib,ip,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0){t+=pp(price)*(c+b+p);n++;}});document.getElementById('gt').textContent=Math.round(t).toLocaleString('fr-FR')+' Dh';document.getElementById('bc').textContent=n+' article'+(n>1?'s':'');}
