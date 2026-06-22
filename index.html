@@ -42,6 +42,12 @@ body{font-family:"DM Sans",Arial,sans-serif;background:#f0f4ec;min-height:100vh;
 .cat-tab.on{background:#2d6a1f;border-color:#2d6a1f;color:#fff;}
 .sort-tab{padding:7px 12px;background:#fff;border:1px solid #d6e6cc;border-radius:18px;cursor:pointer;font-size:12px;white-space:nowrap;color:#2d6a1f;font-weight:600;display:inline-flex;align-items:center;gap:4px;}
 .sort-tab.on{background:#eaf5e0;border-color:#2d6a1f;}
+.sort-menu{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998;display:none;align-items:flex-end;justify-content:center;}
+.sort-menu.on{display:flex;}
+.sort-sheet{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:18px;}
+.sort-opt{padding:14px;border:1px solid #e0e8d8;border-radius:10px;margin-bottom:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:10px;}
+.sort-opt:active{background:#f4fbed;}
+.sort-opt.sel{background:#eaf5e0;border-color:#2d6a1f;font-weight:600;}
 .reorder-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#fff3e0;border:1.5px dashed #f0a030;border-radius:10px;color:#c47a00;font-size:13px;font-weight:600;cursor:pointer;margin:10px 12px 0;width:calc(100% - 24px);justify-content:center;}
 .reorder-btn:active{background:#ffe7c2;}
 .reorder-modal{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:999;display:none;align-items:flex-end;justify-content:center;}
@@ -216,6 +222,18 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
 </div>
 <button class="reorder-btn" onclick="openReorderModal()">🔄 Refaire une commande récente</button>
 <div class="cat-tabs" id="cat-tabs"></div>
+<div class="sort-menu" id="sort-menu" onclick="if(event.target===this)closeSortMenu()">
+  <div class="sort-sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:600;">Trier la liste</div>
+      <button onclick="closeSortMenu()" style="background:none;border:none;font-size:22px;color:#888;cursor:pointer;">✕</button>
+    </div>
+    <div class="sort-opt" data-sort="normal" onclick="setSortMode('normal')">↕️ Ordre normal</div>
+    <div class="sort-opt" data-sort="filled" onclick="setSortMode('filled')">✅ Produits remplis en haut</div>
+    <div class="sort-opt" data-sort="alpha" onclick="setSortMode('alpha')">🔤 Ordre alphabétique (A-Z)</div>
+    <div class="sort-opt" data-sort="fav" onclick="setSortMode('fav')">⭐ Favoris en premier</div>
+  </div>
+</div>
 <div class="content" id="ct"></div>
 <div class="reorder-modal" id="reorder-modal" onclick="if(event.target===this)closeReorderModal()">
   <div class="reorder-sheet">
@@ -608,6 +626,36 @@ async function loadClientFavoris(){
   }catch(e){}
 }
 
+// Accrocher/decrocher un favori depuis la page client + sauvegarder dans Supabase
+async function toggleFavori(prodName, starEl){
+  var on=!CLI_FAVS[prodName];
+  if(on) CLI_FAVS[prodName]=true; else delete CLI_FAVS[prodName];
+  // MAJ visuelle immediate
+  if(starEl){ starEl.textContent=on?'⭐':'☆'; starEl.style.color=on?'#f1c40f':'#ccc'; }
+  // Sauvegarder dans la fiche client (admin_clients) cote local + Supabase
+  try{
+    // Charger la liste clients depuis Supabase pour ne pas ecraser les autres
+    var data=await supaFetch('GET','clients_elzer?id=eq.elzer_clients');
+    var arr=[];
+    if(Array.isArray(data) && data.length){ try{ arr=JSON.parse(data[0].data||'[]'); }catch(e){ arr=[]; } }
+    var idx=arr.findIndex(function(c){return c.name===(CLI&&CLI.name);});
+    if(idx>=0){
+      arr[idx].favoris=CLI_FAVS;
+    } else {
+      arr.push({name:(CLI&&CLI.name)||'', favoris:CLI_FAVS});
+    }
+    // Sauvegarder (upsert)
+    await supaFetch('POST','clients_elzer',{id:'elzer_clients',data:JSON.stringify(arr)});
+    // MAJ aussi le localStorage local
+    try{
+      var loc=JSON.parse(localStorage.getItem('admin_clients')||'[]');
+      var li=loc.findIndex(function(c){return c.name===(CLI&&CLI.name);});
+      if(li>=0){ loc[li].favoris=CLI_FAVS; localStorage.setItem('admin_clients',JSON.stringify(loc)); }
+    }catch(e){}
+  }catch(e){}
+}
+window.toggleFavori=toggleFavori;
+
 function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
 
 
@@ -648,7 +696,8 @@ function build(){
       const row=document.createElement('div');
       row.className='prow '+mode;row.dataset.name=item.n.toLowerCase();row.dataset.ord=ordIdx;
       const opts=UNITS.map(u=>'<option'+(u===item.u?' selected':'')+'>'+u+'</option>').join('');
-      var favStar=CLI_FAVS[item.n]?'<span style="color:#f1c40f;margin-right:3px;">⭐</span>':'';
+      var isFav=!!CLI_FAVS[item.n];
+      var favStar='<span class="fav-star" data-fav="'+item.n.replace(/"/g,'&quot;')+'" style="cursor:pointer;margin-right:4px;font-size:15px;color:'+(isFav?'#f1c40f':'#ccc')+';">'+(isFav?'⭐':'☆')+'</span>';
       if(mode==='s'){
         row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
         pl.appendChild(row);
@@ -667,6 +716,14 @@ function build(){
         }));
         rows.push({row,ic:iC,ib:iB,ip:iP,sel,name:item.n,price:item.p||''});
       }
+      // Etoile cliquable: accrocher/decrocher le favori
+      var starEl=row.querySelector('.fav-star');
+      if(starEl){
+        starEl.addEventListener('click',function(e){
+          e.stopPropagation();
+          toggleFavori(item.n, starEl);
+        });
+      }
     });
   });
   fp();ut();
@@ -684,8 +741,8 @@ function buildCatTabs(){
   var tabs=[{k:'fav',label:'⭐ Favoris'},{k:'all',label:'Tous'}];
   CAT.forEach(function(sec,i){ tabs.push({k:'s'+i,label:sec.title}); });
   var tabsHtml=tabs.map(function(t){return '<button class="cat-tab'+(t.k===ACTIVE_CAT?' on':'')+'" data-k="'+t.k+'">'+t.label+'</button>';}).join('');
-  // Bouton de tri (type Excel): bascule remplis-en-haut / ordre normal
-  tabsHtml+='<button class="sort-tab'+(SORT_FILLED?' on':'')+'" id="sort-btn" title="Trier les produits remplis en haut">↕️ Triés</button>';
+  // Bouton de tri: ouvre un menu de criteres
+  tabsHtml+='<button class="sort-tab'+(SORT_MODE!=='normal'?' on':'')+'" id="sort-btn" title="Trier la liste">↕️ Trier</button>';
   bar.innerHTML=tabsHtml;
   bar.querySelectorAll('.cat-tab').forEach(function(btn){
     btn.addEventListener('click',function(){
@@ -693,41 +750,56 @@ function buildCatTabs(){
       bar.querySelectorAll('.cat-tab').forEach(function(b){b.classList.remove('on');});
       btn.classList.add('on');
       applyCatFilter();
-      if(SORT_FILLED) sortFilledTop();
+      applySortMode();
     });
   });
   var sb=document.getElementById('sort-btn');
-  if(sb){
-    sb.addEventListener('click',function(){
-      SORT_FILLED=!SORT_FILLED;
-      sb.classList.toggle('on',SORT_FILLED);
-      if(SORT_FILLED) sortFilledTop(); else restoreOrder();
-    });
-  }
+  if(sb){ sb.addEventListener('click',openSortMenu); }
 }
-// Tri type Excel: remonter les lignes remplies (quantite > 0) en haut de chaque section
-var SORT_FILLED=false;
+// === Tri avec menu de criteres ===
+var SORT_MODE='normal'; // normal | filled | alpha | fav
+function openSortMenu(){
+  var m=document.getElementById('sort-menu');
+  if(!m) return;
+  m.querySelectorAll('.sort-opt').forEach(function(o){ o.classList.toggle('sel',o.dataset.sort===SORT_MODE); });
+  m.classList.add('on');
+}
+function closeSortMenu(){ var m=document.getElementById('sort-menu'); if(m) m.classList.remove('on'); }
+function setSortMode(mode){
+  SORT_MODE=mode;
+  closeSortMenu();
+  var sb=document.getElementById('sort-btn');
+  if(sb) sb.classList.toggle('on',mode!=='normal');
+  applySortMode();
+}
+window.openSortMenu=openSortMenu;
+window.closeSortMenu=closeSortMenu;
+window.setSortMode=setSortMode;
 function rowFilled(row){
   var ins=row.querySelectorAll('input.qi');
   for(var i=0;i<ins.length;i++){ if((parseFloat(ins[i].value)||0)>0) return true; }
   return false;
 }
-function sortFilledTop(){
+function applySortMode(){
   document.querySelectorAll('#ct [id^="pl"]').forEach(function(pl){
     var rowsArr=Array.prototype.slice.call(pl.querySelectorAll('.prow'));
-    // tri stable: remplis d'abord, en gardant l'ordre relatif
-    rowsArr.sort(function(a,b){ return (rowFilled(b)?1:0)-(rowFilled(a)?1:0); });
+    if(SORT_MODE==='filled'){
+      rowsArr.sort(function(a,b){ return (rowFilled(b)?1:0)-(rowFilled(a)?1:0); });
+    } else if(SORT_MODE==='alpha'){
+      rowsArr.sort(function(a,b){ return (a.dataset.name||'').localeCompare(b.dataset.name||''); });
+    } else if(SORT_MODE==='fav'){
+      var favsLower={}; Object.keys(CLI_FAVS||{}).forEach(function(k){favsLower[k.toLowerCase()]=true;});
+      rowsArr.sort(function(a,b){ return (favsLower[b.dataset.name]?1:0)-(favsLower[a.dataset.name]?1:0); });
+    } else {
+      // normal: ordre d'origine
+      rowsArr.sort(function(a,b){ return (parseInt(a.dataset.ord)||0)-(parseInt(b.dataset.ord)||0); });
+    }
     rowsArr.forEach(function(r){ pl.appendChild(r); });
   });
 }
-function restoreOrder(){
-  // Re-trier selon l'ordre d'origine memorise (data-ord)
-  document.querySelectorAll('#ct [id^="pl"]').forEach(function(pl){
-    var rowsArr=Array.prototype.slice.call(pl.querySelectorAll('.prow'));
-    rowsArr.sort(function(a,b){ return (parseInt(a.dataset.ord)||0)-(parseInt(b.dataset.ord)||0); });
-    rowsArr.forEach(function(r){ pl.appendChild(r); });
-  });
-}
+// Compat: ancienne fonction appelee apres reorder
+function sortFilledTop(){ SORT_MODE='filled'; var sb=document.getElementById('sort-btn'); if(sb)sb.classList.add('on'); applySortMode(); }
+function restoreOrder(){ SORT_MODE='normal'; applySortMode(); }
 function applyCatFilter(){
   var blocks=document.querySelectorAll('.sec-blk');
   blocks.forEach(function(blk,i){
@@ -828,10 +900,7 @@ function applyReorder(o){
   if(bar){ bar.querySelectorAll('.cat-tab').forEach(function(b){b.classList.toggle('on',b.dataset.k==='all');}); }
   applyCatFilter();
   // AUTO: activer le tri remplis-en-haut pour voir directement la commande
-  SORT_FILLED=true;
-  var sb=document.getElementById('sort-btn');
-  if(sb) sb.classList.add('on');
-  sortFilledTop();
+  setSortMode('filled');
 }
 window.openReorderModal=openReorderModal;
 window.closeReorderModal=closeReorderModal;
