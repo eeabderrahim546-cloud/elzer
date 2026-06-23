@@ -1140,6 +1140,9 @@ document.addEventListener('click',async function(e){
     else if(a==='print-releve-mensuel'){printReleveMensuel();}
     else if(a==='fact-auto-num'){var inp=document.getElementById('fact-num-input');if(inp){inp.value=getNextNum2();toast('N° auto: '+inp.value);}}
     else if(a==='view-bl'){viewBL(el.dataset.id);}
+    else if(a==='toggle-bl-note'){ window.BL_SHOW_NOTE=el.checked; var ord=load('terrasse_orders',[]); var oo=ord.find(function(x){return String(x.id)===String(el.dataset.id);}); var prev=document.getElementById('bl-preview'); if(oo&&prev){ prev.innerHTML=buildBLHtml(oo, window.BL_SHOW_NOTE); } }
+    else if(a==='save-bl-note'){ saveBLNote(el.dataset.id); }
+    else if(a==='clear-bl-note'){ clearBLNote(el.dataset.id); }
     else if(a==='edit-bl-num'){editBLNum(el.dataset.id);}
     else if(a==='edit-bl-items'){editBLItems(el.dataset.id);}
     else if(a==='save-bl-items'){saveBLItems(el.dataset.id);}
@@ -2946,9 +2949,22 @@ function viewBL(id){
   orders=load('terrasse_orders',[]);
   var o=orders.find(function(x){return x.id===id;});
   if(!o) return;
+  if(typeof window.BL_SHOW_NOTE==='undefined') window.BL_SHOW_NOTE=true;
   var modal=document.getElementById('modal-client');
-  document.getElementById('modal-client-title').textContent='BL #'+o.id+' — '+o.client;
-  modal.querySelector('.mbd').innerHTML='<div style="max-height:60vh;overflow-y:auto;background:#fff;border:1px solid #eee;border-radius:8px;">'+buildBLHtml(o)+'</div>';
+  document.getElementById('modal-client-title').textContent='BL #'+(o.bl||o.id)+' — '+o.client;
+  var hasNote=!!(o.note||o.adminNote);
+  var noteCtrl=''
+    +'<div style="background:#fffbe6;border:1px solid #f0e0a0;border-radius:8px;padding:10px;margin-bottom:8px;">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">'
+    +'<label style="font-size:13px;font-weight:600;color:#b8860b;display:flex;align-items:center;gap:6px;cursor:pointer;">'
+    +'<input type="checkbox" id="bl-show-note" '+(window.BL_SHOW_NOTE?'checked':'')+' data-action="toggle-bl-note" data-id="'+id+'"/> 📝 Afficher la note sur le BL</label>'
+    +(hasNote?'<button class="btn btn-d btn-sm" data-action="clear-bl-note" data-id="'+id+'" style="margin-left:auto;">🗑️ Effacer la note</button>':'')
+    +'</div>'
+    +(o.note?'<div style="font-size:11px;color:#777;margin-bottom:4px;"><strong>Note client:</strong> '+String(o.note).replace(/</g,'&lt;')+'</div>':'')
+    +'<textarea id="bl-admin-note" placeholder="Note interne (admin) à ajouter sur le BL..." style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #f0c98a;border-radius:6px;font-size:12px;min-height:44px;resize:vertical;">'+(o.adminNote||'')+'</textarea>'
+    +'<button class="btn btn-a btn-sm" data-action="save-bl-note" data-id="'+id+'" style="margin-top:6px;">💾 Enregistrer la note</button>'
+    +'</div>';
+  modal.querySelector('.mbd').innerHTML=noteCtrl+'<div style="max-height:55vh;overflow-y:auto;background:#fff;border:1px solid #eee;border-radius:8px;" id="bl-preview">'+buildBLHtml(o, window.BL_SHOW_NOTE)+'</div>';
   modal.querySelector('.mft').innerHTML=
     '<button class="btn btn-s btn-sm" data-action="edit-bl-num" data-id="'+id+'">🔢 N° BL</button>'
     +'<button class="btn btn-s" data-action="edit-bl-items" data-id="'+id+'">✏️ Modifier articles</button>'
@@ -2959,10 +2975,42 @@ function viewBL(id){
 
 
 
-// ── NUMEROTATION BL AUTO-CONTINUE PAR CLIENT ──
-
-function suggestNextBLNum(clientName){
-  return getNextBLNumForClient(clientName);
+// Enregistrer la note admin sur le BL + Supabase
+async function saveBLNote(id){
+  orders=load('terrasse_orders',[]);
+  var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
+  if(idx<0) return;
+  var ta=document.getElementById('bl-admin-note');
+  orders[idx].adminNote=ta?ta.value.trim():'';
+  save('terrasse_orders',orders);
+  toast('Enregistrement...');
+  try{
+    var o=orders[idx];
+    var supaId=o._uid||o.id;
+    var payload={__bl:o.bl||o.id, items:o.items, __note:o.note||'', __adminNote:o.adminNote||''};
+    await supaFetch('POST','commandes',{id:supaId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(payload),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+  }catch(e){}
+  toast('✅ Note enregistrée');
+  viewBL(id);
+}
+// Effacer la note (client + admin) du BL
+async function clearBLNote(id){
+  if(!confirm('Effacer la note de ce BL ?')) return;
+  orders=load('terrasse_orders',[]);
+  var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
+  if(idx<0) return;
+  orders[idx].note='';
+  orders[idx].adminNote='';
+  save('terrasse_orders',orders);
+  toast('Suppression...');
+  try{
+    var o=orders[idx];
+    var supaId=o._uid||o.id;
+    var payload={__bl:o.bl||o.id, items:o.items, __note:'', __adminNote:''};
+    await supaFetch('POST','commandes',{id:supaId,client:o.client,deliver_date:o.delivDate,items:JSON.stringify(payload),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+  }catch(e){}
+  toast('🗑️ Note effacée');
+  viewBL(id);
 }
 
 // ── MODIFIER NUMERO BL ──
@@ -3113,7 +3161,7 @@ function getCatalogPrice(name){
   return '';
 }
 
-function buildBLHtml(o){
+function buildBLHtml(o, showNote){
   var cli=findClient(o.client);
   var prix=cli.prix||{};
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
@@ -3214,6 +3262,11 @@ function buildBLHtml(o){
     +(cli.iff?'IF: '+cli.iff:'')
     +'</div></div></div>'
     +sectionsHtml
+    +((showNote && (o.note||o.adminNote))?('<div style="padding:12px 24px;background:#fffbe6;border-top:1px solid #f0e0a0;border-bottom:1px solid #f0e0a0;">'
+      +'<div style="font-size:10px;color:#b8860b;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">📝 Note</div>'
+      +(o.note?'<div style="font-size:12px;color:#555;line-height:1.5;">'+String(o.note).replace(/</g,'&lt;')+'</div>':'')
+      +(o.adminNote?'<div style="font-size:12px;color:#555;line-height:1.5;margin-top:'+(o.note?'4px':'0')+';">'+String(o.adminNote).replace(/</g,'&lt;')+'</div>':'')
+      +'</div>'):'')
     +'<div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:#f7faf4;border-top:2px solid #5a7050;">'
     +'<div style="font-size:11px;color:#666;">'+(o.items||[]).length+' ligne(s) · Total quantité: <strong>'+totalQty.toFixed(2).replace('.',',')+'</strong></div>'
     +'<div style="text-align:right;"><span style="font-size:13px;color:#777;margin-right:16px;">TOTAL HT</span>'
@@ -3235,7 +3288,7 @@ function printBL(id){
   var win=window.open('','_blank');
   win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>BL '+o.id+'</title>'
     +'<style>@media print{@page{margin:1cm;}}body{margin:0;padding-bottom:70px;}.doc-footer{position:fixed;bottom:0;left:0;right:0;background:#5a7050;text-align:center;padding:10px 24px;z-index:999;}.doc-footer-text{font-size:8px;color:#d4e0cc;line-height:1.5;}@media print{.doc-footer{position:fixed;bottom:0;}}</style></head><body>'
-    +buildBLHtml(o)+getBLFooter()
+    +buildBLHtml(o, (typeof window.BL_SHOW_NOTE==='undefined'?true:window.BL_SHOW_NOTE))+getBLFooter()
     +'</body></html>');
   win.document.close();
   setTimeout(function(){win.print();},400);
@@ -5242,7 +5295,8 @@ async function syncFromSupabase(){
     if(Array.isArray(data)){
       var mapped=data.map(function(r){
         var items=[];var blNum=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){blNum=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}
-        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
+        var _note="",_anote="";try{var pp=typeof r.items==="string"?JSON.parse(r.items):r.items;if(pp){_note=pp.__note||"";_anote=pp.__adminNote||"";}}catch(e){}
+        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at,note:_note,adminNote:_anote};
       });
       var oldCount=orders.length;
       // FUSIONNER: garder les commandes locales qui ne sont pas encore dans Supabase
@@ -5318,7 +5372,8 @@ document.addEventListener('click', function(e){
     if(Array.isArray(data)){
       var mapped=data.map(function(r){
         var items=[];var blNum=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){blNum=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}
-        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};
+        var _note="",_anote="";try{var pp=typeof r.items==="string"?JSON.parse(r.items):r.items;if(pp){_note=pp.__note||"";_anote=pp.__adminNote||"";}}catch(e){}
+        return{id:blNum,_uid:r.id,client:r.client,delivDate:r.deliver_date,items:items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at,note:_note,adminNote:_anote};
       });
       // FUSIONNER avec le local (ne pas perdre les commandes locales, sans creer de doublons)
       var localOrders=load('terrasse_orders',[]);
