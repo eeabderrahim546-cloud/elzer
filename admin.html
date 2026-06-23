@@ -1114,6 +1114,10 @@ document.addEventListener('click',async function(e){
     // Gere par l'evenement 'change' (voir plus bas), pas par le clic.
     // Ne rien faire ici pour ne pas redessiner le tableau pendant la saisie.
   }
+  else if(a==='four-tab'){
+    try{ window.FOUR_TAB=decodeURIComponent(el.dataset.section); }catch(e){ window.FOUR_TAB=el.dataset.section; }
+    renderFournisseur();
+  }
   else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
@@ -1153,6 +1157,7 @@ document.addEventListener('click',async function(e){
     else if(a==='client-edit'){editClient(el.dataset.id);}
     else if(a==='client-del'){deleteClient(el.dataset.id);}
     else if(a==='prod-edit'){openProdModal(parseInt(el.dataset.si),parseInt(el.dataset.pi));}
+    else if(a==='prod-move'){moveProduct(parseInt(el.dataset.si),parseInt(el.dataset.pi));}
     else if(a==='prod-del'){deleteProd(parseInt(el.dataset.si),parseInt(el.dataset.pi));}
     else if(a==='copy-link'){navigator.clipboard.writeText(el.dataset.url);toast('Copie!');}
     else if(a==='send-wa-link'){window.open('https://wa.me/'+el.dataset.wa+'?text='+encodeURIComponent(el.dataset.msg),'_blank');}
@@ -1886,7 +1891,7 @@ function renderCatalogue(){
     var rows=items.map(function(item){
       var pi=sec.items.indexOf(item);
       var ar=item.ar||TRAD[item.n]||'';
-      return '<tr><td style="padding:8px 12px;"><div style="font-weight:500;">'+item.n+'</div>'+(ar?'<div style="font-size:11px;color:#aaa;direction:rtl;text-align:right;">'+ar+'</div>':'')+'</td><td style="padding:8px 12px;color:var(--g6);">'+item.u+'</td><td style="padding:8px 12px;color:var(--g7);">'+(item.p||'—')+'</td><td style="padding:6px 12px;"><input type="text" value="'+ar+'" data-prod="'+item.n+'" placeholder="Translit..." dir="rtl" style="width:120px;padding:3px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;" onchange="saveTrad(this.dataset.prod,this.value)"/></td><td style="padding:6px 12px;"><div style="display:flex;gap:4px;"><button class="btn btn-a btn-sm" data-action="prod-edit" data-si="'+si+'" data-pi="'+pi+'">Edit</button><button class="btn btn-d btn-sm" data-action="prod-del" data-si="'+si+'" data-pi="'+pi+'">Suppr</button></div></td></tr>';
+      return '<tr><td style="padding:8px 12px;"><div style="font-weight:500;">'+item.n+'</div>'+(ar?'<div style="font-size:11px;color:#aaa;direction:rtl;text-align:right;">'+ar+'</div>':'')+'</td><td style="padding:8px 12px;color:var(--g6);">'+item.u+'</td><td style="padding:8px 12px;color:var(--g7);">'+(item.p||'—')+'</td><td style="padding:6px 12px;"><input type="text" value="'+ar+'" data-prod="'+item.n+'" placeholder="Translit..." dir="rtl" style="width:120px;padding:3px 6px;border:1px solid #e0e8d8;border-radius:5px;font-size:11px;" onchange="saveTrad(this.dataset.prod,this.value)"/></td><td style="padding:6px 12px;"><div style="display:flex;gap:4px;flex-wrap:wrap;"><button class="btn btn-a btn-sm" data-action="prod-edit" data-si="'+si+'" data-pi="'+pi+'">Edit</button><button class="btn btn-s btn-sm" data-action="prod-move" data-si="'+si+'" data-pi="'+pi+'" title="Deplacer vers une autre section">↔️ Déplacer</button><button class="btn btn-d btn-sm" data-action="prod-del" data-si="'+si+'" data-pi="'+pi+'">Suppr</button></div></td></tr>';
     }).join('');
     html+='<div style="margin-bottom:16px;"><div style="font-size:14px;font-weight:600;color:var(--g7);margin-bottom:8px;padding:8px 12px;background:var(--g1);border-radius:8px;display:flex;align-items:center;gap:8px;">'+emoji+' '+sec.title+' <span style="font-size:12px;color:var(--gy5);font-weight:400;margin-left:auto;">'+items.length+' produits</span></div><div class="tw"><table class="tbl"><thead><tr><th>Designation</th><th>Unite</th><th>Prix</th><th>Arabe</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
   });
@@ -1941,6 +1946,33 @@ function deleteProd(si,pi){
   CATALOGUE[si].items.splice(pi,1);
   var c=load('custom_products',[]).filter(function(x){return !(x.n===name&&x.secIdx===si);});save('custom_products',c);syncCatalogueToSupabase();
   renderCatalogue();toast('Produit supprime.');
+}
+
+// Deplacer un produit vers une autre section du catalogue
+function moveProduct(si,pi){
+  var item=CATALOGUE[si].items[pi];
+  if(!item) return;
+  var labels=CATALOGUE.map(function(s,i){return (i+1)+'. '+s.title+(i===si?' (actuel)':'');}).join('\n');
+  var pick=prompt('Déplacer "'+item.n+'" vers quelle section ?\n\n'+labels+'\n\nEntre le numéro (1-'+CATALOGUE.length+'):', String(si+1));
+  if(!pick) return;
+  var newSi=parseInt(pick)-1;
+  if(isNaN(newSi) || newSi<0 || newSi>=CATALOGUE.length){ toast('Numéro invalide'); return; }
+  if(newSi===si){ return; }
+  if(CATALOGUE[newSi].items.find(function(x){return x.n.toLowerCase()===item.n.toLowerCase();})){
+    alert('Un produit du meme nom existe deja dans la section "'+CATALOGUE[newSi].title+'".'); return;
+  }
+  // Retirer de l'ancienne section, ajouter a la nouvelle
+  CATALOGUE[si].items.splice(pi,1);
+  CATALOGUE[newSi].items.push(item);
+  // MAJ aussi custom_products si applicable (le produit y est-il listé ?)
+  try{
+    var cp=load('custom_products',[]);
+    var ci=cp.findIndex(function(x){return x.n===item.n && x.secIdx===si;});
+    if(ci>=0){ cp[ci].secIdx=newSi; save('custom_products',cp); }
+  }catch(e){}
+  syncCatalogueToSupabase();
+  renderCatalogue();
+  toast('✅ "'+item.n+'" déplacé vers '+CATALOGUE[newSi].title);
 }
 
 // ── BON FOURNISSEUR ──
@@ -2007,6 +2039,19 @@ function renderFournisseur(){
   html+='<div style="text-align:right;"><div style="font-size:11px;opacity:.85;">Total achat estimé</div><div style="font-size:18px;font-weight:bold;" id="four-total-achat">'+totalAchat.toFixed(2).replace('.',',')+' Dh</div></div>';
   html+='</div>';
   
+  // Barre d'onglets: une par section reellement presente (preserve l'ordre du catalogue)
+  var sectionsPresent=[]; var seenSec={};
+  res.items.forEach(function(it){ if(!seenSec[it.section]){ seenSec[it.section]=true; sectionsPresent.push(it.section); } });
+  if(!window.FOUR_TAB || sectionsPresent.indexOf(window.FOUR_TAB)<0){ window.FOUR_TAB=sectionsPresent[0]||null; }
+  if(sectionsPresent.length){
+    html+='<div style="background:#fff;border-left:1px solid #e2e8dd;border-right:1px solid #e2e8dd;padding:8px 12px;display:flex;gap:6px;overflow-x:auto;">';
+    sectionsPresent.forEach(function(s){
+      var on=(s===window.FOUR_TAB);
+      html+='<button data-action="four-tab" data-section="'+encodeURIComponent(s)+'" style="padding:7px 14px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;">'+s+'</button>';
+    });
+    html+='</div>';
+  }
+  
   html+='<div style="background:#fff;border-radius:0 0 10px 10px;border:1px solid #e2e8dd;border-top:none;padding:12px;overflow-x:auto;">';
   html+='<table style="width:100%;border-collapse:collapse;">';
   html+='<thead><tr style="background:#f7faf4;">';
@@ -2016,14 +2061,10 @@ function renderFournisseur(){
   html+='<th style="padding:7px;text-align:center;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">PRIX ACHAT</th>';
   html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">TOTAL ACHAT</th>';
   html+='</tr></thead><tbody>';
-  var currentSection=null;
   
-  res.items.forEach(function(item,idx){
-    // Inserer un en-tete de section quand on change de section
-    if(item.section!==currentSection){
-      currentSection=item.section;
-      html+='<tr style="background:#eaf5e0;"><td colspan="5" style="padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:#27500a;text-transform:uppercase;border-top:2px solid #5a7050;border-bottom:1px solid #c5e8b0;">'+item.section+'</td></tr>';
-    }
+  // Ne montrer que les items de l'onglet actif
+  var itemsToShow=window.FOUR_TAB?res.items.filter(function(it){return it.section===window.FOUR_TAB;}):res.items;
+  itemsToShow.forEach(function(item,idx){
     var bg=idx%2===0?'#fff':'#fafcf8';
     var totalLigne=item.prixAchat*item.total;
     html+='<tr style="background:'+bg+';">';
