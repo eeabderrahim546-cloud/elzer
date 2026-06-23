@@ -1949,16 +1949,31 @@ function getFournisseurItems(){
   var pa=load('prix_achat',{});
   var df=document.getElementById('four-date').value;
   var filtered=orders.filter(function(o){return o.status!=='annulee'&&(!df||o.delivDate===df);});
+  // Index produit -> section (depuis CATALOGUE) pour grouper plus tard
+  var prodSection={};
+  if(typeof CATALOGUE!=='undefined' && Array.isArray(CATALOGUE)){
+    CATALOGUE.forEach(function(sec){
+      if(!sec||!Array.isArray(sec.items))return;
+      sec.items.forEach(function(it){ prodSection[String(it.n||'').toLowerCase()]={title:sec.title,order:CATALOGUE.indexOf(sec)}; });
+    });
+  }
   var map={};
   filtered.forEach(function(o){
     (o.items||[]).forEach(function(item){
       var k=item.name+'|'+item.unit;
-      if(!map[k])map[k]={name:item.name,unit:item.unit,total:0,clients:{},prixAchat:parseFloat(String(pa[item.name]||'0').replace(',','.'))||0};
+      if(!map[k]){
+        var sec=prodSection[String(item.name||'').toLowerCase()]||{title:'Autres',order:999};
+        map[k]={name:item.name,unit:item.unit,total:0,clients:{},prixAchat:parseFloat(String(pa[item.name]||'0').replace(',','.'))||0,section:sec.title,secOrder:sec.order};
+      }
       map[k].total+=(parseFloat(item.qty)||0);
       map[k].clients[o.client]=(map[k].clients[o.client]||0)+(parseFloat(item.qty)||0);
     });
   });
-  return{items:Object.values(map).sort(function(a,b){return a.name.localeCompare(b.name);}),filtered:filtered};
+  // Tri: d'abord par ordre de section (= ordre du catalogue), puis par nom dans la section
+  return{items:Object.values(map).sort(function(a,b){
+    if(a.secOrder!==b.secOrder) return a.secOrder-b.secOrder;
+    return a.name.localeCompare(b.name);
+  }),filtered:filtered};
 }
 
 function renderFournisseur(){
@@ -2001,8 +2016,14 @@ function renderFournisseur(){
   html+='<th style="padding:7px;text-align:center;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">PRIX ACHAT</th>';
   html+='<th style="padding:7px 10px;text-align:right;font-size:11px;color:#c47a00;border-bottom:2px solid #5a7050;">TOTAL ACHAT</th>';
   html+='</tr></thead><tbody>';
+  var currentSection=null;
   
   res.items.forEach(function(item,idx){
+    // Inserer un en-tete de section quand on change de section
+    if(item.section!==currentSection){
+      currentSection=item.section;
+      html+='<tr style="background:#eaf5e0;"><td colspan="5" style="padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:1px;color:#27500a;text-transform:uppercase;border-top:2px solid #5a7050;border-bottom:1px solid #c5e8b0;">'+item.section+'</td></tr>';
+    }
     var bg=idx%2===0?'#fff':'#fafcf8';
     var totalLigne=item.prixAchat*item.total;
     html+='<tr style="background:'+bg+';">';
