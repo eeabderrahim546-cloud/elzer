@@ -656,7 +656,38 @@ async function toggleFavori(prodName, starEl){
 }
 window.toggleFavori=toggleFavori;
 
-function sm(m){mode=m;document.getElementById('ps').classList.toggle('on',m==='s');document.getElementById('pt').classList.toggle('on',m==='t');build();}
+function sm(m){
+  // Sauvegarder les quantites actuelles avant le rebuild
+  var saved={};
+  rows.forEach(function(r){
+    var c=r.ic?(parseFloat(r.ic.value)||0):0;
+    var b=r.ib?(parseFloat(r.ib.value)||0):0;
+    var p=r.ip?(parseFloat(r.ip.value)||0):0;
+    if(c||b||p){ saved[r.name]={c:c,b:b,p:p,unit:r.sel?r.sel.value:undefined}; }
+  });
+  var prevMode=mode;
+  mode=m;
+  document.getElementById('ps').classList.toggle('on',m==='s');
+  document.getElementById('pt').classList.toggle('on',m==='t');
+  build();
+  // Restaurer les quantites apres rebuild
+  rows.forEach(function(r){
+    var v=saved[r.name]; if(!v) return;
+    if(m==='s'){
+      // En simple: total = c + b + p
+      if(r.ic){ r.ic.value=(v.c||0)+(v.b||0)+(v.p||0); r.ic.dispatchEvent(new Event('input',{bubbles:true})); }
+    } else {
+      // En cuisine/bar/per: si on vient de Simple, mettre la valeur dans Cuisine par defaut
+      if(prevMode==='s' && r.ic){ r.ic.value=v.c||0; r.ic.dispatchEvent(new Event('input',{bubbles:true})); }
+      else {
+        if(r.ic && v.c){ r.ic.value=v.c; r.ic.dispatchEvent(new Event('input',{bubbles:true})); }
+        if(r.ib && v.b){ r.ib.value=v.b; r.ib.dispatchEvent(new Event('input',{bubbles:true})); }
+        if(r.ip && v.p){ r.ip.value=v.p; r.ip.dispatchEvent(new Event('input',{bubbles:true})); }
+      }
+    }
+    if(r.sel && v.unit){ r.sel.value=v.unit; }
+  });
+}
 
 
 // Charger les produits ajoutes par l'admin depuis Supabase
@@ -923,10 +954,11 @@ function renderCustomItems(){
   var el=document.getElementById('custom-items-list');
   if(!el)return;
   el.innerHTML=CUSTOM_ITEMS.map(function(c){
-    return '<div style="background:#fff8ee;border:1.5px solid #f0a030;border-radius:10px;padding:10px;margin-bottom:8px;">'
+    return '<div data-cust-id="'+c.id+'" style="background:#fff8ee;border:1.5px solid #f0a030;border-radius:10px;padding:10px;margin-bottom:8px;">'
       +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
       +'<span style="font-size:10px;background:#f0a030;color:#fff;padding:2px 6px;border-radius:4px;font-weight:600;">NOUVEAU</span>'
-      +'<button onclick="removeCustomItem('+c.id+')" style="margin-left:auto;background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer;">✕</button>'
+      +'<button onclick="saveCustomToCatalog('+c.id+')" style="margin-left:auto;background:#2d6a1f;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;">💾 Enregistrer au catalogue</button>'
+      +'<button onclick="removeCustomItem('+c.id+')" style="background:none;border:none;color:#c0392b;font-size:16px;cursor:pointer;">✕</button>'
       +'</div>'
       +'<input type="text" placeholder="Nom du produit" value="'+(c.name||'')+'" oninput="updateCustomItem('+c.id+',\'name\',this.value)" style="width:100%;padding:8px;border:1px solid #f0c98a;border-radius:6px;font-size:14px;margin-bottom:6px;box-sizing:border-box;"/>'
       +'<div style="display:flex;gap:6px;">'
@@ -936,20 +968,78 @@ function renderCustomItems(){
       +'</select></div></div>';
   }).join('');
 }
+
+// Enregistrer un article personnalise dans le catalogue (Supabase clients_elzer id=elzer_catalogue)
+async function saveCustomToCatalog(id){
+  var c=CUSTOM_ITEMS.find(function(x){return x.id===id;});
+  if(!c){return;}
+  var nm=String(c.name||'').trim();
+  if(!nm){ alert('Donne d abord un nom au produit.'); return; }
+  // Choisir la section: 0 par defaut, mais si CAT a plusieurs sections, on demande
+  var secIdx=0;
+  if(typeof CAT!=='undefined' && CAT.length>1){
+    var labels=CAT.map(function(s,i){return (i+1)+'. '+s.title;}).join('\n');
+    var pick=prompt('Dans quelle section ranger "'+nm+'" ?\n'+labels+'\n\nEntre le numéro (1-'+CAT.length+'):', '1');
+    var n=parseInt(pick); if(!isNaN(n) && n>=1 && n<=CAT.length) secIdx=n-1;
+  }
+  // Eviter doublon dans la section
+  if(CAT[secIdx] && CAT[secIdx].items.find(function(i){return i.n.toLowerCase()===nm.toLowerCase();})){
+    alert('Ce produit existe déjà dans cette section.');return;
+  }
+  var newItem={n:nm,u:c.unit||'kg',p:''};
+  CAT[secIdx].items.push(newItem);
+  // Sauvegarder dans Supabase (recharger la liste pour ne pas ecraser)
+  try{
+    var data=await supaFetch('GET','clients_elzer?id=eq.elzer_catalogue');
+    var custom=[];
+    if(Array.isArray(data) && data.length){ try{ custom=JSON.parse(data[0].data||'[]'); }catch(e){custom=[];} }
+    custom.push({n:nm,u:c.unit||'kg',p:'',secIdx:secIdx});
+    await supaFetch('POST','clients_elzer',{id:'elzer_catalogue',data:JSON.stringify(custom)});
+    alert('✅ "'+nm+'" enregistré dans le catalogue.');
+    // Retirer de CUSTOM_ITEMS et rebuild pour afficher le nouveau produit dans la liste normale
+    CUSTOM_ITEMS=CUSTOM_ITEMS.filter(function(x){return x.id!==id;});
+    renderCustomItems();
+    build();
+  }catch(e){ alert('Erreur lors de l enregistrement. Le produit est ajoute localement.'); }
+}
+window.saveCustomToCatalog=saveCustomToCatalog;
 function updateCustomItem(id,field,val){
   var c=CUSTOM_ITEMS.find(function(x){return x.id===id;});
   if(c){ c[field]=val; }
 }
 
-function gl(){const l=[];rows.forEach(({ic,ib,ip,sel,name,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0)l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});});
-  // Ajouter les articles personnalisés
+function gl(){
+  // SYNC: re-lire les inputs custom du DOM (au cas ou oninput a manque le dernier caractere)
+  try{
+    var el=document.getElementById('custom-items-list');
+    if(el){
+      var blocks=el.querySelectorAll('div[data-cust-id]');
+      blocks.forEach(function(blk){
+        var id=parseFloat(blk.dataset.custId);
+        var ci=CUSTOM_ITEMS.find(function(x){return String(x.id)===String(id);});
+        if(!ci) return;
+        var nm=blk.querySelector('input[type="text"]');
+        var qt=blk.querySelector('input[type="number"]');
+        var un=blk.querySelector('select');
+        if(nm) ci.name=nm.value.trim();
+        if(qt) ci.qty=qt.value;
+        if(un) ci.unit=un.value;
+      });
+    }
+  }catch(e){}
+  const l=[];
+  rows.forEach(({ic,ib,ip,sel,name,price})=>{
+    const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;
+    if(c+b+p>0) l.push({name,cuisine:c,bar:b,perso:p,total:c+b+p,unit:sel.value,price});
+  });
   CUSTOM_ITEMS.forEach(function(ci){
     var q=parseFloat(ci.qty)||0;
     if(ci.name && q>0){
       l.push({name:ci.name,cuisine:0,bar:0,perso:0,total:q,unit:ci.unit,price:'',custom:true});
     }
   });
-  return l;}
+  return l;
+}
 function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
 function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
