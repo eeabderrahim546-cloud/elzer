@@ -1118,6 +1118,16 @@ document.addEventListener('click',async function(e){
     try{ window.FOUR_TAB=decodeURIComponent(el.dataset.section); }catch(e){ window.FOUR_TAB=el.dataset.section; }
     renderFournisseur();
   }
+  else if(a==='stock-tab'){
+    try{
+      var stk=load('elzer_stock',{}),seu=load('elzer_stock_seuil',{});
+      document.querySelectorAll('#stock-body-admin [data-t="stock"]').forEach(function(i){stk[i.dataset.n]=parseFloat(i.value)||0;});
+      document.querySelectorAll('#stock-body-admin [data-t="seuil"]').forEach(function(i){seu[i.dataset.n]=parseFloat(i.value)||5;});
+      save('elzer_stock',stk); save('elzer_stock_seuil',seu);
+    }catch(e){}
+    try{ window.STOCK_TAB=decodeURIComponent(el.dataset.section); }catch(e){ window.STOCK_TAB=el.dataset.section; }
+    renderStockAdmin();
+  }
   else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
@@ -1431,7 +1441,9 @@ function renderDashboard(){
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
       +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
-      +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div></div>'
+      +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div>'
+      +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
+      +'</div>'
       +statusBadge(o.status)+'</div>'
       +'<div style="display:flex;gap:5px;flex-wrap:wrap;">'
       +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋 Détail</button>'
@@ -1557,6 +1569,7 @@ function renderCommandes(){
       +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
       +'</div>'
       +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
+      +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;display:inline-block;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
       +'</div>'
       +statusBadge(o.status)
       +'</div>'
@@ -5076,7 +5089,26 @@ function renderStockAdmin(){
   var alertes=[];
   var html='';
   var EMOJI={Legumes:'🥦',Fruits:'🍊',Herbes:'🌿',Epicerie:'🫙'};
+  // Onglets de sections (comme Bon Fournisseur)
+  var sectionsList=CATALOGUE.map(function(s){return s.title;});
+  if(!window.STOCK_TAB || sectionsList.indexOf(window.STOCK_TAB)<0){ window.STOCK_TAB=sectionsList[0]||null; }
+  html+='<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px;">';
   CATALOGUE.forEach(function(sec){
+    var emoji=EMOJI[sec.title]||'📦';
+    var on=(sec.title===window.STOCK_TAB);
+    html+='<button data-action="stock-tab" data-section="'+encodeURIComponent(sec.title)+'" style="padding:7px 14px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;">'+emoji+' '+sec.title+'</button>';
+  });
+  html+='</div>';
+  // Calculer les alertes sur TOUTES les sections (pas seulement l'onglet actif)
+  CATALOGUE.forEach(function(sec){
+    sec.items.forEach(function(item){
+      var s=parseFloat(stk[item.n]||0); var se=parseFloat(seu[item.n]||5);
+      if(s===0||s<se) alertes.push(item.n);
+    });
+  });
+  // Afficher seulement la section de l'onglet actif
+  CATALOGUE.forEach(function(sec){
+    if(window.STOCK_TAB && sec.title!==window.STOCK_TAB) return;
     var emoji=EMOJI[sec.title]||'📦';
     html+='<div style="background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;margin-bottom:10px;">';
     html+='<div style="padding:6px 14px;background:#eaf3de;border-bottom:1px solid #c0dd97;font-size:11px;font-weight:600;color:#27500a;">'+emoji+' '+sec.title+'</div>';
@@ -5086,7 +5118,6 @@ function renderStockAdmin(){
       var s=parseFloat(stk[item.n]||0);
       var se=parseFloat(seu[item.n]||5);
       var etat=s===0?'🔴':s<se?'⚠️':'✅';
-      if(s===0||s<se) alertes.push(item.n);
       html+='<tr style="background:'+(i%2===0?'#fff':'#f9fdf5')+';border-top:0.5px solid #f0f5ea;">';
       html+='<td style="padding:6px 14px;font-size:12px;color:#333;">'+item.n+'</td>';
       html+='<td style="padding:3px 6px;"><input type="number" value="'+s+'" min="0" data-n="'+item.n+'" data-t="stock" style="width:70px;text-align:center;padding:5px;border:1px solid #e0e8d8;border-radius:5px;font-size:12px;color:#333;background:#fff;display:block;margin:auto;"/></td>';
@@ -5105,7 +5136,8 @@ function renderStockAdmin(){
 }
 
 function saveStockAdmin(){
-  var stk={},seu={};
+  // Fusionner avec l'existant (seule la section active est affichee, ne pas effacer les autres)
+  var stk=load('elzer_stock',{}),seu=load('elzer_stock_seuil',{});
   document.querySelectorAll('#stock-body-admin [data-t="stock"]').forEach(function(i){stk[i.dataset.n]=parseFloat(i.value)||0;});
   document.querySelectorAll('#stock-body-admin [data-t="seuil"]').forEach(function(i){seu[i.dataset.n]=parseFloat(i.value)||5;});
   save('elzer_stock',stk);
