@@ -1135,10 +1135,10 @@ async function co(){
     if(emailBtn) emailBtn.href='mailto:elzerdist@gmail.com?subject=Commande+BL+%23'+blNum+'&body='+encodeURIComponent(msgFormatted);
   },100);
   document.getElementById('m-bl-num').textContent='BL #'+formatBL(blNum);
-  document.getElementById('mtxt').textContent='Votre commande a bien été reçue par ELZER Distribution.\nLivraison prévue le '+ds+'.\n\nNous vous confirmons la réception de votre BL #'+formatBL(blNum)+'.';
+  document.getElementById('mtxt').textContent='Votre commande a bien été reçue par ELZER Distribution.\n\nNous vous confirmons la réception de votre BL #'+formatBL(blNum)+'.';
   document.getElementById('mc').classList.add('on');
   // Envoyer confirmation WhatsApp au client
-  const confMsg='✅ Commande BL #'+formatBL(blNum)+' confirmée !\n\nBonjour '+CLI.name+',\nNous avons bien reçu votre commande.\n📅 Livraison prévue : '+ds+'\n\nMerci de votre confiance.\n\nELZER Distribution\nTél : +212 6 73 95 83 37';
+  const confMsg='✅ Commande BL #'+formatBL(blNum)+' confirmée !\n\nBonjour '+CLI.name+',\nNous avons bien reçu votre commande.\n\nMerci de votre confiance.\n\nELZER Distribution\nTél : +212 6 73 95 83 37';
   // Message envoyé via WhatsApp admin vers client si wa défini
   if(CLI.wa && CLI.wa !== PHONE){
     setTimeout(()=>{
@@ -1189,8 +1189,9 @@ window.saveClientNote=saveClientNote;
 function toggleModifCmd(){
   var panel=document.getElementById('modif-cmd-panel');
   if(panel.style.display!=='none'){panel.style.display='none';return;}
-  var lastOrder=orders[orders.length-1];
-  if(!lastOrder){panel.style.display='block';return;}
+  var lastOrder=window.LAST_ORDER;
+  if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
+  if(!lastOrder){toast('Aucune commande à modifier.');return;}
   if(lastOrder.status&&lastOrder.status!=='nouvelle'){
     document.getElementById('modif-cmd-btn').innerHTML='<div style="font-size:12px;color:#888;text-align:center;padding:8px;">Commande deja en preparation</div>';
     return;
@@ -1232,7 +1233,8 @@ document.addEventListener('click',function(e){
 
 
 function saveModifCmd(){
-  var lastOrder=orders[orders.length-1];
+  var lastOrder=window.LAST_ORDER;
+  if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
   if(!lastOrder){return;}
   var newItems=[];
   Object.keys(modifQtys).forEach(function(k){
@@ -1256,13 +1258,21 @@ function saveModifCmd(){
     var p=parseFloat((i.prix||'0').toString().replace(',','.').replace(/[^0-9.]/g,''))||0;
     return s+p*parseFloat(i.qty||0);
   },0)||lastOrder.total;
-  // Sauvegarder
-  var idx=orders.findIndex(function(o){return o.id===lastOrder.id;});
-  if(idx>=0) orders[idx]=lastOrder;
-  localStorage.setItem(CLI.id+'_orders',JSON.stringify(orders));
-  supaFetch('PATCH','commandes?id=eq.'+lastOrder.id,{items:JSON.stringify(existItems),total:lastOrder.total});
+  // Sauvegarder localement (BONNE cle: terrasse_orders)
+  try{
+    var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+    var li=loc.findIndex(function(o){return String(o.id)===String(lastOrder.id);});
+    if(li>=0){ loc[li]=lastOrder; } else { loc.push(lastOrder); }
+    localStorage.setItem('terrasse_orders',JSON.stringify(loc));
+  }catch(e){}
+  // Upsert Supabase au bon format (__bl + items dans le JSON)
+  try{
+    var payload={__bl:lastOrder.bl||lastOrder.id, items:existItems, __note:lastOrder.note||'', __adminNote:lastOrder.adminNote||''};
+    supaFetch('POST','commandes',{id:lastOrder.id,client:lastOrder.client||(CLI&&CLI.name),deliver_date:lastOrder.delivDate,items:JSON.stringify(payload),total:lastOrder.total||0,status:lastOrder.status||'nouvelle',mode:lastOrder.mode||'simple',created_at:lastOrder.createdAt||new Date().toISOString()});
+  }catch(e){}
+  modifQtys={};
   document.getElementById('modif-cmd-panel').style.display='none';
-  toast('Commande modifiee!');
+  toast('✅ Commande modifiée !');
 }
 
 function no(){
