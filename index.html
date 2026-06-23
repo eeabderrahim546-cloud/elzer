@@ -1100,6 +1100,7 @@ async function co(){
   var uniqueId='o'+Date.now()+Math.floor(Math.random()*100000);
   var newOrder={id:uniqueId,bl:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode};
   orders.push(newOrder);
+  window.LAST_ORDER=newOrder; // memoriser pour la note client
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(newOrder);
   // Recharger cache et calculer le prochain numero pour affichage
@@ -1154,19 +1155,26 @@ async function co(){
   // Le verrou reste actif jusqu a no() = nouvelle commande
 }
 function saveClientNote(){
-  var note=document.getElementById('client-note').value.trim();
-  if(!note){toast('Ecrivez une note dabord.');return;}
-  var lastOrder=orders[orders.length-1];
-  if(!lastOrder) return;
-  // Envoyer la note via Supabase
-  supaFetch('PATCH','commandes?id=eq.'+lastOrder.id,{note:note});
-  // Aussi envoyer par WhatsApp
+  var noteEl=document.getElementById('client-note');
+  var note=noteEl?noteEl.value.trim():'';
+  if(!note){toast('Écrivez une note d abord.');return;}
+  // Trouver la derniere commande: LAST_ORDER, sinon derniere locale, sinon derniere du cache
+  var lastOrder=window.LAST_ORDER;
+  if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
+  if(!lastOrder && SUPA_ORDERS_CACHE && SUPA_ORDERS_CACHE.length) lastOrder=SUPA_ORDERS_CACHE[SUPA_ORDERS_CACHE.length-1];
+  // Enregistrer la note dans Supabase si on a une commande
+  if(lastOrder && lastOrder.id){
+    try{ supaFetch('PATCH','commandes?id=eq.'+encodeURIComponent(lastOrder.id),{note:note}); }catch(e){}
+  }
+  // Envoyer par WhatsApp (marche meme sans commande)
   var waGroup=localStorage.getItem('wa_group')||'212628664142';
-  var msg=encodeURIComponent('Note du client '+CLI.name+':\n'+note+'\n(Commande #'+lastOrder.id+')');
+  var ref=lastOrder?(' (BL '+(lastOrder.bl||lastOrder.id)+')'):'';
+  var msg=encodeURIComponent('📝 Note du client '+(CLI&&CLI.name?CLI.name:'')+ref+' :\n'+note);
   window.open('https://wa.me/'+waGroup+'?text='+msg,'_blank');
-  document.getElementById('client-note').value='';
-  toast('Note envoyee!');
+  if(noteEl) noteEl.value='';
+  toast('Note envoyée !');
 }
+window.saveClientNote=saveClientNote;
 
 function toggleModifCmd(){
   var panel=document.getElementById('modif-cmd-panel');
