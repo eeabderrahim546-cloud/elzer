@@ -2293,8 +2293,41 @@ function sendFournisseurWA(){
   var res=getFournisseurItems();
   if(!res.items.length){toast('Aucun produit.');return;}
   var today=new Date().toLocaleDateString('fr-FR');
-  var msg='BON FOURNISSEUR ELZER\n'+today+'\n'+'='.repeat(25)+'\n\n';
+  // Grouper par section
+  var bySection={};
+  var sectionOrder=[];
   res.items.forEach(function(item){
+    var s=item.section||'Autres';
+    if(!bySection[s]){ bySection[s]=[]; sectionOrder.push(s); }
+    bySection[s].push(item);
+  });
+  // Si on est sur un onglet precis, envoyer SEULEMENT cette section
+  if(window.FOUR_TAB && bySection[window.FOUR_TAB]){
+    sendSectionWA(window.FOUR_TAB, bySection[window.FOUR_TAB], today);
+    return;
+  }
+  // Sinon: envoyer section par section, une a la fois (confirmation entre chaque)
+  var idx=0;
+  function next(){
+    if(idx>=sectionOrder.length){ toast('Toutes les sections envoyées.'); return; }
+    var s=sectionOrder[idx];
+    sendSectionWA(s, bySection[s], today);
+    idx++;
+    if(idx<sectionOrder.length){
+      setTimeout(function(){
+        if(confirm('Section "'+s+'" ouverte dans WhatsApp.\n\nCliquez OK pour préparer la section suivante : '+sectionOrder[idx])){
+          next();
+        }
+      },800);
+    } else {
+      toast('Dernière section envoyée.');
+    }
+  }
+  next();
+}
+function sendSectionWA(sectionName, items, today){
+  var msg='BON FOURNISSEUR ELZER\n'+today+'\n— '+sectionName+' —\n'+'='.repeat(22)+'\n\n';
+  items.forEach(function(item){
     var arName=item.ar||TRAD[item.name]||'';var ar=arName?(' ('+arName+')'):'';
     msg+='• '+item.name+ar+' : '+item.total+' '+item.unit+'\n';
   });
