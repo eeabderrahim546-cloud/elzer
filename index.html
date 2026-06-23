@@ -1158,15 +1158,25 @@ function saveClientNote(){
   var noteEl=document.getElementById('client-note');
   var note=noteEl?noteEl.value.trim():'';
   if(!note){toast('Écrivez une note d abord.');return;}
-  // Trouver la derniere commande: LAST_ORDER, sinon derniere locale, sinon derniere du cache
+  // Trouver la derniere commande
   var lastOrder=window.LAST_ORDER;
   if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
-  if(!lastOrder && SUPA_ORDERS_CACHE && SUPA_ORDERS_CACHE.length) lastOrder=SUPA_ORDERS_CACHE[SUPA_ORDERS_CACHE.length-1];
-  // Enregistrer la note dans Supabase si on a une commande
+  // Enregistrer la note dans le JSON items (champ __note) pour que l'admin la lise
   if(lastOrder && lastOrder.id){
-    try{ supaFetch('PATCH','commandes?id=eq.'+encodeURIComponent(lastOrder.id),{note:note}); }catch(e){}
+    try{
+      lastOrder.note=note;
+      // MAJ locale
+      try{
+        var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+        var li=loc.findIndex(function(x){return String(x.id)===String(lastOrder.id);});
+        if(li>=0){ loc[li].note=note; localStorage.setItem('terrasse_orders',JSON.stringify(loc)); }
+      }catch(e){}
+      // Upsert Supabase avec __note dans le payload items
+      var payload={__bl:lastOrder.bl||lastOrder.id, items:lastOrder.items||[], __note:note, __adminNote:lastOrder.adminNote||''};
+      supaFetch('POST','commandes',{id:lastOrder.id,client:lastOrder.client||(CLI&&CLI.name),deliver_date:lastOrder.delivDate,items:JSON.stringify(payload),total:lastOrder.total||0,status:lastOrder.status||'nouvelle',mode:lastOrder.mode||'simple',created_at:lastOrder.createdAt||new Date().toISOString()});
+    }catch(e){}
   }
-  // Envoyer par WhatsApp (marche meme sans commande)
+  // Envoyer par WhatsApp aussi
   var waGroup=localStorage.getItem('wa_group')||'212628664142';
   var ref=lastOrder?(' (BL '+(lastOrder.bl||lastOrder.id)+')'):'';
   var msg=encodeURIComponent('📝 Note du client '+(CLI&&CLI.name?CLI.name:'')+ref+' :\n'+note);
