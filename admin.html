@@ -1048,9 +1048,13 @@ document.addEventListener('click',async function(e){
     var fd=document.getElementById('four-date').value;
     if(!fd){toast('Sélectionnez une date');return;}
     var b=load('four_bought',{});
-    b[fd]={date:fd,boughtAt:new Date().toISOString()};
+    // Memoriser les IDs des commandes deja achetees pour cette date
+    orders=load('terrasse_orders',[]);
+    var boughtIds=orders.filter(function(o){return o.status!=='annulee' && o.delivDate===fd;}).map(function(o){return String(o.id);});
+    b[fd]={date:fd,boughtAt:new Date().toISOString(),orderIds:boughtIds};
     save('four_bought',b);
-    toast('✅ Marqué comme acheté');
+    window.FOUR_TAB=null; // reset onglet
+    toast('✅ Articles marqués achetés');
     renderFournisseur();
   }
   else if(a==='unmark-four-bought'){
@@ -1058,7 +1062,18 @@ document.addEventListener('click',async function(e){
     var b=load('four_bought',{});
     delete b[fd];
     save('four_bought',b);
-    toast('Annulé');
+    toast('Annulé - tous les articles réaffichés');
+    renderFournisseur();
+  }
+  else if(a==='four-rebuy-all'){
+    // Re-acheter: inclure les nouvelles commandes dans le lot achete
+    var fd=document.getElementById('four-date').value;
+    var b=load('four_bought',{});
+    orders=load('terrasse_orders',[]);
+    var allIds=orders.filter(function(o){return o.status!=='annulee' && o.delivDate===fd;}).map(function(o){return String(o.id);});
+    b[fd]={date:fd,boughtAt:new Date().toISOString(),orderIds:allIds};
+    save('four_bought',b);
+    toast('✅ Nouveaux articles marqués achetés');
     renderFournisseur();
   }
   else if(a==='filter-cmd-change'){renderCommandes();}
@@ -1997,6 +2012,14 @@ function getFournisseurItems(){
   var pa=load('prix_achat',{});
   var df=document.getElementById('four-date').value;
   var filtered=orders.filter(function(o){return o.status!=='annulee'&&(!df||o.delivDate===df);});
+  // Si cette date est marquee achetee, EXCLURE les commandes deja achetees (montrer seulement les nouvelles)
+  if(df){
+    var bought=load('four_bought',{});
+    if(bought[df] && Array.isArray(bought[df].orderIds)){
+      var boughtSet={}; bought[df].orderIds.forEach(function(id){boughtSet[String(id)]=true;});
+      filtered=filtered.filter(function(o){return !boughtSet[String(o.id)];});
+    }
+  }
   // Index produit -> section (depuis CATALOGUE) pour grouper plus tard
   var prodSection={};
   if(typeof CATALOGUE!=='undefined' && Array.isArray(CATALOGUE)){
@@ -2034,6 +2057,18 @@ function renderFournisseur(){
   var fourDateFr=fourDate?new Date(fourDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Toutes dates';
   
   if(!res.items.length){
+    // Si achete et plus rien a montrer = tout est achete
+    if(isBought){
+      var boughtAtStr='';
+      try{ boughtAtStr=new Date(bought[fourDate].boughtAt).toLocaleString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+      el.innerHTML='<div style="background:#d4edda;border:1px solid #27ae60;border-radius:10px;padding:20px;text-align:center;">'
+        +'<div style="font-size:40px;">✅</div>'
+        +'<p style="color:#1a7a3a;font-weight:600;font-size:15px;margin:8px 0;">Tous les articles de cette date sont achetés</p>'
+        +(boughtAtStr?'<p style="font-size:12px;color:#888;">Marqué acheté à '+boughtAtStr+'</p>':'')
+        +'<p style="font-size:12px;color:#999;margin-top:8px;">Si une nouvelle commande arrive pour cette date, ses articles apparaîtront ici automatiquement.</p>'
+        +'<button class="btn btn-s btn-sm" data-action="unmark-four-bought" style="margin-top:10px;">↩️ Revoir tous les articles achetés</button></div>';
+      return;
+    }
     el.innerHTML='<div class="empty"><div class="empty-i">🚚</div><p>Aucune commande pour cette date.</p><p style="font-size:12px;color:#999;">Changez la date ci-dessus ou cliquez Afficher.</p></div>';
     return;
   }
@@ -2045,9 +2080,16 @@ function renderFournisseur(){
   
   var html='';
   if(isBought){
-    html+='<div style="background:#d4edda;border:1px solid #27ae60;border-radius:10px;padding:12px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">';
-    html+='<div style="color:#1a7a3a;font-weight:600;font-size:14px;">✅ Produits déjà achetés pour cette date</div>';
-    html+='<button class="btn btn-s btn-sm" data-action="unmark-four-bought">↩️ Annuler</button></div>';
+    // Date deja achetee MAIS il reste des items = nouvelles commandes arrivees apres l'achat
+    var boughtAtStr2='';
+    try{ boughtAtStr2=new Date(bought[fourDate].boughtAt).toLocaleString('fr-FR',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+    html+='<div style="background:#fff3cd;border:1.5px solid #f0a030;border-radius:10px;padding:12px 16px;margin-bottom:12px;">';
+    html+='<div style="color:#b8860b;font-weight:700;font-size:14px;margin-bottom:4px;">🆕 Nouveaux articles à acheter</div>';
+    html+='<div style="font-size:12px;color:#8a6d00;">Ces commandes sont arrivées APRÈS votre achat'+(boughtAtStr2?' de '+boughtAtStr2:'')+'. Vous avez déjà acheté le reste.</div>';
+    html+='<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">';
+    html+='<button class="btn btn-sm" style="background:#27ae60;color:#fff;" data-action="four-rebuy-all">✅ J\'ai acheté ces nouveaux aussi</button>';
+    html+='<button class="btn btn-s btn-sm" data-action="unmark-four-bought">↩️ Revoir tout</button>';
+    html+='</div></div>';
   }
   html+='<div style="background:#5a7050;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;">';
   html+='<div><div style="font-size:16px;font-weight:bold;">📋 '+fourDateFr+'</div>';
@@ -5119,7 +5161,8 @@ function renderStockAdmin(){
       var se=parseFloat(seu[item.n]||5);
       var etat=s===0?'🔴':s<se?'⚠️':'✅';
       html+='<tr style="background:'+(i%2===0?'#fff':'#f9fdf5')+';border-top:0.5px solid #f0f5ea;">';
-      html+='<td style="padding:6px 14px;font-size:12px;color:#333;">'+item.n+'</td>';
+      var arName=item.ar||TRAD[item.n]||'';
+      html+='<td style="padding:6px 14px;font-size:12px;color:#333;">'+item.n+(arName?'<span style="color:#888;font-size:11px;direction:rtl;"> ('+arName+')</span>':'')+'</td>';
       html+='<td style="padding:3px 6px;"><input type="number" value="'+s+'" min="0" data-n="'+item.n+'" data-t="stock" style="width:70px;text-align:center;padding:5px;border:1px solid #e0e8d8;border-radius:5px;font-size:12px;color:#333;background:#fff;display:block;margin:auto;"/></td>';
       html+='<td style="padding:3px 6px;"><input type="number" value="'+se+'" min="0" data-n="'+item.n+'" data-t="seuil" style="width:70px;text-align:center;padding:5px;border:1px solid #e0e8d8;border-radius:5px;font-size:12px;color:#888;background:#fff;display:block;margin:auto;"/></td>';
       html+='<td style="text-align:center;font-size:16px;">'+etat+'</td>';
