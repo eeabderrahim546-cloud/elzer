@@ -275,7 +275,7 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
 </div>
 <div class="merci" id="mc">
   <div class="m-ico">✓</div>
-  <div class="m-ttl">Commande confirmée !</div>
+  <div class="m-ttl">Commande prête !</div>
   <div class="m-bl" id="m-bl-num"></div>
   <div class="m-sub" id="mtxt"></div>
   <div style="margin-bottom:16px;max-width:320px;width:100%;">
@@ -1140,9 +1140,9 @@ async function co(){
   var waList=(WA_NUMBERS&&WA_NUMBERS.length)?WA_NUMBERS:[localStorage.getItem('wa_group')||PHONE];
   window.WA_LIST=waList;
   var waGroup=waList[0];
-  window.open('https://wa.me/'+waGroup+'?text='+encodeURIComponent(msgFormatted),'_blank');
+  // PAS d'envoi automatique: le client choisit WhatsApp ou Email sur l'ecran de confirmation
   
-  // Mettre a jour les boutons d'envoi dans la page confirmation
+  // Preparer les boutons d'envoi dans la page confirmation
   setTimeout(function(){
     var waBtn=document.getElementById('btn-wa-group');
     if(waBtn){ waBtn.href='https://wa.me/'+waGroup+'?text='+encodeURIComponent(msgFormatted); waBtn.setAttribute('target','_blank'); }
@@ -1162,16 +1162,9 @@ async function co(){
     }
   },100);
   document.getElementById('m-bl-num').textContent='BL #'+formatBL(blNum);
-  document.getElementById('mtxt').textContent='Votre commande a bien été reçue par ELZER Distribution.\n\nNous vous confirmons la réception de votre BL #'+formatBL(blNum)+'.';
+  document.getElementById('mtxt').textContent='Votre commande est prête !\n\nChoisissez comment l\'envoyer à ELZER (WhatsApp ou Email) ci-dessous.\n\nBL #'+formatBL(blNum);
   document.getElementById('mc').classList.add('on');
-  // Envoyer confirmation WhatsApp au client
-  const confMsg='✅ Commande BL #'+formatBL(blNum)+' confirmée !\n\nBonjour '+CLI.name+',\nNous avons bien reçu votre commande.\n\nMerci de votre confiance.\n\nELZER Distribution\nTél : +212 6 73 95 83 37';
-  // Message envoyé via WhatsApp admin vers client si wa défini
-  if(CLI.wa && CLI.wa !== PHONE){
-    setTimeout(()=>{
-      window.open('https://wa.me/'+CLI.wa+'?text='+encodeURIComponent(confMsg),'_blank');
-    }, 2000);
-  }
+  // (Pas d'envoi automatique - le client choisit la methode d'envoi sur l'ecran)
   }catch(e){
     // En cas d erreur, liberer le verrou pour permettre nouvelle tentative
     window._coSubmitLock=false;
