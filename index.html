@@ -285,7 +285,7 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
       <div><div>WhatsApp ELZER</div><div style="font-size:11px;opacity:.8;">Envoyer la commande</div></div>
     </a>
     <div id="wa-extra-numbers"></div>
-    <a id="btn-email" href="#" style="display:flex;align-items:center;gap:10px;background:#1a73e8;color:#fff;border-radius:10px;padding:12px 16px;margin-bottom:8px;text-decoration:none;font-size:13px;font-weight:500;">
+    <a id="btn-email" href="#" onclick="sendOrderEmail();return false;" style="display:flex;align-items:center;gap:10px;background:#1a73e8;color:#fff;border-radius:10px;padding:12px 16px;margin-bottom:8px;text-decoration:none;font-size:13px;font-weight:500;">
       <span style="font-size:20px;">📧</span>
       <div><div>Envoyer par Email</div><div style="font-size:11px;opacity:.8;">elzerdist@gmail.com</div></div>
     </a>
@@ -1132,20 +1132,23 @@ async function co(){
   msgFormatted+='━━━━━━━━━━━━━━━━━━━━━\n';
   msgFormatted+='_ELZER Distribution Marrakech_';
   
+  // Stocker globalement pour les boutons de la confirmation
+  window.LAST_MSG=msgFormatted;
+  window.LAST_BLNUM=blNum;
+  
   // Numeros WhatsApp: envoyer au n1, proposer n2/n3 en boutons
   var waList=(WA_NUMBERS&&WA_NUMBERS.length)?WA_NUMBERS:[localStorage.getItem('wa_group')||PHONE];
+  window.WA_LIST=waList;
   var waGroup=waList[0];
   window.open('https://wa.me/'+waGroup+'?text='+encodeURIComponent(msgFormatted),'_blank');
   
   // Mettre a jour les boutons d'envoi dans la page confirmation
   setTimeout(function(){
     var waBtn=document.getElementById('btn-wa-group');
-    if(waBtn) waBtn.href='https://wa.me/'+waGroup+'?text='+encodeURIComponent(msgFormatted);
+    if(waBtn){ waBtn.href='https://wa.me/'+waGroup+'?text='+encodeURIComponent(msgFormatted); waBtn.setAttribute('target','_blank'); }
     var emailBtn=document.getElementById('btn-email');
     if(emailBtn){
-      var mailtoUrl='mailto:elzerdist@gmail.com?subject=Commande+BL+%23'+blNum+'&body='+encodeURIComponent(msgFormatted);
-      emailBtn.href=mailtoUrl;
-      emailBtn.onclick=function(){ window.location.href=mailtoUrl; return false; };
+      emailBtn.onclick=function(){ sendOrderEmail(); return false; };
     }
     // Boutons pour les numeros supplementaires (n2, n3)
     var extra=document.getElementById('wa-extra-numbers');
@@ -1178,6 +1181,16 @@ async function co(){
   }
   // Le verrou reste actif jusqu a no() = nouvelle commande
 }
+function sendOrderEmail(){
+  var msg=window.LAST_MSG||'';
+  var bl=window.LAST_BLNUM||'';
+  var body=msg;
+  if(body.length>1800){ body=body.substring(0,1800)+'\n...(commande complete envoyee aussi par WhatsApp)'; }
+  var url='mailto:elzerdist@gmail.com?subject='+encodeURIComponent('Commande BL #'+bl)+'&body='+encodeURIComponent(body);
+  window.location.href=url;
+}
+window.sendOrderEmail=sendOrderEmail;
+
 function saveClientNote(){
   var noteEl=document.getElementById('client-note');
   var note=noteEl?noteEl.value.trim():'';
