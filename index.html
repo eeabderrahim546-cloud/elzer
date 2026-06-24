@@ -529,7 +529,7 @@ document.getElementById('cdtxt').textContent=now.toLocaleDateString('fr-FR',{wee
   document.getElementById('cpwd-inp').addEventListener('keypress',function(e){if(e.key==='Enter')checkPwd();});
   setTimeout(function(){document.getElementById('cpwd-inp').focus();},100);
 }());
-document.getElementById('dd').value=new Date().toISOString().split('T')[0];
+(function(){var _t=new Date();_t.setDate(_t.getDate()+1);var _dd=document.getElementById('dd');if(_dd)_dd.value=_t.toISOString().split('T')[0];})();
 
 // Lire numéro BL depuis localStorage admin
 var SUPA_ORDERS_CACHE=[];
