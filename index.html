@@ -1191,28 +1191,26 @@ function saveClientNote(){
   // Trouver la derniere commande
   var lastOrder=window.LAST_ORDER;
   if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
-  // Enregistrer la note dans le JSON items (champ __note) pour que l'admin la lise
-  if(lastOrder && lastOrder.id){
-    try{
-      lastOrder.note=note;
-      // MAJ locale
-      try{
-        var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
-        var li=loc.findIndex(function(x){return String(x.id)===String(lastOrder.id);});
-        if(li>=0){ loc[li].note=note; localStorage.setItem('terrasse_orders',JSON.stringify(loc)); }
-      }catch(e){}
-      // Upsert Supabase avec __note dans le payload items
-      var payload={__bl:lastOrder.bl||lastOrder.id, items:lastOrder.items||[], __note:note, __adminNote:lastOrder.adminNote||''};
-      supaFetch('POST','commandes',{id:lastOrder.id,client:lastOrder.client||(CLI&&CLI.name),deliver_date:lastOrder.delivDate,items:JSON.stringify(payload),total:lastOrder.total||0,status:lastOrder.status||'nouvelle',mode:lastOrder.mode||'simple',created_at:lastOrder.createdAt||new Date().toISOString()});
-    }catch(e){}
+  if(!lastOrder){
+    try{ var l0=JSON.parse(localStorage.getItem('terrasse_orders')||'[]'); if(l0.length) lastOrder=l0[l0.length-1]; }catch(e){}
   }
-  // Envoyer par WhatsApp aussi
-  var waGroup=localStorage.getItem('wa_group')||'212628664142';
-  var ref=lastOrder?(' (BL '+(lastOrder.bl||lastOrder.id)+')'):'';
-  var msg=encodeURIComponent('📝 Note du client '+(CLI&&CLI.name?CLI.name:'')+ref+' :\n'+note);
-  window.open('https://wa.me/'+waGroup+'?text='+msg,'_blank');
+  if(!lastOrder || !lastOrder.id){ toast('Passez d abord une commande.'); return; }
+  // Enregistrer la note dans le JSON items (champ __note) pour que l'admin la lise
+  try{
+    lastOrder.note=note;
+    // MAJ locale
+    try{
+      var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+      var li=loc.findIndex(function(x){return String(x.id)===String(lastOrder.id);});
+      if(li>=0){ loc[li].note=note; localStorage.setItem('terrasse_orders',JSON.stringify(loc)); }
+    }catch(e){}
+    // Upsert Supabase avec __note dans le payload items (l'admin la lit ici)
+    var payload={__bl:lastOrder.bl||lastOrder.id, items:lastOrder.items||[], __note:note, __adminNote:lastOrder.adminNote||''};
+    supaFetch('POST','commandes',{id:lastOrder.id,client:lastOrder.client||(CLI&&CLI.name),deliver_date:lastOrder.delivDate,items:JSON.stringify(payload),total:lastOrder.total||0,status:lastOrder.status||'nouvelle',mode:lastOrder.mode||'simple',created_at:lastOrder.createdAt||new Date().toISOString()});
+  }catch(e){}
+  // Pas d'ouverture WhatsApp isolee: la note est enregistree et visible cote admin
   if(noteEl) noteEl.value='';
-  toast('Note envoyée !');
+  toast('✅ Note enregistrée et envoyée à ELZER !');
 }
 window.saveClientNote=saveClientNote;
 
