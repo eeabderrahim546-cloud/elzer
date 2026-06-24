@@ -351,6 +351,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <button class="cmd-tab" data-view="toprep" onclick="setCmdView('toprep')">📦 À préparer</button>
         <button class="cmd-tab" data-view="all" onclick="setCmdView('all')">📋 Toutes</button>
         <button class="cmd-tab" data-view="cancelled" onclick="setCmdView('cancelled')">❌ Annulées</button>
+        <button class="cmd-tab" onclick="forceRefreshCommandes()" style="background:#1a7aff;color:#fff;border-color:#1a7aff;">🔄 Actualiser</button>
         <input type="date" class="fs" style="width:150px;margin-left:auto;" id="cmd-date-pick" onchange="setCmdView('date')"/>
       </div>
       <div id="commandes-list"></div>
@@ -1545,6 +1546,17 @@ async function editDelivDate(id){
   renderCommandes();
 }
 window.editDelivDate=editDelivDate;
+
+// Forcer le rechargement des commandes depuis Supabase
+async function forceRefreshCommandes(){
+  toast('🔄 Actualisation...');
+  try{
+    await syncFromSupabase();
+    renderCommandes();
+    toast('✅ Commandes actualisées');
+  }catch(e){ toast('Erreur de connexion - réessayez'); }
+}
+window.forceRefreshCommandes=forceRefreshCommandes;
 
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
