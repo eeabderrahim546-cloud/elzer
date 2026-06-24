@@ -1,0 +1,28 @@
+name: Keep Supabase Alive
+
+# Empeche le projet Supabase (offre gratuite) de se mettre en pause
+# en envoyant une petite requete toutes les 6 heures.
+
+on:
+  schedule:
+    # Toutes les 6 heures (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # permet aussi de lancer manuellement depuis l'onglet Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          echo "Ping Supabase pour le garder actif..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://ryfywqcgdvrhtpzfjsns.supabase.co/rest/v1/commandes?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "Code HTTP recu: $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Supabase est actif (200 OK)"
+          else
+            echo "⚠️ Reponse inattendue: $HTTP_CODE (le ping a quand meme reveille le projet)"
+          fi
