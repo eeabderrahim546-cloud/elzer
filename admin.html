@@ -1163,6 +1163,7 @@ document.addEventListener('click',async function(e){
     else if(a==='set-status'){setStatus(el.dataset.id,el.dataset.status);}
     else if(a==='set-status-close'){setStatus(el.dataset.id,el.dataset.status);closeModal('modal-cmd');}
     else if(a==='open-detail'){openCmdDetail(el.dataset.id);}
+    else if(a==='edit-deliv-date'){editDelivDate(el.dataset.id);}
     else if(a==='export-pdf'){exportPDF(el.dataset.id);}
     else if(a==='wa-order'){sendOrderWA(el.dataset.id);}
   else if(a==='pdf-bl'){exportPDF(el.dataset.id);}
@@ -1456,6 +1457,7 @@ function renderDashboard(){
     var waNum=cli.wa||cli.tel||'';
     var nbArticles=(o.items||[]).length;
     var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'';
+    var dlivStr=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'}):'non définie';
     var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
     var actBtn='';
     if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
@@ -1466,6 +1468,7 @@ function renderDashboard(){
       +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
       +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div>'
+      +'<div style="font-size:11px;color:#5a7050;font-weight:600;margin-top:3px;">🚚 Livraison : '+dlivStr+' <button data-action="edit-deliv-date" data-id="'+o.id+'" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:#27500a;margin-left:4px;">📅 Changer</button></div>'
       +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
       +'</div>'
       +statusBadge(o.status)+'</div>'
@@ -1518,6 +1521,31 @@ function resetCmdFilters(){
 window.resetCmdFilters=resetCmdFilters;
 
 if(typeof window.CMD_VIEW==='undefined') window.CMD_VIEW='today';
+// Changer la date de livraison d'une commande (admin)
+async function editDelivDate(id){
+  orders=load('terrasse_orders',[]);
+  var idx=orders.findIndex(function(x){return String(x.id)===String(id);});
+  if(idx<0) return;
+  var o=orders[idx];
+  var cur=o.delivDate||new Date(Date.now()+86400000).toISOString().split('T')[0];
+  var nd=prompt('Date de livraison (format AAAA-MM-JJ) pour BL '+(o.bl||o.id)+' :', cur);
+  if(!nd) return;
+  nd=nd.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nd)){ toast('Format invalide. Utilise AAAA-MM-JJ'); return; }
+  o.delivDate=nd;
+  orders[idx]=o;
+  save('terrasse_orders',orders);
+  toast('Mise à jour...');
+  try{
+    var supaId=o._uid||o.id;
+    var payload={__bl:o.bl||o.id, items:o.items, __note:o.note||'', __adminNote:o.adminNote||''};
+    await supaFetch('POST','commandes',{id:supaId,client:o.client,deliver_date:nd,items:JSON.stringify(payload),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
+  }catch(e){}
+  toast('✅ Date de livraison mise à jour');
+  renderCommandes();
+}
+window.editDelivDate=editDelivDate;
+
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
   var view=window.CMD_VIEW||'today';
@@ -1542,11 +1570,16 @@ function renderCommandes(){
   else if(view==='date'){ var dp=document.getElementById('cmd-date-pick').value; list=list.filter(function(o){return o.delivDate===dp;}); titre='📅 Commandes du '+(dp?dp.split('-').reverse().join('/'):'...'); }
   else { titre='📋 Toutes les commandes'; }
   
-  // TOUJOURS trier: nouvelles en haut, puis par date de reception (recentes en haut)
+  // TRIER: nouvelles en haut, puis par DATE DE LIVRAISON (plus proche en premier)
+  var stOrder={nouvelle:0,preparation:1,livree:2};
   list.sort(function(a,b){
-    var sa=({nouvelle:0,preparation:1,livree:2})[a.status]||9;
-    var sb=({nouvelle:0,preparation:1,livree:2})[b.status]||9;
+    var sa=(a.status in stOrder)?stOrder[a.status]:9;
+    var sb=(b.status in stOrder)?stOrder[b.status]:9;
     if(sa!==sb) return sa-sb;
+    // date de livraison la plus proche d'abord
+    var da=a.delivDate?new Date(a.delivDate+'T12:00:00').getTime():Infinity;
+    var db=b.delivDate?new Date(b.delivDate+'T12:00:00').getTime():Infinity;
+    if(da!==db) return da-db;
     return new Date(b.createdAt||0)-new Date(a.createdAt||0);
   });
   
