@@ -292,7 +292,8 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
   </div>
   <div style="max-width:320px;width:100%;margin-bottom:12px;">
     <textarea id="client-note" placeholder="Ajouter une note pour ELZER (optionnel)..." style="width:100%;padding:10px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;resize:vertical;min-height:60px;font-family:Arial,sans-serif;outline:none;box-sizing:border-box;"></textarea>
-    <button onclick="saveClientNote()" style="margin-top:4px;padding:6px 14px;background:#2d6a1f;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">Envoyer la note</button>
+    <button id="note-send-btn" onclick="saveClientNote()" style="margin-top:4px;padding:6px 14px;background:#2d6a1f;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;">Envoyer la note</button>
+    <div id="note-confirm" style="display:none;margin-top:8px;padding:10px 12px;background:#d4edda;border:1px solid #27ae60;border-radius:8px;color:#1a7a3a;font-size:13px;font-weight:600;text-align:center;">✅ Votre note a bien été envoyée à ELZER !</div>
   </div>
   <div id="modif-cmd-btn" style="max-width:320px;width:100%;margin-bottom:10px;">
     <button onclick="toggleModifCmd()" style="width:100%;padding:10px;background:var(--g0);border:1.5px solid var(--g2);border-radius:8px;font-size:13px;color:var(--g7);cursor:pointer;font-family:Arial,sans-serif;">✏️ Modifier cette commande</button>
@@ -1210,7 +1211,13 @@ function saveClientNote(){
   }catch(e){}
   // Pas d'ouverture WhatsApp isolee: la note est enregistree et visible cote admin
   if(noteEl) noteEl.value='';
-  toast('✅ Note enregistrée et envoyée à ELZER !');
+  // Confirmation visible et claire
+  var confEl=document.getElementById('note-confirm');
+  var btnEl=document.getElementById('note-send-btn');
+  if(confEl){ confEl.style.display='block'; }
+  if(noteEl){ noteEl.style.display='none'; }
+  if(btnEl){ btnEl.style.display='none'; }
+  toast('✅ Note envoyée à ELZER !');
 }
 window.saveClientNote=saveClientNote;
 
