@@ -358,12 +358,14 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <div class="panel" id="panel-clients">
       <div class="sec-hd"><div class="sec-t">👥 Clients, Prix & Liens</div><button class="btn btn-p" data-action="open-client-modal">+ Ajouter client</button></div>
       <div style="background:#eaf3de;border-radius:8px;padding:12px;margin-bottom:14px;border:1px solid #c0dd97;">
-        <div style="font-size:12px;font-weight:600;color:#27500a;margin-bottom:8px;">📱 Configuration Groupe WhatsApp</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input type="text" id="wa-group-input" placeholder="Ex: 212628664142" style="flex:1;padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
-          <button class="btn btn-p" data-action="save-wa-group">Enregistrer</button>
+        <div style="font-size:12px;font-weight:600;color:#27500a;margin-bottom:8px;">📱 Numéros WhatsApp (jusqu'à 3)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <input type="text" id="wa-num-1" placeholder="Numéro 1 (principal) — Ex: 212628664142" style="padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
+          <input type="text" id="wa-num-2" placeholder="Numéro 2 (optionnel)" style="padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
+          <input type="text" id="wa-num-3" placeholder="Numéro 3 (optionnel)" style="padding:8px 10px;border:1.5px solid #c0dd97;border-radius:6px;font-size:13px;font-family:monospace;outline:none;"/>
+          <button class="btn btn-p" data-action="save-wa-group" style="align-self:flex-start;">💾 Enregistrer les numéros</button>
         </div>
-        <div style="font-size:11px;color:#3b6d11;margin-top:6px;">Les commandes clients seront envoyees a ce numero de groupe</div>
+        <div style="font-size:11px;color:#3b6d11;margin-top:6px;">La commande part au n°1. Sur l'écran de confirmation, le client peut aussi l'envoyer au n°2 et n°3.</div>
       </div>
       <input type="text" id="cli-search" oninput="renderClientsUnified()" placeholder="🔍 Rechercher un client..." style="width:100%;max-width:400px;padding:9px 12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;margin-bottom:16px;outline:none;"/>
       <div id="clients-grid"></div>
@@ -1084,12 +1086,19 @@ document.addEventListener('click',async function(e){
     renderCommandes();
   }
   else if(a==='save-wa-group'){
-    var inp=document.getElementById('wa-group-input');
-    if(inp){save('wa_group',inp.value.trim());toast('✅ Groupe WhatsApp enregistré');}
+    var n1=(document.getElementById('wa-num-1')||{}).value||'';
+    var n2=(document.getElementById('wa-num-2')||{}).value||'';
+    var n3=(document.getElementById('wa-num-3')||{}).value||'';
+    var nums=[n1.trim(),n2.trim(),n3.trim()].filter(function(x){return x;});
+    save('wa_numbers',nums);
+    save('wa_group',nums[0]||''); // compat: n1 reste le principal
+    // Sauvegarder aussi dans Supabase pour que le client les lise
+    try{ supaFetch('POST','clients_elzer',{id:'elzer_wa_numbers',data:JSON.stringify(nums)}); }catch(e){}
+    toast('✅ Numéros WhatsApp enregistrés ('+nums.length+')');
   }
   else if(a==='change-wa-group'){
-    var inp=document.getElementById('wa-group-input');
-    if(inp){save('wa_group',inp.value.trim());toast('✅ Groupe WhatsApp modifié');}
+    var inp=document.getElementById('wa-num-1');
+    if(inp){save('wa_group',inp.value.trim());toast('✅ Numéro modifié');}
   }
   else if(a==='edit-suivi2'){openSuiviForm(parseInt(el.dataset.idx));}
   else if(a==='del-suivi2'){
@@ -1683,8 +1692,11 @@ function openCmdDetail(id){
 // ── LISTE CLIENTS UNIFIEE (nom + coords + liens + boutons, sans doublon) ──
 function renderClientsUnified(){
   clients=load('admin_clients',clients);
-  var waInput=document.getElementById('wa-group-input');
-  if(waInput && !waInput.value) waInput.value=load('wa_group',PHONE);
+  var nums=load('wa_numbers',null);
+  if(!nums){ var g=load('wa_group',PHONE); nums=g?[g]:[]; }
+  var f1=document.getElementById('wa-num-1'); if(f1 && !f1.value) f1.value=nums[0]||'';
+  var f2=document.getElementById('wa-num-2'); if(f2 && !f2.value) f2.value=nums[1]||'';
+  var f3=document.getElementById('wa-num-3'); if(f3 && !f3.value) f3.value=nums[2]||'';
   var grid=document.getElementById('clients-grid');
   if(!grid) return;
   
