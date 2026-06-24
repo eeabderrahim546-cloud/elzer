@@ -345,11 +345,11 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="sec-t">📋 Commandes</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="cmd-view-tabs">
-        <button class="cmd-tab cmd-tab-active" data-view="today" onclick="setCmdView('today')">📅 Aujourd'hui</button>
+        <button class="cmd-tab" data-view="today" onclick="setCmdView('today')">📅 Aujourd'hui</button>
         <button class="cmd-tab" data-view="tomorrow" onclick="setCmdView('tomorrow')">⏭️ Demain</button>
         <button class="cmd-tab" data-view="new" onclick="setCmdView('new')">🆕 Nouvelles</button>
         <button class="cmd-tab" data-view="toprep" onclick="setCmdView('toprep')">📦 À préparer</button>
-        <button class="cmd-tab" data-view="all" onclick="setCmdView('all')">📋 Toutes</button>
+        <button class="cmd-tab cmd-tab-active" data-view="all" onclick="setCmdView('all')">📋 Toutes</button>
         <button class="cmd-tab" data-view="cancelled" onclick="setCmdView('cancelled')">❌ Annulées</button>
         <button class="cmd-tab" onclick="forceRefreshCommandes()" style="background:#1a7aff;color:#fff;border-color:#1a7aff;">🔄 Actualiser</button>
         <input type="date" class="fs" style="width:150px;margin-left:auto;" id="cmd-date-pick" onchange="setCmdView('date')"/>
@@ -1507,10 +1507,27 @@ function renderDashboard(){
   }
   html+='</div>';
   
+  // SECTION 3: AUTRES COMMANDES EN ATTENTE (ni aujourd'hui ni demain)
+  var autres=orders.filter(function(o){
+    return (o.status==='nouvelle'||o.status==='preparation') && o.delivDate!==today && o.delivDate!==tomorrow;
+  });
+  autres.sort(function(a,b){
+    var da=a.delivDate?new Date(a.delivDate+'T12:00:00').getTime():Infinity;
+    var db=b.delivDate?new Date(b.delivDate+'T12:00:00').getTime():Infinity;
+    if(da!==db) return da-db;
+    return new Date(b.createdAt||0)-new Date(a.createdAt||0);
+  });
+  html+='<div style="background:#fff8ee;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #f0a030;">';
+  html+='<div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:10px;">📦 AUTRES COMMANDES EN ATTENTE ('+autres.length+')</div>';
+  if(autres.length){
+    autres.forEach(function(o){html+=orderCard(o);});
+  } else {
+    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune autre commande en attente</div>';
+  }
+  html+='</div>';
+  
   ops.innerHTML=html;
 }
-
-// ── COMMANDES ──
 
 // Reset filtres commandes (fonction globale appelée directement par onclick)
 function resetCmdFilters(){
@@ -1521,7 +1538,7 @@ function resetCmdFilters(){
 }
 window.resetCmdFilters=resetCmdFilters;
 
-if(typeof window.CMD_VIEW==='undefined') window.CMD_VIEW='today';
+if(typeof window.CMD_VIEW==='undefined') window.CMD_VIEW='all';
 // Changer la date de livraison d'une commande (admin)
 async function editDelivDate(id){
   orders=load('terrasse_orders',[]);
@@ -1560,7 +1577,7 @@ window.forceRefreshCommandes=forceRefreshCommandes;
 
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
-  var view=window.CMD_VIEW||'today';
+  var view=window.CMD_VIEW||'all';
   var today=new Date().toISOString().split('T')[0];
   var tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
   var container=document.getElementById('commandes-list');
