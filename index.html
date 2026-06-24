@@ -317,7 +317,13 @@ async function supaFetch(method,path,body=null){
   const opts={method,headers};
   if(body)opts.body=JSON.stringify(body);
   const r=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
-  if(method==='GET')return r.json();return r.ok;}
+  if(method==='GET')return r.json();
+  // POST/PATCH/DELETE: 2xx = succes, 409 (conflit/merge) = succes aussi
+  if(r.ok || r.status===409) return true;
+  // Erreur reelle: lever une exception pour declencher la mise en file d'attente
+  var txt='';try{txt=await r.text();}catch(e){}
+  throw new Error('Supabase '+r.status+': '+txt.substring(0,200));
+}
 async function saveOrderToSupabase(order){
   console.log('ELZER: Envoi commande vers Supabase...', order.id, order.client);
   try{
@@ -367,9 +373,13 @@ async function flushPendingOrders(){
   console.log('ELZER: '+q.length+' commande(s) en attente, nouvel essai...');
   for(var i=0;i<q.length;i++){ await saveOrderToSupabase(q[i]); }
 }
-// Au chargement de la page + toutes les 30s, vider la file
-setTimeout(flushPendingOrders, 3000);
-setInterval(flushPendingOrders, 30000);
+// Au chargement de la page + periodiquement, vider la file
+setTimeout(flushPendingOrders, 2000);
+setTimeout(flushPendingOrders, 8000);
+setInterval(flushPendingOrders, 20000);
+// Reessayer quand le client revient sur l'onglet/app
+document.addEventListener('visibilitychange',function(){ if(!document.hidden) flushPendingOrders(); });
+window.addEventListener('online',flushPendingOrders);
 async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','commandes?order=created_at.desc');if(Array.isArray(data)){const orders=data.map(r=>{let items=[];let bl=r.id;try{var parsed=typeof r.items==='string'?JSON.parse(r.items):r.items;if(parsed&&parsed.__bl!==undefined){bl=parsed.__bl;items=parsed.items||[];}else{items=parsed||[];}}catch(e){}return{id:r.id,bl:bl,client:r.client,delivDate:r.deliver_date,items,total:r.total,status:r.status,mode:r.mode,createdAt:r.created_at};});localStorage.setItem('terrasse_orders',JSON.stringify(orders));return orders;}}catch(e){console.log('Supa load error:',e);}return JSON.parse(localStorage.getItem('terrasse_orders')||'[]');}
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
