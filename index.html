@@ -1127,6 +1127,7 @@ async function co(){
   var newOrder={id:uniqueId,bl:String(blNum),client:CLI.name,delivDate:dat,items,total:Math.round(total),status:'nouvelle',createdAt:new Date().toISOString(),mode};
   orders.push(newOrder);
   window.LAST_ORDER=newOrder; // memoriser pour la note client
+  try{ localStorage.setItem('elzer_last_order_id', String(newOrder.id)); }catch(e){}
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(newOrder);
   // Recharger cache et calculer le prochain numero pour affichage
@@ -1245,9 +1246,14 @@ function toggleModifCmd(){
   panel.style.display='block';
   var listEl=document.getElementById('modif-items-list');
   var lastOrder=window.LAST_ORDER;
-  if(!lastOrder){try{var _lo=JSON.parse(localStorage.getItem("terrasse_orders")||"[]");if(_lo.length)lastOrder=_lo[_lo.length-1];}catch(e){}}
+  // Apres un retour de WhatsApp, LAST_ORDER peut etre perdu: retrouver via l'id persistant
   if(!lastOrder){
-    try{ var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]'); if(loc.length) lastOrder=loc[loc.length-1]; }catch(e){}
+    try{
+      var lid=localStorage.getItem('elzer_last_order_id');
+      var arr=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+      if(lid){ lastOrder=arr.find(function(o){return String(o.id)===String(lid);}); }
+      if(!lastOrder && arr.length) lastOrder=arr[arr.length-1];
+    }catch(e){}
   }
   if(!lastOrder){
     if(listEl) listEl.innerHTML='<div style="padding:16px;color:#888;font-size:13px;text-align:center;">Aucune commande récente à modifier.<br/>Passez d abord une commande.</div>';
@@ -1304,8 +1310,15 @@ document.addEventListener('click',function(e){
 
 function saveModifCmd(){
   var lastOrder=window.LAST_ORDER;
-  if(!lastOrder){try{var _lo=JSON.parse(localStorage.getItem("terrasse_orders")||"[]");if(_lo.length)lastOrder=_lo[_lo.length-1];}catch(e){}}
-  if(!lastOrder){return;}
+  if(!lastOrder){
+    try{
+      var lid=localStorage.getItem('elzer_last_order_id');
+      var arr=JSON.parse(localStorage.getItem('terrasse_orders')||'[]');
+      if(lid){ lastOrder=arr.find(function(o){return String(o.id)===String(lid);}); }
+      if(!lastOrder && arr.length) lastOrder=arr[arr.length-1];
+    }catch(e){}
+  }
+  if(!lastOrder){ toast('Commande introuvable.'); return; }
   var newItems=[];
   Object.keys(modifQtys).forEach(function(k){
     if(modifQtys[k].qty>0){
