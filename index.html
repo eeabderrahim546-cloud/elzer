@@ -1241,17 +1241,27 @@ function toggleModifCmd(){
   var panel=document.getElementById('modif-cmd-panel');
   if(!panel) return;
   if(panel.style.display!=='none'){panel.style.display='none';return;}
+  // Toujours afficher le panneau, meme en cas de souci, pour que l'utilisateur voie le bouton ENREGISTRER
+  panel.style.display='block';
+  var listEl=document.getElementById('modif-items-list');
   var lastOrder=window.LAST_ORDER;
   if(!lastOrder && orders && orders.length) lastOrder=orders[orders.length-1];
   if(!lastOrder){
     try{ var loc=JSON.parse(localStorage.getItem('terrasse_orders')||'[]'); if(loc.length) lastOrder=loc[loc.length-1]; }catch(e){}
   }
-  if(!lastOrder){ if(typeof toast==='function')toast('Aucune commande à modifier.'); return; }
+  if(!lastOrder){
+    if(listEl) listEl.innerHTML='<div style="padding:16px;color:#888;font-size:13px;text-align:center;">Aucune commande récente à modifier.<br/>Passez d abord une commande.</div>';
+    return;
+  }
   if(lastOrder.status&&lastOrder.status!=='nouvelle'){
-    document.getElementById('modif-cmd-btn').innerHTML='<div style="font-size:12px;color:#888;text-align:center;padding:8px;">Commande deja en preparation</div>';
+    if(listEl) listEl.innerHTML='<div style="padding:16px;color:#c47a00;font-size:13px;text-align:center;background:#fff8e1;">⚠️ Cette commande est déjà en préparation chez ELZER.<br/>Vous ne pouvez plus la modifier.<br/><br/>Contactez ELZER par WhatsApp pour tout changement.</div>';
     return;
   }
   var cat=(typeof CATALOGUE!=='undefined'&&Array.isArray(CATALOGUE))?CATALOGUE:((typeof CAT!=='undefined'&&Array.isArray(CAT))?CAT:[]);
+  if(!cat.length){
+    if(listEl) listEl.innerHTML='<div style="padding:16px;color:#888;font-size:13px;text-align:center;">Catalogue en cours de chargement...<br/>Réessayez dans quelques secondes.</div>';
+    return;
+  }
   var html='';
   cat.forEach(function(sec){
     if(!sec||!Array.isArray(sec.items))return;
@@ -1271,11 +1281,8 @@ function toggleModifCmd(){
       html+='</div></div>';
     });
   });
-  var listEl=document.getElementById('modif-items-list');
   if(listEl) listEl.innerHTML=html;
-  // pre-remplir modifQtys avec les quantites existantes pour ne pas les perdre
   if(lastOrder.items){ lastOrder.items.forEach(function(it){ var sn=it.name.replace(/[^a-z0-9]/gi,'_'); modifQtys[sn]={qty:it.qty,unit:it.unit||'kg',name:it.name}; }); }
-  panel.style.display='block';
 }
 window.toggleModifCmd=toggleModifCmd;
 
