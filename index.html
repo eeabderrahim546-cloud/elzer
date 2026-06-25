@@ -1241,7 +1241,17 @@ var modifQtys={};
 function toggleModifCmd(){
   var panel=document.getElementById('modif-cmd-panel');
   if(!panel) return;
-  if(panel.style.display!=='none'){panel.style.display='none';return;}
+  if(panel.style.display==='block'){panel.style.display='none';return;}
+  // Afficher le panneau comme une fenetre flottante au-dessus de tout (visible quoi qu'il arrive)
+  panel.style.position='fixed';
+  panel.style.top='50%';
+  panel.style.left='50%';
+  panel.style.transform='translate(-50%,-50%)';
+  panel.style.zIndex='9999';
+  panel.style.maxHeight='85vh';
+  panel.style.overflowY='auto';
+  panel.style.width='90%';
+  panel.style.maxWidth='340px';
   // Toujours afficher le panneau, meme en cas de souci, pour que l'utilisateur voie le bouton ENREGISTRER
   panel.style.display='block';
   var listEl=document.getElementById('modif-items-list');
@@ -1289,8 +1299,6 @@ function toggleModifCmd(){
   });
   if(listEl) listEl.innerHTML=html;
   if(lastOrder.items){ lastOrder.items.forEach(function(it){ var sn=it.name.replace(/[^a-z0-9]/gi,'_'); modifQtys[sn]={qty:it.qty,unit:it.unit||'kg',name:it.name}; }); }
-  // Faire defiler jusqu'au panneau pour qu'il soit visible
-  try{ setTimeout(function(){ panel.scrollIntoView({behavior:'smooth',block:'center'}); },100); }catch(e){}
 }
 window.toggleModifCmd=toggleModifCmd;
 
