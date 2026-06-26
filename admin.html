@@ -1162,6 +1162,14 @@ document.addEventListener('click',async function(e){
   else if(a==='pick-four-date'){document.getElementById('four-date').value=el.dataset.date;document.getElementById('four-dates-list').innerHTML='';renderFournisseur();}
   else if(a==='load-four-history'){loadFourHistory(el.dataset.date);}
   else if(a==='delete-four-history'){deleteFourHistory(el.dataset.date);}
+  else if(a==='fourh-year'){ window.FOURH_YEAR=parseInt(el.dataset.year); window.FOURH_NAV_MONTH=null; window.FOURH_NAV_DAY=null; renderFourHistoryNav(); }
+  else if(a==='fourh-month-open'){ window.FOURH_NAV_MONTH=parseInt(el.dataset.month); window.FOURH_NAV_DAY=null; renderFourHistoryNav(); }
+  else if(a==='fourh-day-open'){ window.FOURH_NAV_DAY=el.dataset.date; renderFourHistoryNav(); }
+  else if(a==='fourh-back'){
+    if(window.FOURH_NAV_DAY){ window.FOURH_NAV_DAY=null; }
+    else if(window.FOURH_NAV_MONTH!==null){ window.FOURH_NAV_MONTH=null; }
+    renderFourHistoryNav();
+  }
     else if(a==='send-fournisseur-wa'){sendFournisseurWA();}
     else if(a==='export-facture-pdf'){exportFacturePDF();}
     else if(a==='generate-fact-cli'){generateFactureForClient(decodeURIComponent(el.dataset.cli),el.dataset.mois,parseInt(el.dataset.total)||0);}
@@ -2331,22 +2339,95 @@ function saveFournisseurHistory(){
 }
 
 function showFournisseurHistory(){
-  var history=load('four_history',[]);
-  if(!history.length){toast('Aucun historique.');return;}
-  var html='<div style="max-height:400px;overflow-y:auto;">';
-  history.forEach(function(h){
-    html+='<div style="padding:10px 14px;border-bottom:1px solid #f0f5ea;display:flex;justify-content:space-between;align-items:center;">';
-    html+='<div><div style="font-size:13px;font-weight:500;">'+h.date+'</div><div style="font-size:11px;color:#888;">'+h.items.length+' produits</div></div>';
-    html+='<div style="display:flex;gap:6px;">';
-    html+='<button class="btn btn-s btn-sm" data-action="load-four-history" data-date="'+h.date+'">Charger</button>';
-    html+='<button class="btn btn-d btn-sm" data-action="delete-four-history" data-date="'+h.date+'">Suppr.</button>';
-    html+='</div></div>';
-  });
-  html+='</div>';
+  renderFourHistoryNav();
   document.getElementById('modal-cmd-title').textContent='Historique Bon Fournisseur';
-  document.getElementById('modal-cmd-body').innerHTML=html;
   document.getElementById('modal-cmd-footer').innerHTML='<button class="btn btn-s" data-action="close-modal-cmd">Fermer</button>';
   openModal('modal-cmd');
+}
+
+function renderFourHistoryNav(){
+  var history=load('four_history',[]);
+  var body=document.getElementById('modal-cmd-body');
+  if(!body) return;
+  if(!history.length){ body.innerHTML='<div style="padding:24px;text-align:center;color:#888;">Aucun historique.</div>'; return; }
+  // Helpers date AAAA-MM-JJ
+  function hYear(h){ return /^\d{4}-\d{2}-\d{2}/.test(h.date)?parseInt(h.date.substring(0,4)):new Date().getFullYear(); }
+  function hMonth(h){ return /^\d{4}-\d{2}-\d{2}/.test(h.date)?parseInt(h.date.substring(5,7))-1:0; }
+  function hDay(h){ return /^\d{4}-\d{2}-\d{2}/.test(h.date)?parseInt(h.date.substring(8,10)):1; }
+
+  // Barre annees
+  var years=[...new Set(history.map(hYear))].sort(function(a,b){return b-a;});
+  if(years.indexOf(window.FOURH_YEAR)<0) window.FOURH_YEAR=years[0];
+  var ybar=years.map(function(y){
+    var on=(y===window.FOURH_YEAR);
+    return '<button data-action="fourh-year" data-year="'+y+'" style="padding:6px 14px;border-radius:16px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:13px;font-weight:600;cursor:pointer;">'+y+'</button>';
+  }).join('');
+
+  // Fil d'ariane
+  var bc='<div style="font-size:12px;color:#666;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+  if(window.FOURH_NAV_MONTH!==null||window.FOURH_NAV_DAY){
+    bc+='<button data-action="fourh-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:3px 9px;cursor:pointer;color:#27500a;font-size:11px;">← Retour</button>';
+  }
+  bc+='<span style="color:#999;">📦 '+window.FOURH_YEAR+'</span>';
+  if(window.FOURH_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.FOURH_NAV_MONTH]+'</span>';
+  if(window.FOURH_NAV_DAY) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.FOURH_NAV_DAY+'</span>';
+  bc+='</div>';
+
+  var inYear=history.filter(function(h){return hYear(h)===window.FOURH_YEAR;});
+  var html='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">'+ybar+'</div>'+bc;
+
+  // NIVEAU 1: mois
+  if(window.FOURH_NAV_MONTH===null){
+    var byMonth={};
+    inYear.forEach(function(h){ var m=hMonth(h); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(h); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    months.forEach(function(m){
+      var nbBons=byMonth[m].length;
+      html+='<div data-action="fourh-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.FOURH_YEAR+'</div>'
+        +'<div style="font-size:11px;color:#888;">'+nbBons+' jour(s) d achat</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    html+='</div>';
+    body.innerHTML=html;
+    return;
+  }
+
+  // NIVEAU 2: jours du mois
+  var inMonth=inYear.filter(function(h){return hMonth(h)===window.FOURH_NAV_MONTH;});
+  if(!window.FOURH_NAV_DAY){
+    inMonth.sort(function(a,b){return hDay(b)-hDay(a);});
+    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    inMonth.forEach(function(h){
+      html+='<div data-action="fourh-day-open" data-date="'+h.date+'" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">🗓️ '+new Date(h.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+'</div>'
+        +'<div style="font-size:11px;color:#888;">'+h.items.length+' article(s) acheté(s)</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    html+='</div>';
+    body.innerHTML=html;
+    return;
+  }
+
+  // NIVEAU 3: articles du jour
+  var bon=inMonth.find(function(h){return h.date===window.FOURH_NAV_DAY;});
+  if(!bon){ body.innerHTML=html+'<div style="padding:20px;text-align:center;color:#888;">Bon introuvable.</div>'; return; }
+  html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+  html+='<div style="padding:10px 14px;background:#f4fbed;border-bottom:1px solid #c0dd97;display:flex;justify-content:space-between;align-items:center;">'
+    +'<span style="font-size:13px;font-weight:600;color:#27500a;">🗓️ '+new Date(bon.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</span>'
+    +'<div style="display:flex;gap:6px;"><button class="btn btn-s btn-sm" data-action="load-four-history" data-date="'+bon.date+'">Charger</button>'
+    +'<button class="btn btn-d btn-sm" data-action="delete-four-history" data-date="'+bon.date+'">Suppr.</button></div></div>';
+  html+='<div style="max-height:300px;overflow-y:auto;">';
+  bon.items.forEach(function(it,idx){
+    var bg=idx%2===0?'#fff':'#f9fdf5';
+    var ar=it.ar?(' <span style="color:#888;font-size:11px;">('+it.ar+')</span>'):'';
+    html+='<div style="display:flex;justify-content:space-between;padding:8px 14px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;">'
+      +'<span style="font-size:13px;color:#333;">'+it.name+ar+'</span>'
+      +'<span style="font-size:13px;font-weight:600;color:#5a7050;">'+it.total+' '+(it.unit||'')+'</span></div>';
+  });
+  html+='</div></div>';
+  body.innerHTML=html;
 }
 
 function loadFourHistory(date){
@@ -2360,7 +2441,8 @@ function deleteFourHistory(date){
   if(!confirm('Supprimer le bon fournisseur du '+date+'?')) return;
   var history=load('four_history',[]).filter(function(h){return h.date!==date;});
   save('four_history',history);
-  showFournisseurHistory();
+  window.FOURH_NAV_DAY=null;
+  renderFourHistoryNav();
   toast('Historique supprime.');
 }
 
@@ -2518,6 +2600,10 @@ function getNextFactNum(){
 if(typeof window.FACT_YEAR==='undefined') window.FACT_YEAR=new Date().getFullYear();
 window.FACT_NAV_CLIENT=window.FACT_NAV_CLIENT||null;
 window.FACT_NAV_MONTH=(typeof window.FACT_NAV_MONTH==='undefined')?null:window.FACT_NAV_MONTH;
+// Etat navigation historique fournisseur (Annee > Mois > Jour)
+if(typeof window.FOURH_YEAR==='undefined') window.FOURH_YEAR=new Date().getFullYear();
+window.FOURH_NAV_MONTH=(typeof window.FOURH_NAV_MONTH==='undefined')?null:window.FOURH_NAV_MONTH;
+window.FOURH_NAV_DAY=window.FOURH_NAV_DAY||null;
 
 // Routeur: affiche la navigation (annee>client>mois) puis le contenu de facturation
 function renderFacturation(){
