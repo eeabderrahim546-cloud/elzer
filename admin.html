@@ -432,17 +432,19 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:var(--g0);padding:10px;border-radius:8px;border:1px solid var(--g2);">
         <input type="hidden" id="fact-num-input"/>
       </div>
-      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <div id="fact-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+      <div style="display:none;gap:12px;margin-bottom:16px;flex-wrap:wrap;" id="fact-selects-row">
         <select class="fs" style="width:180px;" id="fact-mois"></select>
         <select class="fs" style="width:180px;" id="fact-client"><option value="">Tous les clients</option></select>
       </div>
-      <div style="background:#f7faf4;border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+      <div id="fact-nav"></div>
+      <div style="background:#f7faf4;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:none;" id="fact-joindre-row">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#5a7050;cursor:pointer;">
           <input type="checkbox" id="fact-joindre-bl"/> 📎 Joindre les BL détaillés avec la facture mensuelle
         </label>
         <div style="font-size:11px;color:#888;margin-top:4px;margin-left:24px;">Si coché, chaque BL du mois sera imprimé après la facture (avec le détail des produits)</div>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <div style="display:none;gap:10px;margin-bottom:16px;flex-wrap:wrap;" id="fact-actions-row">
         <button class="btn btn-p" data-action="print-facture-mensuelle">📄 Facture mensuelle (Imprimer/PDF)</button>
         <button class="btn btn-a" data-action="print-releve-mensuel">📋 Relevé mensuel (Imprimer/PDF)</button>
         <button class="btn btn-s" data-action="export-facture-pdf">💾 Enregistrer au Suivi</button>
@@ -1203,6 +1205,14 @@ document.addEventListener('click',async function(e){
       if(window.SUIVI_NAV_MONTH!==null){ window.SUIVI_NAV_MONTH=null; }
       else if(window.SUIVI_NAV_CLIENT){ window.SUIVI_NAV_CLIENT=null; }
       renderSuivi2();
+    }
+    else if(a==='fact-year'){ window.FACT_YEAR=parseInt(el.dataset.year); window.FACT_NAV_CLIENT=null; window.FACT_NAV_MONTH=null; renderFacturation(); }
+    else if(a==='fact-client-open'){ window.FACT_NAV_CLIENT=el.dataset.client; window.FACT_NAV_MONTH=null; renderFacturation(); }
+    else if(a==='fact-month-open'){ window.FACT_NAV_MONTH=parseInt(el.dataset.month); renderFacturation(); }
+    else if(a==='fact-back'){
+      if(window.FACT_NAV_MONTH!==null){ window.FACT_NAV_MONTH=null; }
+      else if(window.FACT_NAV_CLIENT){ window.FACT_NAV_CLIENT=null; }
+      renderFacturation();
     }
     else if(a==='toggle-bl-note'){ window.BL_SHOW_NOTE=el.checked; var ord=load('terrasse_orders',[]); var oo=ord.find(function(x){return String(x.id)===String(el.dataset.id);}); var prev=document.getElementById('bl-preview'); if(oo&&prev){ prev.innerHTML=buildBLHtml(oo, window.BL_SHOW_NOTE); } }
     else if(a==='save-bl-note'){ saveBLNote(el.dataset.id); }
@@ -2504,7 +2514,122 @@ function getNextFactNum(){
   return getNextNum2();
 }
 
+// Etat navigation facturation
+if(typeof window.FACT_YEAR==='undefined') window.FACT_YEAR=new Date().getFullYear();
+window.FACT_NAV_CLIENT=window.FACT_NAV_CLIENT||null;
+window.FACT_NAV_MONTH=(typeof window.FACT_NAV_MONTH==='undefined')?null:window.FACT_NAV_MONTH;
+
+// Routeur: affiche la navigation (annee>client>mois) puis le contenu de facturation
 function renderFacturation(){
+  orders=load('terrasse_orders',[]);
+  // Header
+  var fhDate=document.getElementById('fact-header-date');
+  var fhNum=document.getElementById('fact-header-num');
+  if(fhDate) fhDate.textContent=new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  if(fhNum) fhNum.textContent=getNextNum2();
+
+  var navEl=document.getElementById('fact-nav');
+  var contentEl=document.getElementById('facturation-content');
+  var joindreRow=document.getElementById('fact-joindre-row');
+  var actionsRow=document.getElementById('fact-actions-row');
+
+  // Commandes valides (avec date)
+  var valid=orders.filter(function(o){return (o.createdAt||o.delivDate)&&o.status!=='annulee';});
+
+  // BARRE D'ANNEES
+  var years=[...new Set(valid.map(getOrderYear))].sort(function(a,b){return b-a;});
+  if(!years.length) years=[new Date().getFullYear()];
+  if(years.indexOf(window.FACT_YEAR)<0) window.FACT_YEAR=years[0];
+  var ybar=document.getElementById('fact-year-bar');
+  if(ybar){
+    ybar.innerHTML=years.map(function(y){
+      var on=(y===window.FACT_YEAR);
+      return '<button data-action="fact-year" data-year="'+y+'" style="padding:8px 18px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:14px;font-weight:600;cursor:pointer;">'+y+'</button>';
+    }).join('');
+  }
+
+  var inYear=valid.filter(function(o){return getOrderYear(o)===window.FACT_YEAR;});
+
+  function bcFact(){
+    var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+    if(window.FACT_NAV_CLIENT||window.FACT_NAV_MONTH!==null){
+      bc+='<button data-action="fact-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
+    }
+    bc+='<span style="color:#999;">🧾 '+window.FACT_YEAR+'</span>';
+    if(window.FACT_NAV_CLIENT) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.FACT_NAV_CLIENT+'</span>';
+    if(window.FACT_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.FACT_NAV_MONTH]+'</span>';
+    bc+='</div>';
+    return bc;
+  }
+
+  // NIVEAU 1: clients
+  if(!window.FACT_NAV_CLIENT){
+    if(joindreRow) joindreRow.style.display='none';
+    if(actionsRow) actionsRow.style.display='none';
+    if(contentEl) contentEl.innerHTML='';
+    var byClient={};
+    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
+    var clientNames=Object.keys(byClient).sort();
+    var h=bcFact();
+    if(!clientNames.length){
+      h+='<div class="empty"><div class="empty-i">🧾</div><p>Aucune commande pour '+window.FACT_YEAR+'.</p></div>';
+    }else{
+      h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+      clientNames.forEach(function(c){
+        var n=byClient[c].length;
+        h+='<div data-action="fact-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+          +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
+          +'<div style="font-size:12px;color:#888;">'+n+' BL</div></div>'
+          +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+      });
+      h+='</div>';
+    }
+    if(navEl) navEl.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 2: mois du client
+  var clientOrders=inYear.filter(function(o){return o.client===window.FACT_NAV_CLIENT;});
+  if(window.FACT_NAV_MONTH===null){
+    if(joindreRow) joindreRow.style.display='none';
+    if(actionsRow) actionsRow.style.display='none';
+    if(contentEl) contentEl.innerHTML='';
+    var byMonth={};
+    clientOrders.forEach(function(o){ var m=getOrderMonth(o); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(o); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    var h=bcFact()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    months.forEach(function(m){
+      var n=byMonth[m].length;
+      h+='<div data-action="fact-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.FACT_YEAR+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' BL</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    h+='</div>';
+    if(navEl) navEl.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 3: regler les selects + afficher le contenu facturation
+  if(navEl) navEl.innerHTML=bcFact();
+  if(joindreRow) joindreRow.style.display='block';
+  if(actionsRow) actionsRow.style.display='flex';
+  // Regler fact-mois (format AAAA-MM) et fact-client
+  var moisSel=document.getElementById('fact-mois');
+  var cliSel=document.getElementById('fact-client');
+  var ym=window.FACT_YEAR+'-'+String(window.FACT_NAV_MONTH+1).padStart(2,'0');
+  // Remplir les options pour que renderFacturationContent fonctionne
+  if(moisSel){
+    var label=new Date(window.FACT_YEAR,window.FACT_NAV_MONTH,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    moisSel.innerHTML='<option value="'+ym+'" selected>'+label+'</option>';
+  }
+  if(cliSel){
+    cliSel.innerHTML='<option value="'+window.FACT_NAV_CLIENT.replace(/"/g,'&quot;')+'" selected>'+window.FACT_NAV_CLIENT+'</option>';
+  }
+  renderFacturationContent();
+}
+
+function renderFacturationContent(){
   // Toujours regenerer le numero a partir du format Reglages (ne pas restaurer une vieille valeur hardcodee)
   var numInp=document.getElementById('fact-num-input');
   var nextNum=getNextNum2();
@@ -2512,26 +2637,9 @@ function renderFacturation(){
 
   orders=load('terrasse_orders',[]);
   var factNum=nextNum;
-  // Mettre a jour header facturation
-  var fhDate=document.getElementById('fact-header-date');
-  var fhNum=document.getElementById('fact-header-num');
-  if(fhDate) fhDate.textContent=new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-  if(fhNum) fhNum.textContent=nextNum;
   var moisSel=document.getElementById('fact-mois');
-  var months={};
-  orders.forEach(function(o){
-    if(!o.createdAt&&!o.delivDate)return;
-    var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
-    var key=d.getFullYear()+'-'+(String(d.getMonth()+1).padStart(2,'0'));
-    var label=d.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
-    months[key]=label;
-  });
-  var cur=moisSel.value;
-  moisSel.innerHTML=Object.entries(months).sort().reverse().map(function(e){return '<option value="'+e[0]+'"'+(e[0]===cur?' selected':'')+'>'+e[1]+'</option>';}).join('');
   var cSel=document.getElementById('fact-client');
-  var cls=[...new Set(orders.map(function(o){return o.client;}))];
-  var cc=cSel.value;
-  cSel.innerHTML='<option value="">Tous les clients</option>'+cls.map(function(c){return '<option value="'+c+'"'+(c===cc?' selected':'')+'>'+c+'</option>';}).join('');
+  // Les selects sont deja regles par la navigation (annee/client/mois)
   var mv=moisSel.value;
   if(!mv){document.getElementById('facturation-content').innerHTML='<div class="empty"><div class="empty-i">🧾</div><p>Selectionnez un mois.</p></div>';return;}
   var parts=mv.split('-').map(Number);
@@ -2694,7 +2802,7 @@ async function generateFactureForClient(cliName, mois, totalMontant){
   loadSuivi2();
   // Si deja generee, ne pas dupliquer
   if(SUIVI2.find(function(f){return normName(f.client)===normName(cliName)&&f.mois===mois;})){
-    toast('Facture déjà générée pour ce client/mois');renderFacturation();return;
+    toast('Facture déjà générée pour ce client/mois');renderFacturationContent();return;
   }
   // Calculer le prochain numero (plus grand+1, format Reglages)
   var fmt=localStorage.getItem('elzer_fact_format')||('ELD'+new Date().getFullYear()+'/0001');
@@ -2715,7 +2823,7 @@ async function generateFactureForClient(cliName, mois, totalMontant){
   toast('Génération...');
   await saveSuivi2ToSupabase();
   toast('✅ Facture '+factNum+' générée');
-  renderFacturation();
+  renderFacturationContent();
   if(typeof renderSuivi2==='function') renderSuivi2();
 }
 
@@ -2730,7 +2838,7 @@ async function deleteFactureForClient(cliName, mois, factNum){
   toast('Suppression...');
   await saveSuivi2ToSupabase();
   toast('🗑️ Facture supprimée');
-  renderFacturation();
+  renderFacturationContent();
   if(typeof renderSuivi2==='function') renderSuivi2();
 }
 
