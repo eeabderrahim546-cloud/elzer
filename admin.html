@@ -961,6 +961,9 @@ document.addEventListener('click',async function(e){
   else if(a==='four-today'){document.getElementById('four-date').value=new Date().toISOString().split('T')[0];renderFournisseur();}
   else if(a==='four-tomorrow'){document.getElementById('four-date').value=new Date(Date.now()+86400000).toISOString().split('T')[0];renderFournisseur();}
   else if(a==='show-four-dates'){showFourDates();}
+  else if(a==='fourd-year'){ window.FOURD_YEAR=parseInt(el.dataset.year); window.FOURD_NAV_MONTH=null; renderFourDatesNav(); }
+  else if(a==='fourd-month-open'){ window.FOURD_NAV_MONTH=parseInt(el.dataset.month); renderFourDatesNav(); }
+  else if(a==='fourd-back'){ window.FOURD_NAV_MONTH=null; renderFourDatesNav(); }
   else if(a==='renum-bl'){renumeroterBL();}
   else if(a==='save-bl-format'){saveBLFormat();}
   else if(a==='save-fact-format'){saveFactFormat();}
@@ -2604,6 +2607,9 @@ window.FACT_NAV_MONTH=(typeof window.FACT_NAV_MONTH==='undefined')?null:window.F
 if(typeof window.FOURH_YEAR==='undefined') window.FOURH_YEAR=new Date().getFullYear();
 window.FOURH_NAV_MONTH=(typeof window.FOURH_NAV_MONTH==='undefined')?null:window.FOURH_NAV_MONTH;
 window.FOURH_NAV_DAY=window.FOURH_NAV_DAY||null;
+// Etat navigation "Voir dates avec commandes" (Annee > Mois > Jour)
+if(typeof window.FOURD_YEAR==='undefined') window.FOURD_YEAR=new Date().getFullYear();
+window.FOURD_NAV_MONTH=(typeof window.FOURD_NAV_MONTH==='undefined')?null:window.FOURD_NAV_MONTH;
 
 // Routeur: affiche la navigation (annee>client>mois) puis le contenu de facturation
 function renderFacturation(){
@@ -3700,6 +3706,11 @@ function printDevis(id){
 
 // Afficher les dates qui ont des commandes
 function showFourDates(){
+  // (Re)initialiser puis afficher la navigation
+  renderFourDatesNav();
+}
+
+function renderFourDatesNav(){
   orders=load('terrasse_orders',[]);
   var dates={};
   orders.forEach(function(o){
@@ -3709,21 +3720,67 @@ function showFourDates(){
       dates[o.delivDate].clients[o.client]=true;
     }
   });
-  var sortedDates=Object.keys(dates).sort().reverse();
-  if(!sortedDates.length){toast('Aucune commande enregistrée');return;}
+  var allDates=Object.keys(dates);
+  var listEl=document.getElementById('four-dates-list');
+  if(!listEl) return;
+  if(!allDates.length){ listEl.innerHTML='<div style="background:#fff;border:1px solid #e2e8dd;border-radius:10px;padding:16px;text-align:center;color:#888;margin-bottom:14px;">Aucune commande enregistrée</div>'; return; }
+  // Helpers date AAAA-MM-JJ
+  function dY(d){ return parseInt(d.substring(0,4)); }
+  function dM(d){ return parseInt(d.substring(5,7))-1; }
+
+  // Barre annees
+  var years=[...new Set(allDates.map(dY))].sort(function(a,b){return b-a;});
+  if(years.indexOf(window.FOURD_YEAR)<0) window.FOURD_YEAR=years[0];
+  var ybar=years.map(function(y){
+    var on=(y===window.FOURD_YEAR);
+    return '<button data-action="fourd-year" data-year="'+y+'" style="padding:7px 16px;border-radius:16px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:13px;font-weight:600;cursor:pointer;">'+y+'</button>';
+  }).join('');
+
+  // Fil d'ariane
+  var bc='<div style="font-size:12px;color:#666;margin-bottom:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+  if(window.FOURD_NAV_MONTH!==null){
+    bc+='<button data-action="fourd-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:3px 9px;cursor:pointer;color:#27500a;font-size:11px;">← Retour</button>';
+  }
+  bc+='<span style="color:#999;">📅 '+window.FOURD_YEAR+'</span>';
+  if(window.FOURD_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.FOURD_NAV_MONTH]+'</span>';
+  bc+='</div>';
+
+  var inYear=allDates.filter(function(d){return dY(d)===window.FOURD_YEAR;});
   var html='<div style="background:#fff;border:1px solid #e2e8dd;border-radius:10px;padding:12px;margin-bottom:14px;">';
-  html+='<div style="font-size:13px;font-weight:600;color:#5a7050;margin-bottom:10px;">📅 Dates avec commandes (cliquez pour afficher):</div>';
+  html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">'+ybar+'</div>'+bc;
+
+  // NIVEAU 1: mois
+  if(window.FOURD_NAV_MONTH===null){
+    var byMonth={};
+    inYear.forEach(function(d){ var m=dM(d); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(d); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    html+='<div style="display:flex;flex-direction:column;gap:6px;">';
+    months.forEach(function(m){
+      var nbJours=byMonth[m].length;
+      var nbCmd=byMonth[m].reduce(function(s,d){return s+dates[d].count;},0);
+      html+='<button data-action="fourd-month-open" data-month="'+m+'" style="text-align:left;padding:11px 14px;background:#f7faf4;border:1px solid #e2e8dd;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">';
+      html+='<span style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.FOURD_YEAR+'</span>';
+      html+='<span style="font-size:11px;color:#5a7050;background:#fff;padding:2px 8px;border-radius:10px;">'+nbJours+' jour(s) · '+nbCmd+' cmd</span>';
+      html+='</button>';
+    });
+    html+='</div></div>';
+    listEl.innerHTML=html;
+    return;
+  }
+
+  // NIVEAU 2: jours du mois
+  var inMonth=inYear.filter(function(d){return dM(d)===window.FOURD_NAV_MONTH;}).sort().reverse();
   html+='<div style="display:flex;flex-direction:column;gap:6px;">';
-  sortedDates.forEach(function(d){
-    var dFr=new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  inMonth.forEach(function(d){
+    var dFr=new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
     var nbClients=Object.keys(dates[d].clients).length;
     html+='<button data-action="pick-four-date" data-date="'+d+'" style="text-align:left;padding:9px 12px;background:#f7faf4;border:1px solid #e2e8dd;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">';
-    html+='<span style="font-size:13px;font-weight:500;color:#333;">'+dFr+'</span>';
+    html+='<span style="font-size:13px;font-weight:500;color:#333;">🗓️ '+dFr+'</span>';
     html+='<span style="font-size:11px;color:#5a7050;background:#fff;padding:2px 8px;border-radius:10px;">'+dates[d].count+' cmd · '+nbClients+' client(s)</span>';
     html+='</button>';
   });
   html+='</div></div>';
-  document.getElementById('four-dates-list').innerHTML=html;
+  listEl.innerHTML=html;
 }
 
 function printFournisseur(){
