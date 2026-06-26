@@ -523,6 +523,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <button class="btn btn-p" data-action="new-devis" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;">+ Nouveau devis</button>
       </div>
+      <div id="devis-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
       <div id="devis-list"></div>
     </div>
 
@@ -1184,6 +1185,14 @@ document.addEventListener('click',async function(e){
       if(window.HISTO_NAV_MONTH!==null){ window.HISTO_NAV_MONTH=null; }
       else if(window.HISTO_NAV_CLIENT){ window.HISTO_NAV_CLIENT=null; }
       renderHistorique();
+    }
+    else if(a==='devis-year'){ window.DEVIS_YEAR=parseInt(el.dataset.year); window.DEVIS_NAV_CLIENT=null; window.DEVIS_NAV_MONTH=null; renderDevis(); }
+    else if(a==='devis-client-open'){ window.DEVIS_NAV_CLIENT=el.dataset.client; window.DEVIS_NAV_MONTH=null; renderDevis(); }
+    else if(a==='devis-month-open'){ window.DEVIS_NAV_MONTH=parseInt(el.dataset.month); renderDevis(); }
+    else if(a==='devis-back'){
+      if(window.DEVIS_NAV_MONTH!==null){ window.DEVIS_NAV_MONTH=null; }
+      else if(window.DEVIS_NAV_CLIENT){ window.DEVIS_NAV_CLIENT=null; }
+      renderDevis();
     }
     else if(a==='toggle-bl-note'){ window.BL_SHOW_NOTE=el.checked; var ord=load('terrasse_orders',[]); var oo=ord.find(function(x){return String(x.id)===String(el.dataset.id);}); var prev=document.getElementById('bl-preview'); if(oo&&prev){ prev.innerHTML=buildBLHtml(oo, window.BL_SHOW_NOTE); } }
     else if(a==='save-bl-note'){ saveBLNote(el.dataset.id); }
@@ -3890,14 +3899,87 @@ function renderDevis(){
   var dhCount=document.getElementById('devis-header-count');
   if(dhCount) dhCount.textContent=DEVIS.length+' devis enregistre'+(DEVIS.length>1?'s':'');
   var container=document.getElementById('devis-list');
-  // Nouveau devis form en haut si ouvert
+  // Preserver le formulaire de creation s'il est ouvert
   var existingForm=document.getElementById('devis-form-container');
   var formHTML=existingForm?existingForm.outerHTML:'';
+
+  // BARRE D'ANNEES
+  var years=[...new Set(DEVIS.map(getDevisYear))].sort(function(a,b){return b-a;});
+  if(!years.length) years=[new Date().getFullYear()];
+  if(years.indexOf(window.DEVIS_YEAR)<0) window.DEVIS_YEAR=years[0];
+  var ybar=document.getElementById('devis-year-bar');
+  if(ybar){
+    ybar.innerHTML=years.map(function(y){
+      var on=(y===window.DEVIS_YEAR);
+      return '<button data-action="devis-year" data-year="'+y+'" style="padding:8px 18px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:14px;font-weight:600;cursor:pointer;">'+y+'</button>';
+    }).join('');
+  }
+
   if(!DEVIS.length){
     container.innerHTML=formHTML+'<div class="empty"><div class="empty-i">📋</div><p>Aucun devis. Creez votre premier devis !</p></div>';
     return;
   }
-  container.innerHTML=DEVIS.map(function(d){
+
+  // Filtrer par annee choisie
+  var inYear=DEVIS.filter(function(d){return getDevisYear(d)===window.DEVIS_YEAR;});
+
+  // Fil d'ariane
+  function breadcrumb(){
+    var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+    if(window.DEVIS_NAV_CLIENT||window.DEVIS_NAV_MONTH!==null){
+      bc+='<button data-action="devis-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
+    }
+    bc+='<span style="color:#999;">📋 '+window.DEVIS_YEAR+'</span>';
+    if(window.DEVIS_NAV_CLIENT) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.DEVIS_NAV_CLIENT+'</span>';
+    if(window.DEVIS_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.DEVIS_NAV_MONTH]+'</span>';
+    bc+='</div>';
+    return bc;
+  }
+
+  // NIVEAU 1: liste des clients
+  if(!window.DEVIS_NAV_CLIENT){
+    var byClient={};
+    inYear.forEach(function(d){ if(!byClient[d.client])byClient[d.client]=[]; byClient[d.client].push(d); });
+    var clientNames=Object.keys(byClient).sort();
+    if(!clientNames.length){
+      container.innerHTML=formHTML+breadcrumb()+'<div class="empty"><div class="empty-i">📋</div><p>Aucun devis pour '+window.DEVIS_YEAR+'.</p></div>';
+      return;
+    }
+    var h=formHTML+breadcrumb()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    clientNames.forEach(function(c){
+      var n=byClient[c].length;
+      h+='<div data-action="devis-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' devis</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    h+='</div>';
+    container.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 2: liste des mois du client
+  var clientDevis=inYear.filter(function(d){return d.client===window.DEVIS_NAV_CLIENT;});
+  if(window.DEVIS_NAV_MONTH===null){
+    var byMonth={};
+    clientDevis.forEach(function(d){ var m=getDevisMonth(d); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(d); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    var h=breadcrumb()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    months.forEach(function(m){
+      var n=byMonth[m].length;
+      h+='<div data-action="devis-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.DEVIS_YEAR+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' devis</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    h+='</div>';
+    container.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 3: les devis du client/mois
+  var devisList=clientDevis.filter(function(d){return getDevisMonth(d)===window.DEVIS_NAV_MONTH;});
+  container.innerHTML=breadcrumb()+devisList.map(function(d){
     var total=d.items.reduce(function(s,i){return s+(parseFloat(i.prix||0)*parseFloat(i.qty||0));},0);
     var statusColor={attente:'#fff3e0',envoye:'#e6f0ff',accepte:'#eaf3de',refuse:'#ffecec'}[d.status]||'#f5f5f5';
     var statusTextColor={attente:'#854f0b',envoye:'#0c447c',accepte:'#27500a',refuse:'#d32f2f'}[d.status]||'#666';
@@ -4858,6 +4940,20 @@ function getOrderMonth(o){
   return d.getMonth(); // 0-11
 }
 var MOIS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+// Helpers pour extraire annee/mois d'un devis (date au format JJ/MM/AAAA ou dateFrom AAAA-MM-JJ)
+function getDevisYear(d){
+  if(d.dateFrom&&/^\d{4}-\d{2}-\d{2}/.test(d.dateFrom)) return parseInt(d.dateFrom.substring(0,4));
+  if(d.date&&/^\d{2}\/\d{2}\/\d{4}/.test(d.date)) return parseInt(d.date.substring(6,10));
+  return new Date().getFullYear();
+}
+function getDevisMonth(d){
+  if(d.dateFrom&&/^\d{4}-\d{2}-\d{2}/.test(d.dateFrom)) return parseInt(d.dateFrom.substring(5,7))-1;
+  if(d.date&&/^\d{2}\/\d{2}\/\d{4}/.test(d.date)) return parseInt(d.date.substring(3,5))-1;
+  return new Date().getMonth();
+}
+if(typeof window.DEVIS_YEAR==='undefined') window.DEVIS_YEAR=new Date().getFullYear();
+window.DEVIS_NAV_CLIENT=window.DEVIS_NAV_CLIENT||null;
+window.DEVIS_NAV_MONTH=(typeof window.DEVIS_NAV_MONTH==='undefined')?null:window.DEVIS_NAV_MONTH;
 // Etat de navigation: annee choisie (barre), puis client, puis mois
 if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();
 window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
