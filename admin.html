@@ -550,9 +550,18 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <option value="EN COURS">En cours</option>
           <option value="IMPAYE">Impayées</option>
         </select>
-        <button onclick="document.getElementById('suivi-search').value='';document.getElementById('suivi-filter-etat').value='';renderSuivi2();" style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;">✕ Réinit</button>
+        <select id="suivi-filter-paiement" onchange="renderSuivi2()" style="padding:9px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;">
+          <option value="">Tous paiements</option>
+          <option value="Espèces">Espèces</option>
+          <option value="Chèque">Chèque</option>
+          <option value="LC">LC</option>
+          <option value="Virement">Virement</option>
+        </select>
+        <button onclick="document.getElementById('suivi-search').value='';document.getElementById('suivi-filter-etat').value='';document.getElementById('suivi-filter-paiement').value='';renderSuivi2();" style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;">✕ Réinit</button>
       </div>
       <div id="suivi-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+      <div id="suivi-totaux" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;"></div>
+      <div id="suivi-trous" style="margin-bottom:12px;"></div>
       <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf2-num" class="fs" placeholder="AFD2026/0001" style="width:100%;"/></div>
@@ -5240,13 +5249,15 @@ function getDevisMonth(d){
 if(typeof window.DEVIS_YEAR==='undefined') window.DEVIS_YEAR=new Date().getFullYear();
 window.DEVIS_NAV_CLIENT=window.DEVIS_NAV_CLIENT||null;
 window.DEVIS_NAV_MONTH=(typeof window.DEVIS_NAV_MONTH==='undefined')?null:window.DEVIS_NAV_MONTH;
-// Helpers pour le suivi factures (date au format AAAA-MM-JJ ou JJ/MM/AAAA)
+// Helpers pour le suivi factures (champ 'mois' AAAA-MM prioritaire, puis date AAAA-MM-JJ ou JJ/MM/AAAA)
 function getSuiviYear(r){
+  if(r.mois&&/^\d{4}-\d{2}/.test(r.mois)) return parseInt(r.mois.substring(0,4));
   if(r.date&&/^\d{4}-\d{2}-\d{2}/.test(r.date)) return parseInt(r.date.substring(0,4));
   if(r.date&&/^\d{2}\/\d{2}\/\d{4}/.test(r.date)) return parseInt(r.date.substring(6,10));
   return new Date().getFullYear();
 }
 function getSuiviMonth(r){
+  if(r.mois&&/^\d{4}-\d{2}/.test(r.mois)) return parseInt(r.mois.substring(5,7))-1;
   if(r.date&&/^\d{4}-\d{2}-\d{2}/.test(r.date)) return parseInt(r.date.substring(5,7))-1;
   if(r.date&&/^\d{2}\/\d{2}\/\d{4}/.test(r.date)) return parseInt(r.date.substring(3,5))-1;
   return new Date().getMonth();
@@ -5884,95 +5895,88 @@ function renderSuivi2(){
 
   var navEl=document.getElementById('suivi-nav');
   var tableWrap=document.getElementById('suivi-table-wrap');
+  var paiementEl=document.getElementById('suivi-filter-paiement');
+  var paiementFilter=paiementEl?paiementEl.value:'';
+  if(navEl) navEl.innerHTML='';
+  if(tableWrap) tableWrap.style.display='block';
 
-  // Si recherche ou filtre actif: montrer le tableau directement (recherche transverse, pas de navigation)
-  var hasSearch=(q||etatFilter);
-  function bcSuivi(){
-    var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
-    if(window.SUIVI_NAV_CLIENT||window.SUIVI_NAV_MONTH!==null){
-      bc+='<button data-action="suivi-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
-    }
-    bc+='<span style="color:#999;">📊 '+window.SUIVI_YEAR+'</span>';
-    if(window.SUIVI_NAV_CLIENT) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.SUIVI_NAV_CLIENT+'</span>';
-    if(window.SUIVI_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.SUIVI_NAV_MONTH]+'</span>';
-    bc+='</div>';
-    return bc;
+  // VUE COMPTABLE: toutes les factures de l'annee choisie
+  var inYearAll=SUIVI2.map(function(r,i){return {r:r,origIdx:i};}).filter(function(o){return getSuiviYear(o.r)===window.SUIVI_YEAR;});
+
+  // CARTES DE TOTAUX (sur toute l'annee, avant filtres etat/paiement/recherche)
+  var totFacture=0,totEncaisse=0,totEnCours=0,totImpaye=0;
+  inYearAll.forEach(function(o){
+    var r=o.r; var mt=parseFloat(r.mt||0);
+    totFacture+=mt;
+    var etat=(r.etat||'').toUpperCase().trim();
+    if(etat==='REGLER'||etat==='REGLE'||etat==='PAYE'||etat==='PAYÉ') totEncaisse+=mt;
+    else if(etat==='EN COURS') totEnCours+=mt;
+    else totImpaye+=mt;
+  });
+  var totauxEl=document.getElementById('suivi-totaux');
+  if(totauxEl){
+    totauxEl.innerHTML=
+      '<div style="background:#f1efe8;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#5f5e5a;">Total facturé</div><div style="font-size:17px;font-weight:600;color:#2c2c2a;">'+Math.round(totFacture).toLocaleString('fr-FR')+' Dh</div></div>'
+      +'<div style="background:#eaf3de;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#3b6d11;">Encaissé</div><div style="font-size:17px;font-weight:600;color:#27500a;">'+Math.round(totEncaisse).toLocaleString('fr-FR')+' Dh</div></div>'
+      +'<div style="background:#fff3e0;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#854f0b;">En cours</div><div style="font-size:17px;font-weight:600;color:#854f0b;">'+Math.round(totEnCours).toLocaleString('fr-FR')+' Dh</div></div>'
+      +'<div style="background:#ffecec;border-radius:8px;padding:10px;"><div style="font-size:11px;color:#a32d2d;">Impayé</div><div style="font-size:17px;font-weight:600;color:#a32d2d;">'+Math.round(totImpaye).toLocaleString('fr-FR')+' Dh</div></div>';
   }
 
-  if(!hasSearch){
-    var inYear=SUIVI2.filter(function(r){return getSuiviYear(r)===window.SUIVI_YEAR;});
-    // NIVEAU 1: clients
-    if(!window.SUIVI_NAV_CLIENT){
-      if(navEl){
-        var byClient={};
-        inYear.forEach(function(r){ var c=r.client||'(sans nom)'; if(!byClient[c])byClient[c]=[]; byClient[c].push(r); });
-        var clientNames=Object.keys(byClient).sort();
-        var h=bcSuivi();
-        if(!clientNames.length){
-          h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:24px;text-align:center;color:#888;">Aucune facture pour '+window.SUIVI_YEAR+'.</div>';
-        }else{
-          h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
-          clientNames.forEach(function(c){
-            var n=byClient[c].length;
-            var tot=byClient[c].reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
-            h+='<div data-action="suivi-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
-              +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
-              +'<div style="font-size:12px;color:#888;">'+n+' facture(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
-              +'<span style="color:#bbb;font-size:18px;">›</span></div>';
-          });
-          h+='</div>';
-        }
-        navEl.innerHTML=h;
+  // DETECTION DES TROUS DE NUMEROTATION (sequence des numeros de factures de l'annee)
+  var trousEl=document.getElementById('suivi-trous');
+  if(trousEl){
+    var nums=[];
+    inYearAll.forEach(function(o){
+      var s=String(o.r.num||'');
+      var m=s.match(/(\d+)\s*$/); // derniere suite de chiffres
+      if(m){ nums.push({n:parseInt(m[1]),prefix:s.substring(0,s.length-m[1].length),len:m[1].length,num:s}); }
+    });
+    // Grouper par prefixe
+    var byPrefix={};
+    var lenByPrefix={};
+    nums.forEach(function(x){ if(!byPrefix[x.prefix])byPrefix[x.prefix]=[]; byPrefix[x.prefix].push(x.n); lenByPrefix[x.prefix]=Math.max(lenByPrefix[x.prefix]||0,x.len); });
+    var trous=[];
+    var doublons=[];
+    Object.keys(byPrefix).forEach(function(pfx){
+      var arr=byPrefix[pfx].slice().sort(function(a,b){return a-b;});
+      var padLen=lenByPrefix[pfx]||4;
+      // doublons
+      for(var i=1;i<arr.length;i++){ if(arr[i]===arr[i-1]) doublons.push(pfx+String(arr[i]).padStart(padLen,'0')); }
+      // trous
+      var uniq=[...new Set(arr)];
+      for(var j=1;j<uniq.length;j++){
+        for(var k=uniq[j-1]+1;k<uniq[j];k++){ trous.push(pfx+String(k).padStart(padLen,'0')); }
       }
-      if(tableWrap) tableWrap.style.display='none';
-      return;
+    });
+    var alertHtml='';
+    if(trous.length){
+      alertHtml+='<div style="background:#ffecec;border:1px solid #f09595;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:12px;color:#a32d2d;">⚠️ Numéro(s) manquant(s) dans la séquence : <strong>'+trous.slice(0,10).join(', ')+(trous.length>10?'…':'')+'</strong></div>';
     }
-    // NIVEAU 2: mois du client
-    var clientRows=inYear.filter(function(r){return (r.client||'(sans nom)')===window.SUIVI_NAV_CLIENT;});
-    if(window.SUIVI_NAV_MONTH===null){
-      if(navEl){
-        var byMonth={};
-        clientRows.forEach(function(r){ var m=getSuiviMonth(r); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(r); });
-        var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
-        var h=bcSuivi()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
-        months.forEach(function(m){
-          var n=byMonth[m].length;
-          var tot=byMonth[m].reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
-          h+='<div data-action="suivi-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
-            +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.SUIVI_YEAR+'</div>'
-            +'<div style="font-size:12px;color:#888;">'+n+' facture(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
-            +'<span style="color:#bbb;font-size:18px;">›</span></div>';
-        });
-        h+='</div>';
-        navEl.innerHTML=h;
-      }
-      if(tableWrap) tableWrap.style.display='none';
-      return;
+    if(doublons.length){
+      alertHtml+='<div style="background:#fff3e0;border:1px solid #ef9f27;border-radius:8px;padding:10px 12px;font-size:12px;color:#854f0b;">⚠️ Numéro(s) en double : <strong>'+[...new Set(doublons)].join(', ')+'</strong></div>';
     }
-    // NIVEAU 3: tableau filtre client+mois (on continue vers l'affichage tableau ci-dessous)
-    if(navEl) navEl.innerHTML=bcSuivi();
-    if(tableWrap) tableWrap.style.display='block';
-  } else {
-    // Recherche active: pas de navigation, tableau complet
-    if(navEl) navEl.innerHTML='';
-    if(tableWrap) tableWrap.style.display='block';
+    if(!trous.length&&!doublons.length&&inYearAll.length){
+      alertHtml='<div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:8px 12px;font-size:12px;color:#27500a;">✅ Séquence de numéros correcte (aucun trou ni doublon)</div>';
+    }
+    trousEl.innerHTML=alertHtml;
   }
 
-  // Garder les index originaux pour edit/delete
-  var indexed=SUIVI2.map(function(r,i){return {r:r,origIdx:i};});
+  // Filtrer pour le tableau: annee + etat + paiement + recherche
+  var indexed=inYearAll;
   var filtered=indexed.filter(function(o){
     var r=o.r;
-    if(etatFilter && (r.reglement||r.etat||'')!==etatFilter) return false;
-    // Filtre navigation (client + mois) si pas de recherche
-    if(!hasSearch && window.SUIVI_NAV_CLIENT){
-      if((r.client||'(sans nom)')!==window.SUIVI_NAV_CLIENT) return false;
-      if(window.SUIVI_NAV_MONTH!==null && getSuiviMonth(r)!==window.SUIVI_NAV_MONTH) return false;
-      if(getSuiviYear(r)!==window.SUIVI_YEAR) return false;
-    }
+    if(etatFilter && (r.reglement||r.etat||'')!==etatFilter && (r.etat||'')!==etatFilter) return false;
+    if(paiementFilter && (r.reglement||'')!==paiementFilter) return false;
     if(!q) return true;
     var hay=((r.num||'')+' '+(r.client||'')+' '+(r.mt||'')+' '+(r.date||'')+' '+(r.comment||'')).toLowerCase();
     var mtRound=Math.round(parseFloat(r.mt||0)).toString();
     return hay.indexOf(q)>=0 || mtRound.indexOf(q)>=0;
+  });
+  // Trier par numero (sequence) pour vue comptable
+  filtered.sort(function(a,b){
+    var na=String(a.r.num||'').match(/(\d+)\s*$/); var nb=String(b.r.num||'').match(/(\d+)\s*$/);
+    var va=na?parseInt(na[1]):0; var vb=nb?parseInt(nb[1]):0;
+    return va-vb;
   });
   var total=filtered.reduce(function(s,o){return s+parseFloat(o.r.mt||0);},0);
   if(!filtered.length){
