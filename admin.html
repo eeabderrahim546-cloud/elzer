@@ -433,6 +433,10 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <input type="hidden" id="fact-num-input"/>
       </div>
       <div id="fact-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <select class="fs" id="fact-filter-client" onchange="factPickClient(this.value)" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
+        <input type="text" id="fact-search" placeholder="Rechercher un client..." oninput="renderFacturation()" style="flex:1;min-width:150px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
+      </div>
       <div style="display:none;gap:12px;margin-bottom:16px;flex-wrap:wrap;" id="fact-selects-row">
         <select class="fs" style="width:180px;" id="fact-mois"></select>
         <select class="fs" style="width:180px;" id="fact-client"><option value="">Tous les clients</option></select>
@@ -2612,6 +2616,14 @@ if(typeof window.FOURD_YEAR==='undefined') window.FOURD_YEAR=new Date().getFullY
 window.FOURD_NAV_MONTH=(typeof window.FOURD_NAV_MONTH==='undefined')?null:window.FOURD_NAV_MONTH;
 
 // Routeur: affiche la navigation (annee>client>mois) puis le contenu de facturation
+// Choisir un client via le selecteur -> aller directement a ses mois
+function factPickClient(name){
+  if(name){ window.FACT_NAV_CLIENT=name; window.FACT_NAV_MONTH=null; }
+  else { window.FACT_NAV_CLIENT=null; window.FACT_NAV_MONTH=null; }
+  renderFacturation();
+}
+window.factPickClient=factPickClient;
+
 function renderFacturation(){
   orders=load('terrasse_orders',[]);
   // Header
@@ -2642,6 +2654,17 @@ function renderFacturation(){
 
   var inYear=valid.filter(function(o){return getOrderYear(o)===window.FACT_YEAR;});
 
+  // Remplir le selecteur client (tous les clients de l'annee)
+  var fcSel=document.getElementById('fact-filter-client');
+  if(fcSel){
+    var allCli=[...new Set(inYear.map(function(o){return o.client;}))].sort();
+    var curSel=fcSel.value;
+    fcSel.innerHTML='<option value="">Tous les clients</option>'+allCli.map(function(c){return '<option value="'+c.replace(/"/g,'&quot;')+'"'+(c===curSel?' selected':'')+'>'+c+'</option>';}).join('');
+  }
+  // Recherche par nom de client
+  var searchEl=document.getElementById('fact-search');
+  var fq=searchEl?searchEl.value.trim().toLowerCase():'';
+
   function bcFact(){
     var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
     if(window.FACT_NAV_CLIENT||window.FACT_NAV_MONTH!==null){
@@ -2662,9 +2685,11 @@ function renderFacturation(){
     var byClient={};
     inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
     var clientNames=Object.keys(byClient).sort();
+    // Appliquer la recherche
+    if(fq) clientNames=clientNames.filter(function(c){return c.toLowerCase().indexOf(fq)>=0;});
     var h=bcFact();
     if(!clientNames.length){
-      h+='<div class="empty"><div class="empty-i">🧾</div><p>Aucune commande pour '+window.FACT_YEAR+'.</p></div>';
+      h+='<div class="empty"><div class="empty-i">🧾</div><p>Aucun client'+(fq?' pour cette recherche':' pour '+window.FACT_YEAR)+'.</p></div>';
     }else{
       h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
       clientNames.forEach(function(c){
