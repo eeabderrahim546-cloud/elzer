@@ -546,6 +546,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </select>
         <button onclick="document.getElementById('suivi-search').value='';document.getElementById('suivi-filter-etat').value='';renderSuivi2();" style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;">✕ Réinit</button>
       </div>
+      <div id="suivi-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
       <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div><label style="font-size:11px;font-weight:600;color:#555;display:block;margin-bottom:3px;">N° Facture</label><input id="sf2-num" class="fs" placeholder="AFD2026/0001" style="width:100%;"/></div>
@@ -568,7 +569,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button onclick="document.getElementById('suivi-form-inline').style.display='none'" style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:9px 16px;cursor:pointer;font-size:13px;">Annuler</button>
         </div>
       </div>
-      <div style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;">
+      <div id="suivi-nav"></div>
+      <div id="suivi-table-wrap" style="background:#fff;border-radius:10px;border:1px solid #e0e8d8;overflow:hidden;">
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;min-width:700px;">
             <thead><tr style="background:#5a7050;">
@@ -1193,6 +1195,14 @@ document.addEventListener('click',async function(e){
       if(window.DEVIS_NAV_MONTH!==null){ window.DEVIS_NAV_MONTH=null; }
       else if(window.DEVIS_NAV_CLIENT){ window.DEVIS_NAV_CLIENT=null; }
       renderDevis();
+    }
+    else if(a==='suivi-year'){ window.SUIVI_YEAR=parseInt(el.dataset.year); window.SUIVI_NAV_CLIENT=null; window.SUIVI_NAV_MONTH=null; renderSuivi2(); }
+    else if(a==='suivi-client-open'){ window.SUIVI_NAV_CLIENT=el.dataset.client; window.SUIVI_NAV_MONTH=null; renderSuivi2(); }
+    else if(a==='suivi-month-open'){ window.SUIVI_NAV_MONTH=parseInt(el.dataset.month); renderSuivi2(); }
+    else if(a==='suivi-back'){
+      if(window.SUIVI_NAV_MONTH!==null){ window.SUIVI_NAV_MONTH=null; }
+      else if(window.SUIVI_NAV_CLIENT){ window.SUIVI_NAV_CLIENT=null; }
+      renderSuivi2();
     }
     else if(a==='toggle-bl-note'){ window.BL_SHOW_NOTE=el.checked; var ord=load('terrasse_orders',[]); var oo=ord.find(function(x){return String(x.id)===String(el.dataset.id);}); var prev=document.getElementById('bl-preview'); if(oo&&prev){ prev.innerHTML=buildBLHtml(oo, window.BL_SHOW_NOTE); } }
     else if(a==='save-bl-note'){ saveBLNote(el.dataset.id); }
@@ -4954,6 +4964,20 @@ function getDevisMonth(d){
 if(typeof window.DEVIS_YEAR==='undefined') window.DEVIS_YEAR=new Date().getFullYear();
 window.DEVIS_NAV_CLIENT=window.DEVIS_NAV_CLIENT||null;
 window.DEVIS_NAV_MONTH=(typeof window.DEVIS_NAV_MONTH==='undefined')?null:window.DEVIS_NAV_MONTH;
+// Helpers pour le suivi factures (date au format AAAA-MM-JJ ou JJ/MM/AAAA)
+function getSuiviYear(r){
+  if(r.date&&/^\d{4}-\d{2}-\d{2}/.test(r.date)) return parseInt(r.date.substring(0,4));
+  if(r.date&&/^\d{2}\/\d{2}\/\d{4}/.test(r.date)) return parseInt(r.date.substring(6,10));
+  return new Date().getFullYear();
+}
+function getSuiviMonth(r){
+  if(r.date&&/^\d{4}-\d{2}-\d{2}/.test(r.date)) return parseInt(r.date.substring(5,7))-1;
+  if(r.date&&/^\d{2}\/\d{2}\/\d{4}/.test(r.date)) return parseInt(r.date.substring(3,5))-1;
+  return new Date().getMonth();
+}
+if(typeof window.SUIVI_YEAR==='undefined') window.SUIVI_YEAR=new Date().getFullYear();
+window.SUIVI_NAV_CLIENT=window.SUIVI_NAV_CLIENT||null;
+window.SUIVI_NAV_MONTH=(typeof window.SUIVI_NAV_MONTH==='undefined')?null:window.SUIVI_NAV_MONTH;
 // Etat de navigation: annee choisie (barre), puis client, puis mois
 if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();
 window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
@@ -5569,14 +5593,108 @@ function renderSuivi2(){
   var q=searchEl?searchEl.value.trim().toLowerCase():'';
   var etatEl=document.getElementById('suivi-filter-etat');
   var etatFilter=etatEl?etatEl.value:'';
+
+  // BARRE D'ANNEES
+  var years=[...new Set(SUIVI2.map(getSuiviYear))].sort(function(a,b){return b-a;});
+  if(!years.length) years=[new Date().getFullYear()];
+  if(years.indexOf(window.SUIVI_YEAR)<0) window.SUIVI_YEAR=years[0];
+  var ybar=document.getElementById('suivi-year-bar');
+  if(ybar){
+    ybar.innerHTML=years.map(function(y){
+      var on=(y===window.SUIVI_YEAR);
+      return '<button data-action="suivi-year" data-year="'+y+'" style="padding:8px 18px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:14px;font-weight:600;cursor:pointer;">'+y+'</button>';
+    }).join('');
+  }
+
+  var navEl=document.getElementById('suivi-nav');
+  var tableWrap=document.getElementById('suivi-table-wrap');
+
+  // Si recherche ou filtre actif: montrer le tableau directement (recherche transverse, pas de navigation)
+  var hasSearch=(q||etatFilter);
+  function bcSuivi(){
+    var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+    if(window.SUIVI_NAV_CLIENT||window.SUIVI_NAV_MONTH!==null){
+      bc+='<button data-action="suivi-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
+    }
+    bc+='<span style="color:#999;">📊 '+window.SUIVI_YEAR+'</span>';
+    if(window.SUIVI_NAV_CLIENT) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.SUIVI_NAV_CLIENT+'</span>';
+    if(window.SUIVI_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.SUIVI_NAV_MONTH]+'</span>';
+    bc+='</div>';
+    return bc;
+  }
+
+  if(!hasSearch){
+    var inYear=SUIVI2.filter(function(r){return getSuiviYear(r)===window.SUIVI_YEAR;});
+    // NIVEAU 1: clients
+    if(!window.SUIVI_NAV_CLIENT){
+      if(navEl){
+        var byClient={};
+        inYear.forEach(function(r){ var c=r.client||'(sans nom)'; if(!byClient[c])byClient[c]=[]; byClient[c].push(r); });
+        var clientNames=Object.keys(byClient).sort();
+        var h=bcSuivi();
+        if(!clientNames.length){
+          h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:24px;text-align:center;color:#888;">Aucune facture pour '+window.SUIVI_YEAR+'.</div>';
+        }else{
+          h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+          clientNames.forEach(function(c){
+            var n=byClient[c].length;
+            var tot=byClient[c].reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
+            h+='<div data-action="suivi-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+              +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
+              +'<div style="font-size:12px;color:#888;">'+n+' facture(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+              +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+          });
+          h+='</div>';
+        }
+        navEl.innerHTML=h;
+      }
+      if(tableWrap) tableWrap.style.display='none';
+      return;
+    }
+    // NIVEAU 2: mois du client
+    var clientRows=inYear.filter(function(r){return (r.client||'(sans nom)')===window.SUIVI_NAV_CLIENT;});
+    if(window.SUIVI_NAV_MONTH===null){
+      if(navEl){
+        var byMonth={};
+        clientRows.forEach(function(r){ var m=getSuiviMonth(r); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(r); });
+        var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+        var h=bcSuivi()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+        months.forEach(function(m){
+          var n=byMonth[m].length;
+          var tot=byMonth[m].reduce(function(s,r){return s+parseFloat(r.mt||0);},0);
+          h+='<div data-action="suivi-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+            +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.SUIVI_YEAR+'</div>'
+            +'<div style="font-size:12px;color:#888;">'+n+' facture(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+            +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+        });
+        h+='</div>';
+        navEl.innerHTML=h;
+      }
+      if(tableWrap) tableWrap.style.display='none';
+      return;
+    }
+    // NIVEAU 3: tableau filtre client+mois (on continue vers l'affichage tableau ci-dessous)
+    if(navEl) navEl.innerHTML=bcSuivi();
+    if(tableWrap) tableWrap.style.display='block';
+  } else {
+    // Recherche active: pas de navigation, tableau complet
+    if(navEl) navEl.innerHTML='';
+    if(tableWrap) tableWrap.style.display='block';
+  }
+
   // Garder les index originaux pour edit/delete
   var indexed=SUIVI2.map(function(r,i){return {r:r,origIdx:i};});
   var filtered=indexed.filter(function(o){
     var r=o.r;
     if(etatFilter && (r.reglement||r.etat||'')!==etatFilter) return false;
+    // Filtre navigation (client + mois) si pas de recherche
+    if(!hasSearch && window.SUIVI_NAV_CLIENT){
+      if((r.client||'(sans nom)')!==window.SUIVI_NAV_CLIENT) return false;
+      if(window.SUIVI_NAV_MONTH!==null && getSuiviMonth(r)!==window.SUIVI_NAV_MONTH) return false;
+      if(getSuiviYear(r)!==window.SUIVI_YEAR) return false;
+    }
     if(!q) return true;
     var hay=((r.num||'')+' '+(r.client||'')+' '+(r.mt||'')+' '+(r.date||'')+' '+(r.comment||'')).toLowerCase();
-    // Recherche aussi par montant arrondi
     var mtRound=Math.round(parseFloat(r.mt||0)).toString();
     return hay.indexOf(q)>=0 || mtRound.indexOf(q)>=0;
   });
