@@ -607,6 +607,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <div><div style="font-size:14px;font-weight:500;color:#fff;">Historique BL</div><div style="font-size:10px;color:rgba(255,255,255,.5);" id="histo-header-count"></div></div>
         </div>
       </div>
+      <div id="histo-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
         <select class="fs" id="histo-client" onchange="renderHistorique()" style="flex:1;min-width:150px;"><option value="">Tous les clients</option></select>
         <input type="month" id="histo-month" onchange="renderHistorique()" style="flex:1;min-width:130px;padding:8px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"/>
@@ -1176,6 +1177,14 @@ document.addEventListener('click',async function(e){
     else if(a==='print-releve-mensuel'){printReleveMensuel();}
     else if(a==='fact-auto-num'){var inp=document.getElementById('fact-num-input');if(inp){inp.value=getNextNum2();toast('N° auto: '+inp.value);}}
     else if(a==='view-bl'){viewBL(el.dataset.id);}
+    else if(a==='histo-year'){ window.HISTO_YEAR=parseInt(el.dataset.year); window.HISTO_NAV_CLIENT=null; window.HISTO_NAV_MONTH=null; renderHistorique(); }
+    else if(a==='histo-client-open'){ window.HISTO_NAV_CLIENT=el.dataset.client; window.HISTO_NAV_MONTH=null; renderHistorique(); }
+    else if(a==='histo-month-open'){ window.HISTO_NAV_MONTH=parseInt(el.dataset.month); renderHistorique(); }
+    else if(a==='histo-back'){
+      if(window.HISTO_NAV_MONTH!==null){ window.HISTO_NAV_MONTH=null; }
+      else if(window.HISTO_NAV_CLIENT){ window.HISTO_NAV_CLIENT=null; }
+      renderHistorique();
+    }
     else if(a==='toggle-bl-note'){ window.BL_SHOW_NOTE=el.checked; var ord=load('terrasse_orders',[]); var oo=ord.find(function(x){return String(x.id)===String(el.dataset.id);}); var prev=document.getElementById('bl-preview'); if(oo&&prev){ prev.innerHTML=buildBLHtml(oo, window.BL_SHOW_NOTE); } }
     else if(a==='save-bl-note'){ saveBLNote(el.dataset.id); }
     else if(a==='clear-bl-note'){ clearBLNote(el.dataset.id); }
@@ -4840,11 +4849,25 @@ function saveStockNow(){
 
 
 // ── HISTORIQUE BL ──
+function getOrderYear(o){
+  var d=new Date(o.createdAt||(o.delivDate?o.delivDate+'T12:00:00':Date.now()));
+  return d.getFullYear();
+}
+function getOrderMonth(o){
+  var d=new Date(o.createdAt||(o.delivDate?o.delivDate+'T12:00:00':Date.now()));
+  return d.getMonth(); // 0-11
+}
+var MOIS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+// Etat de navigation: annee choisie (barre), puis client, puis mois
+if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();
+window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
+window.HISTO_NAV_MONTH=(typeof window.HISTO_NAV_MONTH==='undefined')?null:window.HISTO_NAV_MONTH;
+
 function renderHistorique(){
   orders=load('terrasse_orders',[]);
   clients=load('admin_clients',clients);
 
-  // Remplir select clients
+  // Remplir select clients (filtre rapide)
   var cliSel=document.getElementById('histo-client');
   if(cliSel&&cliSel.options.length<=1){
     var allClients=[...new Set(orders.map(function(o){return o.client;}))].sort();
@@ -4858,58 +4881,123 @@ function renderHistorique(){
   var cliFilter=document.getElementById('histo-client').value;
   var monthFilter=document.getElementById('histo-month').value;
   var q=(document.getElementById('histo-search').value||'').toLowerCase();
-
   var showArchived=document.getElementById('histo-show-archived');
   var showArch=showArchived&&showArchived.checked;
-  var filtered=orders.filter(function(o){
+
+  // Filtre de base (archivés, recherche)
+  var base=orders.filter(function(o){
     if(!showArch && o.archived) return false;
     if(showArch && !o.archived) return false;
-    if(cliFilter&&o.client!==cliFilter) return false;
-    if(monthFilter){
-      var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
-      var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      if(ym!==monthFilter) return false;
-    }
-    if(q&&!o.client.toLowerCase().includes(q)&&!String(o.id).includes(q)) return false;
+    if(q && !o.client.toLowerCase().includes(q) && !String(o.id).includes(q) && !String(o.bl||'').toLowerCase().includes(q)) return false;
     return true;
   });
 
-  // Trier par date desc
-  filtered.sort(function(a,b){
-    // Trier par date de création décroissante (récents en haut)
-    var da=new Date(a.createdAt||a.delivDate||0);
-    var db=new Date(b.createdAt||b.delivDate||0);
-    if(db-da!==0) return db-da;
-    return (b.id>a.id)?1:-1;
-  });
+  // BARRE D'ANNEES
+  var years=[...new Set(base.map(getOrderYear))].sort(function(a,b){return b-a;});
+  if(!years.length) years=[new Date().getFullYear()];
+  if(years.indexOf(window.HISTO_YEAR)<0) window.HISTO_YEAR=years[0];
+  var ybar=document.getElementById('histo-year-bar');
+  if(ybar){
+    ybar.innerHTML=years.map(function(y){
+      var on=(y===window.HISTO_YEAR);
+      return '<button data-action="histo-year" data-year="'+y+'" style="padding:8px 18px;border-radius:18px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:14px;font-weight:600;cursor:pointer;">'+y+'</button>';
+    }).join('');
+  }
 
-  var hc=document.getElementById('histo-header-count');
-  if(hc) hc.textContent=filtered.length+' BL trouvé(s)';
-  var hcount=document.getElementById('histo-count');
-  if(hcount) hcount.textContent=filtered.length+' bon(s) de livraison trouvé(s)';
+  // Appliquer filtres: annee + recherche client/mois rapides
+  var inYear=base.filter(function(o){return getOrderYear(o)===window.HISTO_YEAR;});
+  if(cliFilter) inYear=inYear.filter(function(o){return o.client===cliFilter;});
+  if(monthFilter){
+    inYear=inYear.filter(function(o){
+      var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
+      var ym=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      return ym===monthFilter;
+    });
+  }
 
-  if(!filtered.length){
-    document.getElementById('historique-content').innerHTML='<div class="empty"><div class="empty-i">📋</div><p>Aucun BL trouvé.</p></div>';
+  var content=document.getElementById('historique-content');
+  var html='';
+
+  // Fil d'ariane
+  function breadcrumb(){
+    var bc='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+    if(window.HISTO_NAV_CLIENT||window.HISTO_NAV_MONTH!==null){
+      bc+='<button data-action="histo-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
+    }
+    bc+='<span style="color:#999;">📋 '+window.HISTO_YEAR+'</span>';
+    if(window.HISTO_NAV_CLIENT) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.HISTO_NAV_CLIENT+'</span>';
+    if(window.HISTO_NAV_MONTH!==null) bc+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.HISTO_NAV_MONTH]+'</span>';
+    bc+='</div>';
+    return bc;
+  }
+
+  // NIVEAU 1: liste des clients (de l'annee choisie)
+  if(!window.HISTO_NAV_CLIENT){
+    html+=breadcrumb();
+    var byClient={};
+    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
+    var clientNames=Object.keys(byClient).sort();
+    if(!clientNames.length){
+      content.innerHTML=html+'<div class="empty"><div class="empty-i">📋</div><p>Aucun BL pour '+window.HISTO_YEAR+'.</p></div>';
+      updateHistoCounts(inYear.length);
+      return;
+    }
+    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    clientNames.forEach(function(c){
+      var n=byClient[c].length;
+      var tot=byClient[c].reduce(function(s,o){return s+(o.total||0);},0);
+      html+='<div data-action="histo-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' BL · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    html+='</div>';
+    content.innerHTML=html;
+    updateHistoCounts(inYear.length);
     return;
   }
 
-  var html='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
+  // NIVEAU 2: liste des mois (du client choisi)
+  var clientOrders=inYear.filter(function(o){return o.client===window.HISTO_NAV_CLIENT;});
+  if(window.HISTO_NAV_MONTH===null){
+    html+=breadcrumb();
+    var byMonth={};
+    clientOrders.forEach(function(o){ var m=getOrderMonth(o); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(o); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    months.forEach(function(m){
+      var n=byMonth[m].length;
+      var tot=byMonth[m].reduce(function(s,o){return s+(o.total||0);},0);
+      html+='<div data-action="histo-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.HISTO_YEAR+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' BL · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    html+='</div>';
+    content.innerHTML=html;
+    updateHistoCounts(clientOrders.length);
+    return;
+  }
+
+  // NIVEAU 3: les BL du client/mois
+  var blList=clientOrders.filter(function(o){return getOrderMonth(o)===window.HISTO_NAV_MONTH;});
+  blList.sort(function(a,b){ return new Date(b.createdAt||b.delivDate||0)-new Date(a.createdAt||a.delivDate||0); });
+  html+=breadcrumb();
+  html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;overflow-x:auto;">'
     +'<table style="width:100%;border-collapse:collapse;">'
     +'<thead><tr style="background:#5a7050;color:#fff;">'
     +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">N° BL</th>'
-    +'<th style="padding:9px 12px;text-align:left;font-size:11px;font-weight:600;">CLIENT</th>'
     +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">LIVRAISON</th>'
     +'<th style="padding:9px 12px;text-align:right;font-size:11px;font-weight:600;">TOTAL</th>'
     +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">STATUT</th>'
     +'<th style="padding:9px 12px;text-align:center;font-size:11px;font-weight:600;">ACTIONS</th>'
     +'</tr></thead><tbody>'
-    +filtered.map(function(o,idx){
+    +blList.map(function(o,idx){
       var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
       var bg=idx%2===0?'#fff':'#fafcf8';
       var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
       return '<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;">'
-        +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
-        +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'</td>'
+        +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+niceBL(o)+'</span></td>'
         +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
         +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
         +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
@@ -4917,14 +5005,18 @@ function renderHistorique(){
         +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
-        +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
+        +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€</button>')
         +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
-        +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer définitivement">🗑️</button>'
+        +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer">🗑️</button>'
         +'</div></td></tr>';
     }).join('')
     +'</tbody></table></div>';
-
-  document.getElementById('historique-content').innerHTML=html;
+  content.innerHTML=html;
+  updateHistoCounts(blList.length);
+}
+function updateHistoCounts(n){
+  var hc=document.getElementById('histo-header-count'); if(hc) hc.textContent=n+' BL';
+  var hcount=document.getElementById('histo-count'); if(hcount) hcount.textContent=n+' bon(s) de livraison';
 }
 
 // ── BL PAR CLIENT ──
