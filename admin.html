@@ -4492,7 +4492,7 @@ function renderDevis(){
     var statusTextColor={attente:'#854f0b',envoye:'#0c447c',accepte:'#27500a',refuse:'#d32f2f'}[d.status]||'#666';
     var statusLabel={attente:'En attente',envoye:'Envoye',accepte:'Accepte',refuse:'Refuse'}[d.status]||d.status;
     var cliInfo=clients.find(function(c){return c.name===d.client;})||{};
-    var waMsg=encodeURIComponent('DEVIS #'+d.id+'\nDate: '+d.date+'\n\n'+d.items.map(function(i){return '- '+i.name+' '+i.qty+' '+i.unit+' x '+i.prix+' Dh = '+Math.round(parseFloat(i.prix||0)*parseFloat(i.qty||0))+' Dh';}).join('\n')+'\n\nTOTAL: '+Math.round(total).toLocaleString('fr-FR')+' Dh\n\nELZER Distribution Marrakech');
+    var waMsg=encodeURIComponent('DEVIS #'+d.id+'\nClient: '+d.client+'\nDate: '+d.date+((d.dateFrom&&d.dateTo)?('\nValable: '+d.dateFrom+' au '+d.dateTo):'')+'\n\n'+d.items.map(function(i){return '- '+(i.name||i.n||'?')+' : '+i.prix+' Dh/'+(i.unit||'u');}).join('\n')+'\n\nELZER Distribution Marrakech');
     var validityStr='';
     if(d.dateFrom&&d.dateTo){
       var fd=new Date(d.dateFrom+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
@@ -4504,7 +4504,7 @@ function renderDevis(){
       '<div><div style="font-size:13px;font-weight:600;color:#6b8a5e;">D-'+d.id+' — '+d.client+'</div><div style="font-size:11px;color:#666;display:flex;align-items:center;flex-wrap:wrap;gap:4px;">'+d.date+' · '+d.items.length+' articles'+validityStr+'</div></div>'+
       '<span style="background:'+statusColor+';color:'+statusTextColor+';font-size:10px;padding:2px 8px;border-radius:10px;">'+statusLabel+'</span></div>'+
       '<div style="padding:10px 14px;"><div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">'+
-      d.items.slice(0,4).map(function(i){return '<span style="background:#e8f5d8;border-radius:5px;padding:2px 8px;font-size:11px;">'+i.name+' '+i.qty+' '+i.unit+'</span>';}).join('')+
+      d.items.slice(0,4).map(function(i){var nm=i.name||i.n||'?';var px=(i.prix!==undefined&&i.prix!=='')?(' · '+i.prix+' Dh'):'';return '<span style="background:#e8f5d8;border-radius:5px;padding:2px 8px;font-size:11px;">'+nm+' '+(i.unit||'')+px+'</span>';}).join('')+
       (d.items.length>4?'<span style="font-size:11px;color:#888;padding:2px 8px;">+'+(d.items.length-4)+' autres</span>':'')+'</div>'+
       '<div style="display:flex;gap:6px;flex-wrap:wrap;">'+
       '<button class="btn btn-b btn-sm" data-action="edit-devis" data-id="'+d.id+'">Modifier</button>'+
