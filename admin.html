@@ -1528,7 +1528,7 @@ function renderDashboard(){
     var dlivStr=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'}):'non définie';
     var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱</button>':'';
     var actBtn='';
-    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
+    if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation" style="background:#1a7aff;color:#fff;">✅ Confirmer</button>';
     else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
     else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;border-left:4px solid '+({nouvelle:'#1a7aff',preparation:'#c47a00',livree:'#1aa84a',annulee:'#999'}[o.status]||'#999')+';padding:12px;margin-bottom:8px;">'
@@ -1547,52 +1547,80 @@ function renderDashboard(){
   }
   
   var html='';
-  
-  // SECTION 1: À LIVRER AUJOURD'HUI
-  html+='<div style="background:#f7faf4;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #5a7050;">';
-  html+='<div style="font-size:14px;font-weight:600;color:#5a7050;margin-bottom:10px;">🚚 À LIVRER AUJOURD HUI ('+livToday.length+')</div>';
-  if(livToday.length){
-    livToday.sort(function(a,b){
-      var o={nouvelle:0,preparation:1,livree:2};
-      if((o[a.status]||3)!==(o[b.status]||3)) return (o[a.status]||3)-(o[b.status]||3);
-      return new Date(b.createdAt||0)-new Date(a.createdAt||0);
-    });
-    livToday.forEach(function(o){html+=orderCard(o);});
-  } else {
-    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune livraison prévue aujourd hui</div>';
-  }
-  html+='</div>';
-  
-  // SECTION 2: POUR DEMAIN
-  html+='<div style="background:#f0f6ff;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #1a7aff;">';
-  html+='<div style="font-size:14px;font-weight:600;color:#1a5c9e;margin-bottom:10px;">📅 COMMANDES POUR DEMAIN ('+livTomorrow.length+')</div>';
-  if(livTomorrow.length){
-    livTomorrow.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
-    livTomorrow.forEach(function(o){html+=orderCard(o);});
-  } else {
-    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune commande reçue pour demain</div>';
-  }
-  html+='</div>';
-  
-  // SECTION 3: AUTRES COMMANDES EN ATTENTE (ni aujourd'hui ni demain)
-  var autres=orders.filter(function(o){
-    return (o.status==='nouvelle'||o.status==='preparation') && o.delivDate!==today && o.delivDate!==tomorrow;
-  });
-  autres.sort(function(a,b){
+
+  // SECTION A CONFIRMER: commandes nouvelles (statut nouvelle) = boite de reception
+  var aConfirmer=orders.filter(function(o){return o.status==='nouvelle';});
+  aConfirmer.sort(function(a,b){
     var da=a.delivDate?new Date(a.delivDate+'T12:00:00').getTime():Infinity;
     var db=b.delivDate?new Date(b.delivDate+'T12:00:00').getTime():Infinity;
     if(da!==db) return da-db;
     return new Date(b.createdAt||0)-new Date(a.createdAt||0);
   });
-  html+='<div style="background:#fff8ee;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #f0a030;">';
-  html+='<div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:10px;">📦 AUTRES COMMANDES EN ATTENTE ('+autres.length+')</div>';
-  if(autres.length){
-    autres.forEach(function(o){html+=orderCard(o);});
+  html+='<div style="background:#eff6ff;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #1a7aff;">';
+  html+='<div style="font-size:14px;font-weight:600;color:#1a5c9e;margin-bottom:10px;">🆕 À CONFIRMER ('+aConfirmer.length+')</div>';
+  html+='<div style="font-size:11px;color:#666;margin-bottom:10px;">Nouvelles commandes reçues — Confirmer = passer en préparation</div>';
+  if(aConfirmer.length){
+    aConfirmer.forEach(function(o){html+=orderCard(o);});
   } else {
-    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune autre commande en attente</div>';
+    html+='<div style="color:#999;font-size:13px;padding:10px;text-align:center;">Aucune nouvelle commande à confirmer ✅</div>';
   }
   html+='</div>';
-  
+
+  // ALERTE 1: EN RETARD (date de livraison passee et non livree)
+  var enRetard=orders.filter(function(o){
+    return o.delivDate && o.delivDate<today && (o.status==='nouvelle'||o.status==='preparation');
+  });
+  enRetard.sort(function(a,b){
+    var da=new Date(a.delivDate+'T12:00:00').getTime();
+    var db=new Date(b.delivDate+'T12:00:00').getTime();
+    return da-db;
+  });
+  if(enRetard.length){
+    html+='<div style="background:#ffecec;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #d32f2f;">';
+    html+='<div style="font-size:14px;font-weight:600;color:#a32d2d;margin-bottom:10px;">⚠️ EN RETARD ('+enRetard.length+')</div>';
+    html+='<div style="font-size:11px;color:#666;margin-bottom:10px;">Date de livraison dépassée et non livrée</div>';
+    enRetard.forEach(function(o){html+=orderCard(o);});
+    html+='</div>';
+  }
+
+  // ALERTE 2: A LIVRER AUJOURD HUI (deja confirmees, en preparation ou nouvelles du jour)
+  var livTodayActives=orders.filter(function(o){
+    return o.delivDate===today && o.status==='preparation';
+  });
+  if(livTodayActives.length){
+    html+='<div style="background:#fff3e0;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #f0a030;">';
+    html+='<div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:10px;">🚚 À LIVRER AUJOURD HUI ('+livTodayActives.length+')</div>';
+    html+='<div style="font-size:11px;color:#666;margin-bottom:10px;">Commandes confirmées à livrer aujourd hui</div>';
+    livTodayActives.forEach(function(o){html+=orderCard(o);});
+    html+='</div>';
+  }
+
+  // ALERTE 3: PROCHAINS JOURS (demain et après) - commandes confirmees uniquement
+  var prochains=orders.filter(function(o){
+    return o.delivDate && o.delivDate>today && o.status==='preparation';
+  });
+  prochains.sort(function(a,b){
+    var da=new Date(a.delivDate+'T12:00:00').getTime();
+    var db=new Date(b.delivDate+'T12:00:00').getTime();
+    return da-db;
+  });
+  if(prochains.length){
+    html+='<div style="background:#f7faf4;border-radius:12px;padding:14px;margin-bottom:16px;border-left:4px solid #5a7050;">';
+    html+='<div style="font-size:14px;font-weight:600;color:#27500a;margin-bottom:10px;">📅 PROCHAINS JOURS ('+prochains.length+')</div>';
+    html+='<div style="font-size:11px;color:#666;margin-bottom:10px;">Commandes confirmées à livrer dans les prochains jours</div>';
+    prochains.forEach(function(o){html+=orderCard(o);});
+    html+='</div>';
+  }
+
+  // Si rien partout
+  if(!aConfirmer.length && !enRetard.length && !livTodayActives.length && !prochains.length){
+    html+='<div style="background:#f7faf4;border-radius:12px;padding:30px;text-align:center;color:#666;">'
+      +'<div style="font-size:36px;margin-bottom:10px;">✅</div>'
+      +'<div style="font-size:14px;font-weight:600;color:#27500a;">Tout est à jour !</div>'
+      +'<div style="font-size:12px;color:#888;margin-top:6px;">Aucune commande en attente. Va sur Commandes pour voir l historique.</div>'
+      +'</div>';
+  }
+
   ops.innerHTML=html;
 }
 
