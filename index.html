@@ -629,7 +629,7 @@ try{
   var _cd=_sc.find(function(c){return c.name===(CLI&&CLI.name);});
   if(_cd && _cd.favoris) CLI_FAVS=_cd.favoris;
 }catch(e){}
-if(CLI){ loadCustomProducts().then(function(){loadClientFavoris().then(function(){build();});}); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); loadWaNumbers(); }
+if(CLI){ loadCustomProducts().then(function(){loadDevisPrices().then(function(){loadClientFavoris().then(function(){build();});});}); loadAllOrdersForBL().then(function(){var el=document.getElementById("bl-num");if(el)el.textContent="BL #"+formatBL(getBLNum());}); loadWaNumbers(); }
 // Charger les numeros WhatsApp configures par l'admin
 var WA_NUMBERS=[];
 async function loadWaNumbers(){
@@ -734,6 +734,52 @@ async function loadCustomProducts(){
   }catch(e){ /* vide: ignorer */ }
 }
 
+// ── PRIX DEVIS MENSUEL ──
+// Table {nom_article_normalise -> prix} issue du devis valide pour aujourd'hui
+var DEVIS_PRICES={};
+var DEVIS_INFO=null;
+function normDevisName(s){ return String(s||'').trim().toLowerCase(); }
+async function loadDevisPrices(){
+  DEVIS_PRICES={}; DEVIS_INFO=null;
+  if(!CLI||!CLI.name) return;
+  try{
+    var data=await supaFetch('GET','devis?client=eq.'+encodeURIComponent(CLI.name));
+    if(!Array.isArray(data)||!data.length) return;
+    var today=new Date().toISOString().split('T')[0]; // AAAA-MM-JJ
+    // Garder les devis dont la periode couvre aujourd'hui
+    var valides=data.filter(function(d){
+      var from=d.date_from||'';
+      var to=d.date_to||'';
+      if(!from||!to) return false; // periode obligatoire
+      return from<=today && today<=to;
+    });
+    if(!valides.length) return;
+    // Prendre le plus recent (par id decroissant: l'id contient un timestamp croissant)
+    valides.sort(function(a,b){ return String(b.id).localeCompare(String(a.id)); });
+    var devis=valides[0];
+    var items=[];
+    try{ items=typeof devis.items==='string'?JSON.parse(devis.items):(devis.items||[]); }catch(e){ items=[]; }
+    items.forEach(function(it){
+      var nom=normDevisName(it.name||it.n);
+      var prix=parseFloat(String(it.prix||it.p||'').toString().replace(',','.').replace(/[^0-9.]/g,''));
+      if(nom && !isNaN(prix) && prix>0){ DEVIS_PRICES[nom]=prix; }
+    });
+    if(Object.keys(DEVIS_PRICES).length){
+      DEVIS_INFO={from:devis.date_from,to:devis.date_to,count:Object.keys(DEVIS_PRICES).length};
+    }
+  }catch(e){ /* ignorer: prix catalogue par defaut */ }
+}
+// Prix effectif d'un article: prix devis si present, sinon prix catalogue
+function effectivePrice(item){
+  var nom=normDevisName(item.n);
+  if(DEVIS_PRICES.hasOwnProperty(nom)) return DEVIS_PRICES[nom];
+  return item.p||'';
+}
+// Un article a-t-il un prix preferentiel (devis) ?
+function hasDevisPrice(item){
+  return DEVIS_PRICES.hasOwnProperty(normDevisName(item.n));
+}
+
 function build(){
   rows=[];const ct=document.getElementById('ct');ct.innerHTML='';
   CAT.forEach((sec,si)=>{
@@ -756,13 +802,17 @@ function build(){
       var isFav=!!CLI_FAVS[item.n];
       var favStar='<span class="fav-star" data-fav="'+item.n.replace(/"/g,'&quot;')+'" style="cursor:pointer;margin-right:4px;font-size:15px;color:'+(isFav?'#f1c40f':'#ccc')+';">'+(isFav?'⭐':'☆')+'</span>';
       if(mode==='s'){
-        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
+        var effP=effectivePrice(item);
+        var devisBadge=hasDevisPrice(item)?' <span style="font-size:8px;background:#2d6a1f;color:#fff;padding:1px 4px;border-radius:3px;vertical-align:middle;">DEVIS</span>':'';
+        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+devisBadge+'</span></div><div class="pc pr">'+(effP||'')+'</div><div class="pc"><select>'+opts+'</select></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div>';
         pl.appendChild(row);
         const inp=row.querySelector('input'),sel=row.querySelector('select');
         inp.addEventListener('input',()=>{const v=parseFloat(inp.value)||0;inp.classList.toggle('vc',v>0);row.classList.toggle('ok',v>0);ut();});
-        rows.push({row,ic:inp,ib:null,ip:null,sel,name:item.n,price:item.p||''});
+        rows.push({row,ic:inp,ib:null,ip:null,sel,name:item.n,price:effP||''});
       }else{
-        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+'</span></div><div class="pc pr">'+(item.p||'')+'</div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><select>'+opts+'</select></div><div class="tc">—</div>';
+        var effP2=effectivePrice(item);
+        var devisBadge2=hasDevisPrice(item)?' <span style="font-size:8px;background:#2d6a1f;color:#fff;padding:1px 4px;border-radius:3px;vertical-align:middle;">DEVIS</span>':'';
+        row.innerHTML='<div class="pnc"><span class="pn">'+favStar+item.n+devisBadge2+'</span></div><div class="pc pr">'+(effP2||'')+'</div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><input class="qi" type="number" min="0" step="0.5" inputmode="numeric" placeholder="—"/></div><div class="pc"><select>'+opts+'</select></div><div class="tc">—</div>';
         pl.appendChild(row);
         const ins=row.querySelectorAll('input');const iC=ins[0],iB=ins[1],iP=ins[2];
         const sel=row.querySelector('select');const tc=row.querySelector('.tc');
@@ -771,7 +821,7 @@ function build(){
           iC.classList.toggle('vc',c>0);iB.classList.toggle('vb',b>0);iP.classList.toggle('vp',p>0);
           const t=c+b+p;tc.textContent=t||'—';row.classList.toggle('ok',t>0);ut();
         }));
-        rows.push({row,ic:iC,ib:iB,ip:iP,sel,name:item.n,price:item.p||''});
+        rows.push({row,ic:iC,ib:iB,ip:iP,sel,name:item.n,price:effP2||''});
       }
       // Etoile cliquable: accrocher/decrocher le favori
       var starEl=row.querySelector('.fav-star');
