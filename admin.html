@@ -1712,7 +1712,7 @@ function buildCmdCardHtml(o){
     +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+niceBL(o)+'</span>'
     +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
     +'</div>'
-    +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
+    +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · 🚚 Livraison '+dv+' <button data-action="edit-deliv-date" data-id="'+o.id+'" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:#27500a;">📅 Changer</button></div>'
     +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;display:inline-block;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
     +'</div>'
     +statusBadge(o.status)
@@ -1928,7 +1928,7 @@ function renderCommandes(){
       +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
       +'</div>'
-      +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
+      +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · 🚚 Livraison '+dv+' <button data-action="edit-deliv-date" data-id="'+o.id+'" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:#27500a;">📅 Changer</button></div>'
       +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;display:inline-block;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
       +'</div>'
       +statusBadge(o.status)
