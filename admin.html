@@ -333,10 +333,10 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   <div class="content">
     <div class="panel active" id="panel-dashboard">
       <div class="stats">
-        <div class="stat"><div class="stat-n" id="d-livtoday" style="color:#5a7050">0</div><div class="stat-l">🚚 À livrer aujourd'hui</div></div>
-        <div class="stat"><div class="stat-n" id="d-prep" style="color:#c47a00">0</div><div class="stat-l">📦 À préparer</div></div>
-        <div class="stat"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
-        <div class="stat"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
+        <div class="stat" onclick="goToCmdView('today')" style="cursor:pointer;" title="Voir les livraisons d aujourd hui"><div class="stat-n" id="d-livtoday" style="color:#5a7050">0</div><div class="stat-l">🚚 À livrer aujourd'hui</div></div>
+        <div class="stat" onclick="goToCmdView('toprep')" style="cursor:pointer;" title="Voir les commandes a preparer"><div class="stat-n" id="d-prep" style="color:#c47a00">0</div><div class="stat-l">📦 À préparer</div></div>
+        <div class="stat" onclick="goToCmdView('tomorrow')" style="cursor:pointer;" title="Voir les livraisons de demain"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
+        <div class="stat" onclick="goToCmdView('new')" style="cursor:pointer;" title="Voir les nouvelles commandes"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
       </div>
       <div id="dash-operations"></div>
     </div>
@@ -354,6 +354,11 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <button class="cmd-tab" onclick="forceRefreshCommandes()" style="background:#1a7aff;color:#fff;border-color:#1a7aff;">🔄 Actualiser</button>
         <input type="date" class="fs" style="width:150px;margin-left:auto;" id="cmd-date-pick" onchange="setCmdView('date')"/>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <input type="text" id="cmd-search" oninput="renderCommandes()" placeholder="🔍 Rechercher (client, N° BL, montant...)" style="flex:2;min-width:180px;padding:9px 12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;outline:none;"/>
+        <select id="cmd-client-filter" onchange="renderCommandes()" style="flex:1;min-width:130px;padding:9px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:13px;"><option value="">Tous les clients</option></select>
+      </div>
+      <div id="cmd-summary" style="font-size:12px;color:#5a7050;margin-bottom:10px;"></div>
       <div id="commandes-list"></div>
     </div>
     <div class="panel" id="panel-clients">
@@ -1526,7 +1531,7 @@ function renderDashboard(){
     if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
     else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
     else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
-    return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;padding:12px;margin-bottom:8px;">'
+    return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;border-left:4px solid '+({nouvelle:'#1a7aff',preparation:'#c47a00',livree:'#1aa84a',annulee:'#999'}[o.status]||'#999')+';padding:12px;margin-bottom:8px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
       +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+niceBL(o)+'</span>'
       +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
@@ -1637,6 +1642,18 @@ async function forceRefreshCommandes(){
 }
 window.forceRefreshCommandes=forceRefreshCommandes;
 
+// Depuis le tableau de bord: basculer sur Commandes avec un filtre actif
+function goToCmdView(v){
+  // Effacer les filtres recherche/client pour montrer la vue propre
+  var s=document.getElementById('cmd-search'); if(s) s.value='';
+  var c=document.getElementById('cmd-client-filter'); if(c) c.value='';
+  // Basculer sur le panneau Commandes
+  if(typeof showPanel==='function'){ showPanel('commandes'); }
+  // Appliquer la vue
+  if(typeof setCmdView==='function'){ setCmdView(v); }
+}
+window.goToCmdView=goToCmdView;
+
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
   var view=window.CMD_VIEW||'all';
@@ -1673,6 +1690,33 @@ function renderCommandes(){
     if(da!==db) return da-db;
     return new Date(b.createdAt||0)-new Date(a.createdAt||0);
   });
+
+  // Remplir le selecteur client (depuis TOUTES les commandes, pas la liste filtree)
+  var cliSel=document.getElementById('cmd-client-filter');
+  if(cliSel){
+    var allCli=[...new Set(orders.filter(function(o){return o.status!=='annulee'||view==='cancelled';}).map(function(o){return o.client;}))].sort();
+    var curCli=cliSel.value;
+    cliSel.innerHTML='<option value="">Tous les clients</option>'+allCli.map(function(c){return '<option value="'+String(c).replace(/"/g,'&quot;')+'"'+(c===curCli?' selected':'')+'>'+c+'</option>';}).join('');
+  }
+  // Appliquer la recherche + filtre client
+  var searchEl=document.getElementById('cmd-search');
+  var sq=searchEl?searchEl.value.trim().toLowerCase():'';
+  var fc=cliSel?cliSel.value:'';
+  if(fc){ list=list.filter(function(o){return o.client===fc;}); }
+  if(sq){
+    list=list.filter(function(o){
+      var bl=String(niceBL(o)||o.bl||o.id||'').toLowerCase();
+      var cl=String(o.client||'').toLowerCase();
+      var tot=String(Math.round(o.total||0));
+      return cl.indexOf(sq)>=0 || bl.indexOf(sq)>=0 || tot.indexOf(sq)>=0;
+    });
+  }
+  // Resume
+  var sumEl=document.getElementById('cmd-summary');
+  if(sumEl){
+    var totMt=list.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+    sumEl.textContent=titre+' · '+list.length+' commande(s)'+(totMt>0?(' · '+Math.round(totMt).toLocaleString('fr-FR')+' Dh'):'')+(sq||fc?' (filtre actif)':'');
+  }
   
   // Compteurs pour les onglets
   var nbToday=orders.filter(function(o){return o.delivDate===today && o.status!=='annulee';}).length;
