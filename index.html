@@ -738,21 +738,28 @@ async function loadCustomProducts(){
 // Table {nom_article_normalise -> prix} issue du devis valide pour aujourd'hui
 var DEVIS_PRICES={};
 var DEVIS_INFO=null;
-function normDevisName(s){ return String(s||'').trim().toLowerCase(); }
+function normDevisName(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 async function loadDevisPrices(){
   DEVIS_PRICES={}; DEVIS_INFO=null;
   if(!CLI||!CLI.name) return;
   try{
-    var data=await supaFetch('GET','devis?client=eq.'+encodeURIComponent(CLI.name));
-    if(!Array.isArray(data)||!data.length) return;
+    // Charger TOUS les devis (la correspondance client se fait cote client, robuste accents/casse)
+    var data=await supaFetch('GET','devis?select=*');
+    if(!Array.isArray(data)||!data.length){ console.log('[DEVIS] aucune donnee table devis'); return; }
+    var cliNorm=normDevisName(CLI.name);
+    // Filtrer par client (nom normalise)
+    var mesDevis=data.filter(function(d){ return normDevisName(d.client)===cliNorm; });
+    console.log('[DEVIS] total='+data.length+' pour client "'+CLI.name+'"='+mesDevis.length);
+    if(!mesDevis.length) return;
     var today=new Date().toISOString().split('T')[0]; // AAAA-MM-JJ
     // Garder les devis dont la periode couvre aujourd'hui
-    var valides=data.filter(function(d){
-      var from=d.date_from||'';
-      var to=d.date_to||'';
+    var valides=mesDevis.filter(function(d){
+      var from=d.date_from||d.dateFrom||'';
+      var to=d.date_to||d.dateTo||'';
       if(!from||!to) return false; // periode obligatoire
       return from<=today && today<=to;
     });
+    console.log('[DEVIS] valides pour '+today+'='+valides.length);
     if(!valides.length) return;
     // Prendre le plus recent (par id decroissant: l'id contient un timestamp croissant)
     valides.sort(function(a,b){ return String(b.id).localeCompare(String(a.id)); });
@@ -764,10 +771,11 @@ async function loadDevisPrices(){
       var prix=parseFloat(String(it.prix||it.p||'').toString().replace(',','.').replace(/[^0-9.]/g,''));
       if(nom && !isNaN(prix) && prix>0){ DEVIS_PRICES[nom]=prix; }
     });
+    console.log('[DEVIS] prix charges='+Object.keys(DEVIS_PRICES).length);
     if(Object.keys(DEVIS_PRICES).length){
-      DEVIS_INFO={from:devis.date_from,to:devis.date_to,count:Object.keys(DEVIS_PRICES).length};
+      DEVIS_INFO={from:(devis.date_from||devis.dateFrom),to:(devis.date_to||devis.dateTo),count:Object.keys(DEVIS_PRICES).length};
     }
-  }catch(e){ /* ignorer: prix catalogue par defaut */ }
+  }catch(e){ console.log('[DEVIS] erreur chargement:',e&&e.message); }
 }
 // Prix effectif d'un article: prix devis si present, sinon prix catalogue
 function effectivePrice(item){
