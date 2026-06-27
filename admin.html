@@ -349,7 +349,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <button class="cmd-tab" data-view="tomorrow" onclick="setCmdView('tomorrow')">⏭️ Demain</button>
         <button class="cmd-tab" data-view="new" onclick="setCmdView('new')">🆕 Nouvelles</button>
         <button class="cmd-tab" data-view="toprep" onclick="setCmdView('toprep')">📦 À préparer</button>
-        <button class="cmd-tab cmd-tab-active" data-view="all" onclick="setCmdView('all')">📋 Toutes</button>
+        <button class="cmd-tab cmd-tab-active" data-view="all" onclick="setCmdView('all')">📚 Historique</button>
         <button class="cmd-tab" data-view="cancelled" onclick="setCmdView('cancelled')">❌ Annulées</button>
         <button class="cmd-tab" onclick="forceRefreshCommandes()" style="background:#1a7aff;color:#fff;border-color:#1a7aff;">🔄 Actualiser</button>
         <input type="date" class="fs" style="width:150px;margin-left:auto;" id="cmd-date-pick" onchange="setCmdView('date')"/>
@@ -562,7 +562,6 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <option value="LC">LC</option>
           <option value="Virement">Virement</option>
         </select>
-        <button onclick="document.getElementById('suivi-search').value='';document.getElementById('suivi-filter-etat').value='';document.getElementById('suivi-filter-paiement').value='';renderSuivi2();" style="background:#f0f0f0;border:1px solid #ddd;border-radius:8px;padding:9px 14px;cursor:pointer;font-size:13px;">✕ Réinit</button>
       </div>
       <div id="suivi-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
       <div id="suivi-totaux" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;"></div>
@@ -1219,6 +1218,14 @@ document.addEventListener('click',async function(e){
       else if(window.HISTO_NAV_CLIENT){ window.HISTO_NAV_CLIENT=null; }
       renderHistorique();
     }
+    else if(a==='cmd-year'){ window.CMD_YEAR=parseInt(el.dataset.year); window.CMD_NAV_CLIENT=null; window.CMD_NAV_MONTH=null; renderCommandes(); }
+    else if(a==='cmd-client-open'){ window.CMD_NAV_CLIENT=el.dataset.client; window.CMD_NAV_MONTH=null; renderCommandes(); }
+    else if(a==='cmd-month-open'){ window.CMD_NAV_MONTH=parseInt(el.dataset.month); renderCommandes(); }
+    else if(a==='cmd-back'){
+      if(window.CMD_NAV_MONTH!==null){ window.CMD_NAV_MONTH=null; }
+      else if(window.CMD_NAV_CLIENT){ window.CMD_NAV_CLIENT=null; }
+      renderCommandes();
+    }
     else if(a==='devis-year'){ window.DEVIS_YEAR=parseInt(el.dataset.year); window.DEVIS_NAV_CLIENT=null; window.DEVIS_NAV_MONTH=null; renderDevis(); }
     else if(a==='devis-client-open'){ window.DEVIS_NAV_CLIENT=el.dataset.client; window.DEVIS_NAV_MONTH=null; renderDevis(); }
     else if(a==='devis-month-open'){ window.DEVIS_NAV_MONTH=parseInt(el.dataset.month); renderDevis(); }
@@ -1682,6 +1689,129 @@ function goToCmdView(v){
 }
 window.goToCmdView=goToCmdView;
 
+// Helper: construire l'HTML d'une carte commande (utilise par renderCommandes et renderCmdHistorique)
+function buildCmdCardHtml(o){
+  var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'-';
+  var cr=o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+new Date(o.createdAt).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'-';
+  var nbArt=(o.items||[]).length;
+  var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
+  var cli=findClient(o.client);
+  var waNum=cli.wa||cli.tel||'';
+  var borderC=o.status==='nouvelle'?'#1a7aff':(o.status==='preparation'?'#c47a00':(o.status==='annulee'?'#999':'#27ae60'));
+  var isNew=o.status==='nouvelle';
+  var waBtn=waNum?'<button class="btn btn-sm" style="background:#25d366;color:#fff;border:none;" data-action="wa-order" data-id="'+o.id+'">📱 WA</button>':'';
+  var actBtn='';
+  if(o.status==='nouvelle') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="preparation">▶ Préparer</button>';
+  else if(o.status==='preparation') actBtn='<button class="btn btn-p btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="livree">✓ Livrer</button>';
+  else if(o.status==='annulee') actBtn='<button class="btn btn-a btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="nouvelle">↩️ Restaurer</button> <button class="btn btn-d btn-sm" data-action="delete-bl" data-id="'+o.id+'">🗑️ Supprimer</button>';
+  return '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8dd;border-left:4px solid '+borderC+';padding:14px;margin-bottom:10px;'+(isNew?'box-shadow:0 2px 8px rgba(26,122,255,0.12);':'')+'">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
+    +'<div style="flex:1;">'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    +(isNew?'<span style="background:#1a7aff;color:#fff;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:10px;">NOUVEAU</span>':'')
+    +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+niceBL(o)+'</span>'
+    +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
+    +'</div>'
+    +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · Livraison '+dv+'</div>'
+    +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;display:inline-block;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
+    +'</div>'
+    +statusBadge(o.status)
+    +'</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+    +'<button class="btn btn-s btn-sm" data-action="open-detail" data-id="'+o.id+'">📋 Détail</button>'
+    +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️ BL</button>'
+    +waBtn+actBtn
+    +(o.status!=='annulee'&&o.status!=='livree'?'<button class="btn btn-d btn-sm" data-action="set-status" data-id="'+o.id+'" data-status="annulee">❌ Annuler</button>':'')
+    +'</div></div>';
+}
+
+// Vue Historique de Commandes (Annee > Client > Mois)
+function renderCmdHistorique(container){
+  // Historique = commandes confirmees (preparation + livree)
+  var base=orders.filter(function(o){return o.status==='preparation'||o.status==='livree';});
+
+  // Barre annees
+  var years=[...new Set(base.map(getOrderYear))].sort(function(a,b){return b-a;});
+  if(!years.length) years=[new Date().getFullYear()];
+  if(years.indexOf(window.CMD_YEAR)<0) window.CMD_YEAR=years[0];
+  var ybar='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">'+years.map(function(y){
+    var on=(y===window.CMD_YEAR);
+    return '<button data-action="cmd-year" data-year="'+y+'" style="padding:7px 16px;border-radius:16px;border:1.5px solid '+(on?'#2d6a1f':'#d6e6cc')+';background:'+(on?'#2d6a1f':'#fff')+';color:'+(on?'#fff':'#2d6a1f')+';font-size:13px;font-weight:600;cursor:pointer;">'+y+'</button>';
+  }).join('')+'</div>';
+
+  // Fil d'ariane
+  function bc(){
+    var h='<div style="font-size:13px;color:#666;margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">';
+    if(window.CMD_NAV_CLIENT||window.CMD_NAV_MONTH!==null){
+      h+='<button data-action="cmd-back" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:6px;padding:4px 10px;cursor:pointer;color:#27500a;font-size:12px;">← Retour</button>';
+    }
+    h+='<span style="color:#999;">📚 '+window.CMD_YEAR+'</span>';
+    if(window.CMD_NAV_CLIENT) h+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+window.CMD_NAV_CLIENT+'</span>';
+    if(window.CMD_NAV_MONTH!==null) h+='<span style="color:#999;">›</span><span style="font-weight:600;color:#27500a;">'+MOIS_FR[window.CMD_NAV_MONTH]+'</span>';
+    h+='</div>';
+    return h;
+  }
+
+  var inYear=base.filter(function(o){return getOrderYear(o)===window.CMD_YEAR;});
+
+  // NIVEAU 1: clients
+  if(!window.CMD_NAV_CLIENT){
+    var byClient={};
+    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
+    var clientNames=Object.keys(byClient).sort();
+    var h=ybar+bc();
+    if(!clientNames.length){
+      h+='<div class="empty"><div class="empty-i">📚</div><p>Aucune commande confirmée pour '+window.CMD_YEAR+'.</p></div>';
+    }else{
+      h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+      clientNames.forEach(function(c){
+        var n=byClient[c].length;
+        var tot=byClient[c].reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+        h+='<div data-action="cmd-client-open" data-client="'+String(c).replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+          +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
+          +'<div style="font-size:12px;color:#888;">'+n+' commande(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+          +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+      });
+      h+='</div>';
+    }
+    container.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 2: mois
+  var clientOrders=inYear.filter(function(o){return o.client===window.CMD_NAV_CLIENT;});
+  if(window.CMD_NAV_MONTH===null){
+    var byMonth={};
+    clientOrders.forEach(function(o){ var m=getOrderMonth(o); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(o); });
+    var months=Object.keys(byMonth).map(Number).sort(function(a,b){return b-a;});
+    var h=ybar+bc()+'<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
+    months.forEach(function(m){
+      var n=byMonth[m].length;
+      var tot=byMonth[m].reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+      h+='<div data-action="cmd-month-open" data-month="'+m+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
+        +'<div><div style="font-size:14px;font-weight:600;color:#333;">📅 '+MOIS_FR[m]+' '+window.CMD_YEAR+'</div>'
+        +'<div style="font-size:12px;color:#888;">'+n+' commande(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
+        +'<span style="color:#bbb;font-size:18px;">›</span></div>';
+    });
+    h+='</div>';
+    container.innerHTML=h;
+    return;
+  }
+
+  // NIVEAU 3: liste des commandes du client/mois
+  var list=clientOrders.filter(function(o){return getOrderMonth(o)===window.CMD_NAV_MONTH;});
+  // Trier par date de livraison decroissante (recent en haut)
+  list.sort(function(a,b){
+    var da=a.delivDate?new Date(a.delivDate+'T12:00:00').getTime():0;
+    var db=b.delivDate?new Date(b.delivDate+'T12:00:00').getTime():0;
+    return db-da;
+  });
+  var tot=list.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var h=ybar+bc()+'<div style="font-size:12px;color:#5a7050;margin-bottom:10px;">'+list.length+' commande(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div>';
+  list.forEach(function(o){ h+=buildCmdCardHtml(o); });
+  container.innerHTML=h;
+}
+
 function renderCommandes(){
   orders=load('terrasse_orders',[]);
   var view=window.CMD_VIEW||'all';
@@ -1689,6 +1819,12 @@ function renderCommandes(){
   var tomorrow=new Date(Date.now()+86400000).toISOString().split('T')[0];
   var container=document.getElementById('commandes-list');
   if(!container)return;
+
+  // Vue "Historique" (anciennement "Toutes") => navigation Annee > Client > Mois
+  if(view==='all'){
+    renderCmdHistorique(container);
+    return;
+  }
   
   // Filtrer selon la vue
   var list;
@@ -1696,15 +1832,19 @@ function renderCommandes(){
   if(view==='cancelled'){
     list=[].concat(orders).filter(function(o){return o.status==='annulee';});
     titre='❌ Commandes annulées';
+  } else if(view==='new'){
+    // Onglet "Nouvelles" : montrer EXPLICITEMENT les nouvelles non confirmees
+    list=[].concat(orders).filter(function(o){return o.status==='nouvelle';});
+    titre='🆕 Nouvelles (non confirmées)';
   } else {
-    list=[].concat(orders).filter(function(o){return o.status!=='annulee';});
+    // Par defaut: SEULEMENT les commandes confirmees (preparation + livree)
+    list=[].concat(orders).filter(function(o){return o.status==='preparation'||o.status==='livree';});
   }
   if(view==='today'){ list=list.filter(function(o){return o.delivDate===today;}); titre='🚚 Livraisons d aujourd hui ('+today.split('-').reverse().join('/')+')'; }
   else if(view==='tomorrow'){ list=list.filter(function(o){return o.delivDate===tomorrow;}); titre='⏭️ Livraisons de demain'; }
-  else if(view==='new'){ list=list.filter(function(o){return o.status==='nouvelle';}); titre='🆕 Nouvelles commandes'; }
-  else if(view==='toprep'){ list=list.filter(function(o){return o.status==='nouvelle'||o.status==='preparation';}); titre='📦 Commandes à préparer'; }
+  else if(view==='toprep'){ list=list.filter(function(o){return o.status==='preparation';}); titre='📦 Commandes à préparer'; }
   else if(view==='date'){ var dp=document.getElementById('cmd-date-pick').value; list=list.filter(function(o){return o.delivDate===dp;}); titre='📅 Commandes du '+(dp?dp.split('-').reverse().join('/'):'...'); }
-  else { titre='📋 Toutes les commandes'; }
+  else if(view!=='cancelled'&&view!=='new'){ titre='📋 Toutes les commandes (confirmées)'; }
   
   // TRIER: nouvelles en haut, puis par DATE DE LIVRAISON (plus proche en premier)
   var stOrder={nouvelle:0,preparation:1,livree:2};
@@ -4993,7 +5133,6 @@ function renderHistorique(){
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
         +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅ Facturé</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€ Facturer</button>')
-        +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
         +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer définitivement">🗑️</button>'
         +'</div></td></tr>';
     }).join('')
@@ -5338,8 +5477,11 @@ if(typeof window.SUIVI_YEAR==='undefined') window.SUIVI_YEAR=new Date().getFullY
 window.SUIVI_NAV_CLIENT=window.SUIVI_NAV_CLIENT||null;
 window.SUIVI_NAV_MONTH=(typeof window.SUIVI_NAV_MONTH==='undefined')?null:window.SUIVI_NAV_MONTH;
 // Etat de navigation: annee choisie (barre), puis client, puis mois
-if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();
-window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
+if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
+// Etat navigation onglet Historique de Commandes (Annee > Client > Mois)
+if(typeof window.CMD_YEAR==='undefined') window.CMD_YEAR=new Date().getFullYear();
+window.CMD_NAV_CLIENT=window.CMD_NAV_CLIENT||null;
+window.CMD_NAV_MONTH=(typeof window.CMD_NAV_MONTH==='undefined')?null:window.CMD_NAV_MONTH;
 window.HISTO_NAV_MONTH=(typeof window.HISTO_NAV_MONTH==='undefined')?null:window.HISTO_NAV_MONTH;
 
 function renderHistorique(){
@@ -5485,7 +5627,6 @@ function renderHistorique(){
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
         +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€</button>')
-        +'<button class="btn btn-d btn-sm" data-action="archive-bl" data-id="'+o.id+'" title="Archiver">🗄️</button>'
         +'<button class="btn btn-sm" style="background:#fdecea;color:#c0392b;border:1px solid #f5c6c2;" data-action="delete-bl" data-id="'+o.id+'" title="Supprimer">🗑️</button>'
         +'</div></td></tr>';
     }).join('')
