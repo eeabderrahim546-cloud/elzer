@@ -3195,8 +3195,15 @@ async function generateFactureForClient(cliName, mois, totalMontant){
   SUIVI2.forEach(function(r){var s=String(r.num||'');if(s.indexOf(prefix)===0){var m=s.substring(prefix.length).match(/^(\d+)$/);if(m){var v=parseInt(m[1]);if(v>maxNum)maxNum=v;}}});
   var next=maxNum+1; if(next<startNum)next=startNum;
   var factNum=prefix+String(next).padStart(numLen,'0');
+  // Date de la facture = dernier jour du MOIS FACTURE (pas la date de generation)
+  var factDate=new Date().toLocaleDateString('fr-FR');
+  if(mois && /^\d{4}-\d{2}$/.test(mois)){
+    var my=parseInt(mois.substring(0,4)), mm=parseInt(mois.substring(5,7));
+    var lastDay=new Date(my, mm, 0); // jour 0 du mois suivant = dernier jour du mois courant
+    factDate=lastDay.toLocaleDateString('fr-FR');
+  }
   // Enregistrer la facture au Suivi
-  var newFact={num:factNum,client:cliName,mois:mois,mt:String(totalMontant),chq:'',date:new Date().toLocaleDateString('fr-FR'),reglement:'',etat:'Non payé',comment:''};
+  var newFact={num:factNum,client:cliName,mois:mois,mt:String(totalMontant),chq:'',date:factDate,reglement:'',etat:'Non payé',comment:''};
   SUIVI2.push(newFact);
   save('elzer_suivi_factures',SUIVI2);
   // Retirer du tombstone si present (on regenere volontairement)
@@ -3273,6 +3280,10 @@ function buildFactureMensuelleHtml(cliName, month, factNum){
       +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:right;">'+blTotal.toFixed(2).replace('.',',')+'</td></tr>';
   }).join('');
   var dateNow=new Date().toLocaleDateString('fr-FR');
+  if(typeof mois==='string' && /^\d{4}-\d{2}$/.test(mois)){
+    var _my=parseInt(mois.substring(0,4)),_mm=parseInt(mois.substring(5,7));
+    dateNow=new Date(_my,_mm,0).toLocaleDateString('fr-FR');
+  }
   return '<div style="font-family:Arial,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:20px;">'
     +'<h1 style="text-align:center;color:#2d6a1f;font-size:24px;margin-bottom:20px;">FACTURE</h1>'
     +'<div style="display:flex;justify-content:space-between;margin-bottom:20px;">'
@@ -3313,6 +3324,10 @@ function buildReleveMensuelHtml(cliName, month){
       +'<td style="padding:7px 14px;border:1px solid #ddd;font-size:12px;text-align:right;">'+(parseFloat(f.montant)||0).toFixed(2).replace('.',',')+'</td></tr>';
   }).join('');
   var dateNow=new Date().toLocaleDateString('fr-FR');
+  if(typeof month==='string' && /^\d{4}-\d{2}$/.test(month)){
+    var _ry=parseInt(month.substring(0,4)),_rm=parseInt(month.substring(5,7));
+    dateNow=new Date(_ry,_rm,0).toLocaleDateString('fr-FR');
+  }
   return '<div style="font-family:Arial,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:20px;">'
     +'<h1 style="text-align:center;color:#2d6a1f;font-size:22px;margin-bottom:20px;">RELEVE DES FACTURES</h1>'
     +'<div style="display:flex;justify-content:space-between;margin-bottom:20px;">'
