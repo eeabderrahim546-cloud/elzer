@@ -2566,7 +2566,17 @@ function renderFournisseur(){
     var bg=idx%2===0?'#fff':'#fafcf8';
     var totalLigne=item.prixAchat*item.total;
     html+='<tr style="background:'+bg+';">';
-    html+='<td style="padding:7px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;">'+item.name+(((item.ar||TRAD[item.name]))?'<span style="color:#888;font-size:11px;"> ('+(item.ar||TRAD[item.name])+')</span>':'')+'</td>';
+    var clientsStr='';
+    if(item.clients && typeof item.clients==='object'){
+      var clientsArr=Object.keys(item.clients).map(function(cn){
+        var q=item.clients[cn];
+        return cn+' ('+(Number.isInteger(q)?q:q.toFixed(2).replace('.',','))+')';
+      });
+      if(clientsArr.length){
+        clientsStr='<div style="font-size:10px;color:#7a9b6a;margin-top:2px;line-height:1.4;">👥 '+clientsArr.join(' · ')+'</div>';
+      }
+    }
+    html+='<td style="padding:7px 10px;font-size:13px;border-bottom:1px solid #f0f0f0;">'+item.name+(((item.ar||TRAD[item.name]))?'<span style="color:#888;font-size:11px;"> ('+(item.ar||TRAD[item.name])+')</span>':'')+clientsStr+'</td>';
     html+='<td style="padding:7px;text-align:center;font-size:12px;color:#888;border-bottom:1px solid #f0f0f0;">'+item.unit+'</td>';
     html+='<td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:bold;color:#5a7050;border-bottom:1px solid #f0f0f0;">'+item.total.toFixed(2).replace('.',',')+'</td>';
     html+='<td style="padding:5px;text-align:center;border-bottom:1px solid #f0f0f0;"><input type="number" step="0.01" value="'+(item.prixAchat||'')+'" placeholder="0" data-action="set-prix-achat" data-prod="'+item.name.replace(/"/g,'&quot;')+'" style="width:60px;padding:4px;border:1px solid #f0c98a;border-radius:5px;text-align:center;font-size:12px;background:#fff9f0;"/></td>';
