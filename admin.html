@@ -3025,7 +3025,8 @@ function renderFacturationContent(){
   var parts=mv.split('-').map(Number);
   var cf=cSel.value;
   var filtered=orders.filter(function(o){
-    var d=new Date(o.createdAt||o.delivDate+'T12:00:00');
+    // Classer par DATE DE LIVRAISON en priorite (coherent avec Historique BL)
+    var d=new Date(o.delivDate?o.delivDate+'T12:00:00':(o.createdAt||Date.now()));
     return d.getFullYear()===parts[0]&&(d.getMonth()+1)===parts[1]&&o.status!=='annulee'&&(!cf||o.client===cf);
   });
   if(!filtered.length){document.getElementById('facturation-content').innerHTML='<div class="empty"><div class="empty-i">🧾</div><p>Aucune commande.</p></div>';return;}
