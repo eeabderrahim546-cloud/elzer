@@ -2168,14 +2168,47 @@ function openClientModal(id){
   setV('cl-rc',c?(c.rc||''):'');
   setV('cl-if',c?(c.iff||''):'');
   setV('cl-pwd',c?(c.pwd||''):'');
-  buildPrixTable(c?c.prix:{}, c?c.favoris:{});
+  buildPrixTable(c?c.prix:{}, c?c.favoris:{}, c?c.name:'');
   openModal('modal-client');
 }
 function editClient(id){openClientModal(id);}
 
-function buildPrixTable(px, favs){
+// Retourne la table {nom_article_normalise -> prix} du devis le plus recent valide aujourd'hui pour un client
+function normProdName(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function getDevisPricesForClient(clientName){
+  var result={};
+  if(!clientName) return result;
+  try{
+    var allDevis=load('elzer_devis',[]);
+    var cliNorm=normProdName(clientName);
+    var today=new Date().toISOString().split('T')[0];
+    var valides=allDevis.filter(function(d){
+      if(normProdName(d.client)!==cliNorm) return false;
+      var from=d.dateFrom||d.date_from||'';
+      var to=d.dateTo||d.date_to||'';
+      if(!from||!to) return false;
+      return from<=today && today<=to;
+    });
+    if(!valides.length) return result;
+    // Plus recent (id le plus grand)
+    valides.sort(function(a,b){ return String(b.id).localeCompare(String(a.id)); });
+    var devis=valides[0];
+    var items=devis.items||[];
+    if(typeof items==='string'){ try{items=JSON.parse(items);}catch(e){items=[];} }
+    items.forEach(function(it){
+      var nom=normProdName(it.name||it.n);
+      var prix=String(it.prix||it.p||'').trim();
+      if(nom && prix) result[nom]=prix;
+    });
+  }catch(e){}
+  return result;
+}
+
+function buildPrixTable(px, favs, clientName){
   px=px||{};
   favs=favs||{};
+  var devisPrices=getDevisPricesForClient(clientName);
+  var hasDevis=Object.keys(devisPrices).length>0;
   var rows='';
   var cat=(typeof CATALOGUE!=='undefined'&&Array.isArray(CATALOGUE))?CATALOGUE:[];
   // Aplatir tous les produits puis trier: favoris en premier
@@ -2192,10 +2225,19 @@ function buildPrixTable(px, favs){
   allItems.forEach(function(item){
     var isFav=favs[item.n]?1:0;
     var star=isFav?'⭐':'☆';
+    // Prix "Defaut": prix devis valide si present, sinon prix catalogue
+    var nomNorm=normProdName(item.n);
+    var devisP=devisPrices[nomNorm];
+    var defautHtml;
+    if(devisP){
+      defautHtml='<span style="color:#27500a;font-weight:600;">'+devisP+'</span> <span style="font-size:8px;background:#2d6a1f;color:#fff;padding:1px 4px;border-radius:3px;">DEVIS</span>';
+    } else {
+      defautHtml='<span style="color:var(--g6);">'+(item.p||'')+'</span>';
+    }
     rows+='<tr'+(isFav?' style="background:#fffbe6;"':'')+'>'
       +'<td style="padding:4px 6px;text-align:center;border-bottom:.5px solid #f5f5f5;width:30px;"><span data-fav="'+item.n.replace(/"/g,'&quot;')+'" style="cursor:pointer;font-size:16px;user-select:none;" title="Favori">'+star+'</span></td>'
       +'<td style="padding:5px 8px;font-size:12px;border-bottom:.5px solid #f5f5f5;">'+item.n+'</td>'
-      +'<td style="padding:5px 8px;font-size:12px;color:var(--g6);border-bottom:.5px solid #f5f5f5;">'+(item.p||'')+'</td>'
+      +'<td style="padding:5px 8px;font-size:12px;border-bottom:.5px solid #f5f5f5;">'+defautHtml+'</td>'
       +'<td style="padding:4px 6px;border-bottom:.5px solid #f5f5f5;"><input class="pi" type="text" value="'+(px[item.n]||'')+'" data-prod="'+item.n.replace(/"/g,'&quot;')+'"/></td>'
       +'</tr>';
   });
