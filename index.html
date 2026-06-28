@@ -1150,7 +1150,7 @@ function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
   // Verrou anti-double-submit 1: en memoire (meme onglet)
   if(window._coSubmitLock){return;}
-  // Verrou anti-double-submit 2: localStorage (bloque uniquement un RE-CLIC sur la MEME commande, 5s)
+  // Verrou anti-double-submit 2: localStorage (bloque uniquement un RE-CLIC sur la MEME commande)
   try{
     var lines0=gl();
     var cartSig=JSON.stringify(lines0.map(function(l){return [l.name,l.total,l.cuisine,l.bar,l.perso];}));
@@ -1158,15 +1158,15 @@ async function co(){
     var prev={};
     try{ prev=JSON.parse(localStorage.getItem(lockKey)||'{}'); }catch(e){}
     var now=Date.now();
-    // Bloque si MEME panier ET moins de 60s (couvre les reclics apres lenteur Supabase / reload)
-    if(prev.sig===cartSig && prev.ts && (now-prev.ts) < 60000){
+    // Bloque seulement si MEME panier ENVOYE AVEC SUCCES il y a moins de 30s
+    if(prev.sig===cartSig && prev.ts && prev.sent===true && (now-prev.ts) < 30000){
       console.log('ELZER: commande identique deja envoyee', now-prev.ts,'ms');
-      alert('Cette commande vient deja etre envoyee. Verifiez avant de renvoyer.');
-      var _b=document.getElementById('btn-confirm-order');
-      if(_b){_b.disabled=true;_b.style.opacity='0.6';}
-      return;
+      if(!confirm('Cette commande vient d etre envoyee il y a moins de 30 secondes. Voulez-vous vraiment la renvoyer ?')){
+        return;
+      }
     }
-    localStorage.setItem(lockKey,JSON.stringify({sig:cartSig,ts:now}));
+    // On NE pose PAS le verrou ici: il sera pose APRES envoi reussi (plus bas)
+    window._cartSig=cartSig; window._lockKey=lockKey;
   }catch(e){}
   window._coSubmitLock=true;
   var _btnCo=document.getElementById('btn-confirm-order');
@@ -1209,6 +1209,8 @@ async function co(){
   try{ localStorage.setItem('elzer_last_order_id', String(newOrder.id)); }catch(e){}
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(newOrder);
+  // Poser le verrou anti-doublon MAINTENANT (apres envoi reussi)
+  try{ if(window._lockKey&&window._cartSig){ localStorage.setItem(window._lockKey,JSON.stringify({sig:window._cartSig,ts:Date.now(),sent:true})); } }catch(e){}
   // Recharger cache et calculer le prochain numero pour affichage
   SUPA_ORDERS_CACHE.push({id:uniqueId,bl:String(blNum),client:CLI.name});
   document.getElementById('bl-num').textContent='BL #'+getBLNum();
