@@ -3076,6 +3076,15 @@ function renderFacturationContent(){
       factGenerated=true;
       var mm=String(factNum).indexOf(_prefix)===0?String(factNum).substring(_prefix.length).match(/^(\d+)$/):null;
       if(mm){ var vv=parseInt(mm[1]); if(vv>_maxNum)_maxNum=vv; }
+      // RESYNCHRO AUTO: si le montant calcule (tous les BL) differe du montant enregistre, mettre a jour le Suivi
+      var montantCalcule=Math.round(totalClient);
+      var montantSuivi=Math.round(parseFloat(existingFact.mt||0));
+      if(montantCalcule>0 && montantCalcule!==montantSuivi){
+        existingFact.mt=String(montantCalcule);
+        save('elzer_suivi_factures',SUIVI2);
+        if(typeof saveSuivi2ToSupabase==='function'){ try{ saveSuivi2ToSupabase(); }catch(e){} }
+        console.log('[FACT] Montant resynchronise pour '+cli+' '+moisSel.value+': '+montantSuivi+' -> '+montantCalcule);
+      }
     } else {
       // PAS encore generee: afficher un apercu SANS attribuer de numero (pas de sauvegarde auto)
       factNum='(non générée)';
