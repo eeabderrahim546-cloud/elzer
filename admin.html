@@ -657,11 +657,6 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <div style="font-size:11px;color:#999;margin-top:8px;">Exemples: 2026/001 · BL-001 · TER001 · 0726/0001</div>
         <div id="bl-format-current" style="font-size:12px;color:#5a7050;margin-top:8px;font-weight:600;"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;border-top:1px solid #eee;padding-top:12px;">
-          <button class="btn btn-a btn-sm" data-action="apply-bl-format-all">🔄 Renuméroter les BL existants</button>
-          <button class="btn btn-d btn-sm" data-action="clean-bl-doublons">🧹 Nettoyer les doublons</button>
-        </div>
-        <div style="font-size:11px;color:#999;margin-top:6px;">« Renuméroter » applique le format à toutes les commandes déjà passées. « Nettoyer » supprime les BL en double.</div>
       </div>
       
       <div style="background:#fff;border:1px solid #e2e8dd;border-radius:12px;padding:18px;margin-bottom:16px;max-width:600px;">
@@ -992,7 +987,6 @@ document.addEventListener('click',async function(e){
   else if(a==='save-bl-format'){saveBLFormat();}
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
-  else if(a==='clean-bl-doublons'){nettoyerDoublonsBL();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -3106,14 +3100,20 @@ function renderFacturationContent(){
   var _prefix=_fm?_fm[1]:'ELD'+new Date().getFullYear()+'/';
   var _startNum=_fm?parseInt(_fm[2]):1;
   var _numLen=_fm?_fm[2].length:4;
-  // Numeros deja utilises (SUIVI2 enregistre) avec ce prefixe - on cherche le PLUS GRAND
+  // Numeros deja utilises (SUIVI2 enregistre) avec ce prefixe
   loadSuivi2();
-  var _maxNum=_startNum-1;
+  var _usedNums={};
   SUIVI2.forEach(function(r){
     var s=String(r.num||'');
-    if(s.indexOf(_prefix)===0){ var m=s.substring(_prefix.length).match(/^(\d+)$/); if(m){ var v=parseInt(m[1]); if(v>_maxNum)_maxNum=v; } }
+    if(s.indexOf(_prefix)===0){ var m=s.substring(_prefix.length).match(/^(\d+)$/); if(m){ _usedNums[parseInt(m[1])]=true; } }
   });
-  function _nextFreeNum(){ _maxNum++; if(_maxNum<_startNum)_maxNum=_startNum; return _prefix+String(_maxNum).padStart(_numLen,'0'); }
+  // Cherche le plus petit numero LIBRE a partir de startNum (comble les trous)
+  function _nextFreeNum(){
+    var n=_startNum;
+    while(_usedNums[n]){ n++; }
+    _usedNums[n]=true; // reserver pour eviter doublon dans la meme generation
+    return _prefix+String(n).padStart(_numLen,'0');
+  }
   Object.entries(byClient).forEach(function(entry){
     var cli=dispNameFC[entry[0]],bls=entry[1];
     // Calculer le total depuis les articles
@@ -3133,7 +3133,7 @@ function renderFacturationContent(){
       factNum=existingFact.num;
       factGenerated=true;
       var mm=String(factNum).indexOf(_prefix)===0?String(factNum).substring(_prefix.length).match(/^(\d+)$/):null;
-      if(mm){ var vv=parseInt(mm[1]); if(vv>_maxNum)_maxNum=vv; }
+      if(mm){ _usedNums[parseInt(mm[1])]=true; }
       // RESYNCHRO AUTO: si le montant calcule (tous les BL) differe du montant enregistre, mettre a jour le Suivi
       var montantCalcule=Math.round(totalClient);
       var montantSuivi=Math.round(parseFloat(existingFact.mt||0));
