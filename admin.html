@@ -676,15 +676,23 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
       </div>
       
       <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;margin-bottom:16px;">
-        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter tous les BL existants</div>
-        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format à toutes les commandes existantes, par client et par date.</div>
-        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-bl-format-all">🔄 Appliquer le format à tous les BL</button>
+        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter les BL existants</div>
+        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format aux BL. <b>Indiquez une période</b> pour ne renuméroter que les BL livrés entre ces dates (recommandé). Laissez vide pour TOUS les BL.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <label style="font-size:12px;color:#8b6914;">Du <input type="date" id="renum-bl-from" style="padding:7px 10px;border:1.5px solid #f0c98a;border-radius:8px;font-size:13px;"/></label>
+          <label style="font-size:12px;color:#8b6914;">au <input type="date" id="renum-bl-to" style="padding:7px 10px;border:1.5px solid #f0c98a;border-radius:8px;font-size:13px;"/></label>
+        </div>
+        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-bl-format-all">🔄 Appliquer le format aux BL</button>
       </div>
       
       <div style="background:#fff3e0;border:1px solid #f0c98a;border-radius:12px;padding:18px;max-width:600px;">
-        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter toutes les factures existantes</div>
-        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format à toutes les factures du Suivi, par ordre de date.</div>
-        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-fact-format-all">🔄 Appliquer le format à toutes les factures</button>
+        <div style="font-size:14px;font-weight:600;color:#c47a00;margin-bottom:6px;">⚠️ Renuméroter les factures existantes</div>
+        <div style="font-size:12px;color:#8b6914;margin-bottom:12px;">Applique le nouveau format aux factures du Suivi. <b>Indiquez une période</b> pour ne renuméroter que les factures de ces mois (recommandé). Laissez vide pour TOUTES les factures.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+          <label style="font-size:12px;color:#8b6914;">Du <input type="date" id="renum-fact-from" style="padding:7px 10px;border:1.5px solid #f0c98a;border-radius:8px;font-size:13px;"/></label>
+          <label style="font-size:12px;color:#8b6914;">au <input type="date" id="renum-fact-to" style="padding:7px 10px;border:1.5px solid #f0c98a;border-radius:8px;font-size:13px;"/></label>
+        </div>
+        <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-fact-format-all">🔄 Appliquer le format aux factures</button>
       </div>
     </div>
 
@@ -1424,20 +1432,46 @@ function applyFactFormatToAll(){
   if(!factFormat){toast('Définissez d abord un format Facture dans le champ ci-dessus');return;}
   loadSuivi2();
   if(!SUIVI2.length){toast('⚠️ Aucune facture dans le Suivi. Enregistrez d abord vos factures via Facturation → Enregistrer au Suivi');return;}
-  if(!confirm('Renuméroter TOUTES les factures avec le format '+factFormat+' ?\n\nElles seront renumérotées par ordre de date.')) return;
-  loadSuivi2();
+  // Periode optionnelle (sur le mois facture)
+  var fFrom=(document.getElementById('renum-fact-from')||{}).value||'';
+  var fTo=(document.getElementById('renum-fact-to')||{}).value||'';
   var fm=factFormat.match(/^(.*?)(\d+)$/);
   if(!fm){toast('Format invalide');return;}
   var prefix=fm[1];
   var startNum=parseInt(fm[2]);
   var numLen=fm[2].length;
-  // Trier par date
-  SUIVI2.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
-  SUIVI2.forEach(function(f,i){
+  // Determiner quelles factures sont concernees (par mois facture si periode donnee)
+  function factDateISO(f){
+    // Utilise le mois facture (dernier jour) sinon la date stockee convertie
+    if(f.mois && /^\d{4}-\d{2}$/.test(f.mois)){
+      var my=parseInt(f.mois.substring(0,4)), mm=parseInt(f.mois.substring(5,7));
+      var ld=new Date(my,mm,0);
+      return ld.getFullYear()+'-'+String(ld.getMonth()+1).padStart(2,'0')+'-'+String(ld.getDate()).padStart(2,'0');
+    }
+    // f.date au format JJ/MM/AAAA -> AAAA-MM-JJ
+    var p=String(f.date||'').split('/');
+    if(p.length===3) return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+    return '';
+  }
+  var hasPeriod=fFrom&&fTo;
+  var concernees=SUIVI2.filter(function(f){
+    if(!hasPeriod) return true;
+    var iso=factDateISO(f);
+    return iso && iso>=fFrom && iso<=fTo;
+  });
+  if(!concernees.length){toast('Aucune facture dans cette période');return;}
+  var msg=hasPeriod
+    ? 'Renuméroter '+concernees.length+' facture(s) de la période '+fFrom+' au '+fTo+' avec le format '+factFormat+' ?\n\nLes autres factures NE seront PAS touchées.'
+    : '⚠️ ATTENTION: aucune période indiquée.\n\nRenuméroter TOUTES les '+SUIVI2.length+' factures ?\n\nCeci modifiera aussi les factures déjà émises. Déconseillé si vous avez déjà déclaré des factures.';
+  if(!confirm(msg)) return;
+  // Trier les concernees par date et renumeroter
+  concernees.sort(function(a,b){return (factDateISO(a)||'').localeCompare(factDateISO(b)||'');});
+  concernees.forEach(function(f,i){
     f.num=prefix+String(startNum+i).padStart(numLen,'0');
   });
   saveSuivi2();
-  toast('✅ '+SUIVI2.length+' factures renumérotées');
+  if(typeof saveSuivi2ToSupabase==='function'){ try{ saveSuivi2ToSupabase(); }catch(e){} }
+  toast('✅ '+concernees.length+' facture(s) renumérotée(s)');
   renderSuivi2();
 }
 
@@ -1448,16 +1482,31 @@ async function applyBLFormatToAll(){
     localStorage.setItem('elzer_bl_format',blFormat);
   }
   if(!blFormat){toast('Définissez d abord un format BL dans le champ ci-dessus');return;}
-  if(!confirm('Renuméroter TOUTES les commandes avec le format '+blFormat+' ?\n\nLes BL existants seront renumérotés par ordre de date (sans doublons).')) return;
+  // Periode optionnelle (sur la date de livraison)
+  var bFrom=(document.getElementById('renum-bl-from')||{}).value||'';
+  var bTo=(document.getElementById('renum-bl-to')||{}).value||'';
+  var hasPeriodBL=bFrom&&bTo;
   orders=load('terrasse_orders',[]);
   var fm=blFormat.match(/^(.*?)(\d+)$/);
   if(!fm){toast('Format invalide');return;}
   var prefix=fm[1];
   var startNum=parseInt(fm[2]);
   var numLen=fm[2].length;
-  // Numerotation GLOBALE continue (tous clients), par ordre de date
-  var actifs=orders.filter(function(o){return !o.archived;});
-  actifs.sort(function(a,b){return new Date(a.createdAt||a.delivDate||0)-new Date(b.createdAt||b.delivDate||0);});
+  // Numerotation continue, par ordre de date de livraison
+  var actifs=orders.filter(function(o){
+    if(o.archived) return false;
+    if(hasPeriodBL){
+      var dd=o.delivDate||(o.createdAt?o.createdAt.substring(0,10):'');
+      return dd && dd>=bFrom && dd<=bTo;
+    }
+    return true;
+  });
+  if(!actifs.length){toast('Aucun BL dans cette période');return;}
+  var msgBL=hasPeriodBL
+    ? 'Renuméroter '+actifs.length+' BL de la période '+bFrom+' au '+bTo+' avec le format '+blFormat+' ?\n\nLes autres BL NE seront PAS touchés.'
+    : '⚠️ ATTENTION: aucune période indiquée.\n\nRenuméroter TOUS les '+actifs.length+' BL ?\n\nCeci modifiera aussi les BL déjà émis. Déconseillé si vous avez déjà des BL en circulation.';
+  if(!confirm(msgBL)) return;
+  actifs.sort(function(a,b){return new Date(a.delivDate||a.createdAt||0)-new Date(b.delivDate||b.createdAt||0);});
   var changed=0;
   toast('Renumérotation...');
   for(var i=0;i<actifs.length;i++){
@@ -1466,7 +1515,6 @@ async function applyBLFormatToAll(){
     if(String(o.bl||'')!==newBL){
       o.bl=newBL;
       changed++;
-      // UPSERT: meme id technique (o.id reste stable), on met a jour le bl dans items.__bl
       try{
         var supaId=o._uid||o.id;
         var payload={__bl:newBL, items:o.items};
