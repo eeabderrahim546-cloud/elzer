@@ -5480,11 +5480,13 @@ function saveStockNow(){
 
 // ── HISTORIQUE BL ──
 function getOrderYear(o){
-  var d=new Date(o.createdAt||(o.delivDate?o.delivDate+'T12:00:00':Date.now()));
+  // Classer par DATE DE LIVRAISON en priorite (createdAt en secours)
+  var d=new Date(o.delivDate?o.delivDate+'T12:00:00':(o.createdAt||Date.now()));
   return d.getFullYear();
 }
 function getOrderMonth(o){
-  var d=new Date(o.createdAt||(o.delivDate?o.delivDate+'T12:00:00':Date.now()));
+  // Classer par DATE DE LIVRAISON en priorite (createdAt en secours)
+  var d=new Date(o.delivDate?o.delivDate+'T12:00:00':(o.createdAt||Date.now()));
   return d.getMonth(); // 0-11
 }
 var MOIS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
