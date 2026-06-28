@@ -774,10 +774,29 @@ async function loadDevisPrices(){
     console.log('[DEVIS] prix charges='+Object.keys(DEVIS_PRICES).length);
     if(Object.keys(DEVIS_PRICES).length){
       DEVIS_INFO={from:(devis.date_from||devis.dateFrom),to:(devis.date_to||devis.dateTo),count:Object.keys(DEVIS_PRICES).length};
-      // Redessiner le catalogue pour appliquer les prix du devis (au cas ou build() a deja eu lieu)
-      if(typeof build==='function' && document.getElementById('ct')){ try{ build(); }catch(e){} }
+      // Mise a jour NON destructive: rafraichir uniquement les prix affiches sans effacer les quantites saisies
+      try{ refreshDevisPricesDisplay(); }catch(e){}
     }
   }catch(e){ console.log('[DEVIS] erreur chargement:',e&&e.message); }
+}
+// Met a jour l'affichage des prix (devis) dans les lignes deja construites, sans toucher aux quantites
+function refreshDevisPricesDisplay(){
+  if(!rows||!rows.length) return;
+  rows.forEach(function(r){
+    if(!r||!r.name) return;
+    var nom=normDevisName(r.name);
+    if(DEVIS_PRICES.hasOwnProperty(nom)){
+      var newPrice=DEVIS_PRICES[nom];
+      r.price=newPrice;
+      var prEl=r.row?r.row.querySelector('.pr'):null;
+      if(prEl) prEl.textContent=newPrice;
+      var pnEl=r.row?r.row.querySelector('.pn'):null;
+      if(pnEl && pnEl.innerHTML.indexOf('DEVIS')<0){
+        pnEl.innerHTML+=' <span style="font-size:8px;background:#2d6a1f;color:#fff;padding:1px 4px;border-radius:3px;vertical-align:middle;">DEVIS</span>';
+      }
+    }
+  });
+  if(typeof ut==='function'){ try{ ut(); }catch(e){} }
 }
 // Prix effectif d'un article: prix devis si present, sinon prix catalogue
 function effectivePrice(item){
