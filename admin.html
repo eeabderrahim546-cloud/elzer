@@ -1757,16 +1757,18 @@ function renderCmdHistorique(container){
   // NIVEAU 1: clients
   if(!window.CMD_NAV_CLIENT){
     var byClient={};
-    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
-    var clientNames=Object.keys(byClient).sort();
+    var dispNameC={};
+    inYear.forEach(function(o){ var key=normName(o.client); if(!byClient[key]){byClient[key]=[];dispNameC[key]=o.client;} byClient[key].push(o); });
+    var clientKeys=Object.keys(byClient).sort(function(a,b){return dispNameC[a].localeCompare(dispNameC[b]);});
     var h=ybar+bc();
-    if(!clientNames.length){
+    if(!clientKeys.length){
       h+='<div class="empty"><div class="empty-i">📚</div><p>Aucune commande confirmée pour '+window.CMD_YEAR+'.</p></div>';
     }else{
       h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
-      clientNames.forEach(function(c){
-        var n=byClient[c].length;
-        var tot=byClient[c].reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+      clientKeys.forEach(function(key){
+        var c=dispNameC[key];
+        var n=byClient[key].length;
+        var tot=byClient[key].reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
         h+='<div data-action="cmd-client-open" data-client="'+String(c).replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
           +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
           +'<div style="font-size:12px;color:#888;">'+n+' commande(s) · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
@@ -1778,8 +1780,8 @@ function renderCmdHistorique(container){
     return;
   }
 
-  // NIVEAU 2: mois
-  var clientOrders=inYear.filter(function(o){return o.client===window.CMD_NAV_CLIENT;});
+  // NIVEAU 2: mois - comparaison insensible accents/casse
+  var clientOrders=inYear.filter(function(o){return normName(o.client)===normName(window.CMD_NAV_CLIENT);});
   if(window.CMD_NAV_MONTH===null){
     var byMonth={};
     clientOrders.forEach(function(o){ var m=getOrderMonth(o); if(!byMonth[m])byMonth[m]=[]; byMonth[m].push(o); });
@@ -2946,17 +2948,19 @@ function renderFacturation(){
     if(actionsRow) actionsRow.style.display='none';
     if(contentEl) contentEl.innerHTML='';
     var byClient={};
-    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
-    var clientNames=Object.keys(byClient).sort();
+    var dispNameF={};
+    inYear.forEach(function(o){ var key=normName(o.client); if(!byClient[key]){byClient[key]=[];dispNameF[key]=o.client;} byClient[key].push(o); });
+    var clientKeys=Object.keys(byClient).sort(function(a,b){return dispNameF[a].localeCompare(dispNameF[b]);});
     // Appliquer la recherche
-    if(fq) clientNames=clientNames.filter(function(c){return c.toLowerCase().indexOf(fq)>=0;});
+    if(fq) clientKeys=clientKeys.filter(function(k){return dispNameF[k].toLowerCase().indexOf(fq)>=0;});
     var h=bcFact();
-    if(!clientNames.length){
+    if(!clientKeys.length){
       h+='<div class="empty"><div class="empty-i">🧾</div><p>Aucun client'+(fq?' pour cette recherche':' pour '+window.FACT_YEAR)+'.</p></div>';
     }else{
       h+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
-      clientNames.forEach(function(c){
-        var n=byClient[c].length;
+      clientKeys.forEach(function(key){
+        var c=dispNameF[key];
+        var n=byClient[key].length;
         h+='<div data-action="fact-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
           +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
           +'<div style="font-size:12px;color:#888;">'+n+' BL</div></div>'
@@ -2968,8 +2972,8 @@ function renderFacturation(){
     return;
   }
 
-  // NIVEAU 2: mois du client
-  var clientOrders=inYear.filter(function(o){return o.client===window.FACT_NAV_CLIENT;});
+  // NIVEAU 2: mois du client - comparaison insensible accents/casse
+  var clientOrders=inYear.filter(function(o){return normName(o.client)===normName(window.FACT_NAV_CLIENT);});
   if(window.FACT_NAV_MONTH===null){
     if(joindreRow) joindreRow.style.display='none';
     if(actionsRow) actionsRow.style.display='none';
@@ -3027,7 +3031,7 @@ function renderFacturationContent(){
   var filtered=orders.filter(function(o){
     // Classer par DATE DE LIVRAISON en priorite (coherent avec Historique BL)
     var d=new Date(o.delivDate?o.delivDate+'T12:00:00':(o.createdAt||Date.now()));
-    return d.getFullYear()===parts[0]&&(d.getMonth()+1)===parts[1]&&o.status!=='annulee'&&(!cf||o.client===cf);
+    return d.getFullYear()===parts[0]&&(d.getMonth()+1)===parts[1]&&o.status!=='annulee'&&(!cf||normName(o.client)===normName(cf));
   });
   if(!filtered.length){document.getElementById('facturation-content').innerHTML='<div class="empty"><div class="empty-i">🧾</div><p>Aucune commande.</p></div>';return;}
   var byClient={};
@@ -5616,17 +5620,23 @@ function renderHistorique(){
   if(!window.HISTO_NAV_CLIENT){
     html+=breadcrumb();
     var byClient={};
-    inYear.forEach(function(o){ if(!byClient[o.client])byClient[o.client]=[]; byClient[o.client].push(o); });
-    var clientNames=Object.keys(byClient).sort();
-    if(!clientNames.length){
+    var dispName={}; // nom normalise -> nom affiche (1ere orthographe rencontree)
+    inYear.forEach(function(o){
+      var key=normName(o.client);
+      if(!byClient[key]){ byClient[key]=[]; dispName[key]=o.client; }
+      byClient[key].push(o);
+    });
+    var clientKeys=Object.keys(byClient).sort(function(a,b){return dispName[a].localeCompare(dispName[b]);});
+    if(!clientKeys.length){
       content.innerHTML=html+'<div class="empty"><div class="empty-i">📋</div><p>Aucun BL pour '+window.HISTO_YEAR+'.</p></div>';
       updateHistoCounts(inYear.length);
       return;
     }
     html+='<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;overflow:hidden;">';
-    clientNames.forEach(function(c){
-      var n=byClient[c].length;
-      var tot=byClient[c].reduce(function(s,o){return s+(o.total||0);},0);
+    clientKeys.forEach(function(key){
+      var c=dispName[key];
+      var n=byClient[key].length;
+      var tot=byClient[key].reduce(function(s,o){return s+(o.total||0);},0);
       html+='<div data-action="histo-client-open" data-client="'+c.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;">'
         +'<div><div style="font-size:14px;font-weight:600;color:#333;">👤 '+c+'</div>'
         +'<div style="font-size:12px;color:#888;">'+n+' BL · '+Math.round(tot).toLocaleString('fr-FR')+' Dh</div></div>'
@@ -5638,8 +5648,8 @@ function renderHistorique(){
     return;
   }
 
-  // NIVEAU 2: liste des mois (du client choisi)
-  var clientOrders=inYear.filter(function(o){return o.client===window.HISTO_NAV_CLIENT;});
+  // NIVEAU 2: liste des mois (du client choisi) - comparaison insensible accents/casse
+  var clientOrders=inYear.filter(function(o){return normName(o.client)===normName(window.HISTO_NAV_CLIENT);});
   if(window.HISTO_NAV_MONTH===null){
     html+=breadcrumb();
     var byMonth={};
