@@ -1041,7 +1041,7 @@ function applyReorder(o){
 window.openReorderModal=openReorderModal;
 window.closeReorderModal=closeReorderModal;
 function fp(){const q=document.getElementById('srch').value.toLowerCase().trim();document.querySelectorAll('.prow').forEach(r=>r.classList.toggle('hidden',q!==''&&!r.dataset.name.includes(q)));}
-function pp(s){if(!s)return 0;const m=s.match(/\d+([,.]\d+)?/);return m?parseFloat(m[0].replace(',','.')):0;}
+function pp(s){if(!s)return 0;if(typeof s==='number')return s;s=String(s);const m=s.match(/\d+([,.]\d+)?/);return m?parseFloat(m[0].replace(',','.')):0;}
 function ut(){let t=0,n=0;rows.forEach(({ic,ib,ip,price})=>{const c=parseFloat(ic.value)||0,b=ib?parseFloat(ib.value)||0:0,p=ip?parseFloat(ip.value)||0:0;if(c+b+p>0){t+=pp(price)*(c+b+p);n++;}});document.getElementById('gt').textContent=Math.round(t).toLocaleString('fr-FR')+' Dh';document.getElementById('bc').textContent=n+' article'+(n>1?'s':'');}
 function ca(){rows.forEach(({ic,ib,ip,row})=>{ic.value='';ic.className='qi';if(ib){ib.value='';ib.className='qi';}if(ip){ip.value='';ip.className='qi';}const tc=row.querySelector('.tc');if(tc)tc.textContent='—';row.classList.remove('ok');});document.getElementById('srch').value='';fp();ut();}
 
@@ -1150,7 +1150,7 @@ function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
   // Verrou anti-double-submit 1: en memoire (meme onglet)
   if(window._coSubmitLock){return;}
-  // Verrou anti-double-submit 2: localStorage (bloque uniquement un RE-CLIC sur la MEME commande)
+  // Verrou anti-double-submit 2: localStorage (bloque uniquement un RE-CLIC sur la MEME commande, 5s)
   try{
     var lines0=gl();
     var cartSig=JSON.stringify(lines0.map(function(l){return [l.name,l.total,l.cuisine,l.bar,l.perso];}));
@@ -1158,15 +1158,15 @@ async function co(){
     var prev={};
     try{ prev=JSON.parse(localStorage.getItem(lockKey)||'{}'); }catch(e){}
     var now=Date.now();
-    // Bloque seulement si MEME panier ENVOYE AVEC SUCCES il y a moins de 30s
-    if(prev.sig===cartSig && prev.ts && prev.sent===true && (now-prev.ts) < 30000){
+    // Bloque si MEME panier ET moins de 60s (couvre les reclics apres lenteur Supabase / reload)
+    if(prev.sig===cartSig && prev.ts && (now-prev.ts) < 60000){
       console.log('ELZER: commande identique deja envoyee', now-prev.ts,'ms');
-      if(!confirm('Cette commande vient d etre envoyee il y a moins de 30 secondes. Voulez-vous vraiment la renvoyer ?')){
-        return;
-      }
+      alert('Cette commande vient deja etre envoyee. Verifiez avant de renvoyer.');
+      var _b=document.getElementById('btn-confirm-order');
+      if(_b){_b.disabled=true;_b.style.opacity='0.6';}
+      return;
     }
-    // On NE pose PAS le verrou ici: il sera pose APRES envoi reussi (plus bas)
-    window._cartSig=cartSig; window._lockKey=lockKey;
+    localStorage.setItem(lockKey,JSON.stringify({sig:cartSig,ts:now}));
   }catch(e){}
   window._coSubmitLock=true;
   var _btnCo=document.getElementById('btn-confirm-order');
@@ -1209,8 +1209,6 @@ async function co(){
   try{ localStorage.setItem('elzer_last_order_id', String(newOrder.id)); }catch(e){}
   localStorage.setItem('terrasse_orders',JSON.stringify(orders));
   saveOrderToSupabase(newOrder);
-  // Poser le verrou anti-doublon MAINTENANT (apres envoi reussi)
-  try{ if(window._lockKey&&window._cartSig){ localStorage.setItem(window._lockKey,JSON.stringify({sig:window._cartSig,ts:Date.now(),sent:true})); } }catch(e){}
   // Recharger cache et calculer le prochain numero pour affichage
   SUPA_ORDERS_CACHE.push({id:uniqueId,bl:String(blNum),client:CLI.name});
   document.getElementById('bl-num').textContent='BL #'+getBLNum();
