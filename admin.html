@@ -564,6 +564,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </select>
       </div>
       <div id="suivi-year-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+      <div id="suivi-trimestre-bar" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center;"></div>
       <div id="suivi-totaux" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;"></div>
       <div id="suivi-trous" style="margin-bottom:12px;"></div>
       <div id="suivi-form-inline" style="display:none;background:#fff;border-radius:10px;border:1px solid #e0e8d8;padding:16px;margin-bottom:14px;">
@@ -1237,6 +1238,8 @@ document.addEventListener('click',async function(e){
       renderDevis();
     }
     else if(a==='suivi-year'){ window.SUIVI_YEAR=parseInt(el.dataset.year); window.SUIVI_NAV_CLIENT=null; window.SUIVI_NAV_MONTH=null; renderSuivi2(); }
+    else if(a==='suivi-trimestre'){ window.SUIVI_TRIMESTRE=el.dataset.trim?parseInt(el.dataset.trim):null; renderSuivi2(); }
+    else if(a==='print-trimestre'){ printSuiviTrimestre(); }
     else if(a==='suivi-client-open'){ window.SUIVI_NAV_CLIENT=el.dataset.client; window.SUIVI_NAV_MONTH=null; renderSuivi2(); }
     else if(a==='suivi-month-open'){ window.SUIVI_NAV_MONTH=parseInt(el.dataset.month); renderSuivi2(); }
     else if(a==='suivi-back'){
@@ -5676,6 +5679,8 @@ function getSuiviMonth(r){
 if(typeof window.SUIVI_YEAR==='undefined') window.SUIVI_YEAR=new Date().getFullYear();
 window.SUIVI_NAV_CLIENT=window.SUIVI_NAV_CLIENT||null;
 window.SUIVI_NAV_MONTH=(typeof window.SUIVI_NAV_MONTH==='undefined')?null:window.SUIVI_NAV_MONTH;
+// Trimestre selectionne: null=toute l'annee, 1=T1, 2=T2, 3=T3, 4=T4
+if(typeof window.SUIVI_TRIMESTRE==='undefined') window.SUIVI_TRIMESTRE=null;
 // Etat de navigation: annee choisie (barre), puis client, puis mois
 if(typeof window.HISTO_YEAR==='undefined') window.HISTO_YEAR=new Date().getFullYear();window.HISTO_NAV_CLIENT=window.HISTO_NAV_CLIENT||null;
 // Etat navigation onglet Historique de Commandes (Annee > Client > Mois)
@@ -6289,6 +6294,61 @@ async function saveSuiviRow2(){
   toast('✅ Facture sauvegardée');
 }
 
+// Imprimer le suivi du trimestre (ou annee) selectionne
+function printSuiviTrimestre(){
+  loadSuivi2();
+  var year=window.SUIVI_YEAR;
+  var trim=window.SUIVI_TRIMESTRE;
+  function trimestreOf(r){ return Math.floor(getSuiviMonth(r)/3)+1; }
+  function suiviDate(r){
+    if(r.mois && /^\d{4}-\d{2}$/.test(r.mois)){ var my=parseInt(r.mois.substring(0,4)),mm=parseInt(r.mois.substring(5,7)); return new Date(my,mm,0).toLocaleDateString('fr-FR'); }
+    return r.date||'';
+  }
+  var list=SUIVI2.filter(function(r){
+    if(getSuiviYear(r)!==year) return false;
+    if(trim && trimestreOf(r)!==trim) return false;
+    return true;
+  });
+  list.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
+  if(!list.length){toast('Aucune facture pour cette période');return;}
+  var totF=0,totE=0,totC=0,totI=0;
+  list.forEach(function(r){
+    var mt=parseFloat(r.mt||0); totF+=mt;
+    var e=(r.etat||'').toUpperCase().trim();
+    if(e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ') totE+=mt;
+    else if(e==='EN COURS') totC+=mt;
+    else totI+=mt;
+  });
+  var titre=trim?('Trimestre T'+trim+' '+year):('Année '+year);
+  var periodeLbl=trim?(['','Janvier-Mars','Avril-Juin','Juillet-Septembre','Octobre-Décembre'][trim]):'Janvier-Décembre';
+  var rows=list.map(function(r){
+    return '<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.num||'')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.client||'')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">'+parseFloat(r.mt||0).toLocaleString('fr-FR')+' Dh</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.reglement||'')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;">'+suiviDate(r)+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.etat||'')+'</td></tr>';
+  }).join('');
+  var html='<html><head><meta charset="utf-8"><title>Suivi factures - '+titre+'</title></head><body style="font-family:Arial,sans-serif;color:#333;padding:24px;">'
+    +'<h1 style="color:#2d6a1f;font-size:22px;margin-bottom:4px;">ELZER Distribution — Suivi des factures</h1>'
+    +'<div style="font-size:14px;color:#666;margin-bottom:4px;">'+titre+' ('+periodeLbl+')</div>'
+    +'<div style="font-size:12px;color:#999;margin-bottom:16px;">'+list.length+' facture(s)</div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
+    +'<div style="background:#f1efe8;border-radius:8px;padding:10px 16px;"><div style="font-size:11px;color:#666;">Total facturé</div><div style="font-size:16px;font-weight:bold;">'+Math.round(totF).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;"><div style="font-size:11px;color:#3b6d11;">Encaissé</div><div style="font-size:16px;font-weight:bold;color:#27500a;">'+Math.round(totE).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;"><div style="font-size:11px;color:#854f0b;">En cours</div><div style="font-size:16px;font-weight:bold;color:#854f0b;">'+Math.round(totC).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;"><div style="font-size:11px;color:#a32d2d;">Impayé</div><div style="font-size:16px;font-weight:bold;color:#a32d2d;">'+Math.round(totI).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    +'<thead><tr style="background:#2d6a1f;color:#fff;"><th style="padding:8px 10px;text-align:left;">N° Facture</th><th style="padding:8px 10px;text-align:left;">Client</th><th style="padding:8px 10px;text-align:right;">Montant</th><th style="padding:8px 10px;text-align:left;">Règlement</th><th style="padding:8px 10px;text-align:left;">Date</th><th style="padding:8px 10px;text-align:left;">État</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:24px;font-size:11px;color:#999;">Document généré le '+new Date().toLocaleDateString('fr-FR')+' — ELZER Distribution, Marrakech</div>'
+    +'</body></html>';
+  var w=window.open('','_blank');
+  if(w){ w.document.write(html); w.document.close(); setTimeout(function(){try{w.print();}catch(e){}},400); }
+  else { toast('Autorisez les pop-ups pour imprimer'); }
+}
+
 function renderSuivi2(){
   loadSuivi2();
   var tbody=document.getElementById('suivi-tbody2');
@@ -6328,8 +6388,26 @@ function renderSuivi2(){
   if(navEl) navEl.innerHTML='';
   if(tableWrap) tableWrap.style.display='block';
 
-  // VUE COMPTABLE: toutes les factures de l'annee choisie
-  var inYearAll=SUIVI2.map(function(r,i){return {r:r,origIdx:i};}).filter(function(o){return getSuiviYear(o.r)===window.SUIVI_YEAR;});
+  // BARRE DE TRIMESTRES
+  var trimBar=document.getElementById('suivi-trimestre-bar');
+  if(trimBar){
+    var trims=[{n:null,lbl:'📅 Toute l année'},{n:1,lbl:'T1 (Jan-Mars)'},{n:2,lbl:'T2 (Avr-Juin)'},{n:3,lbl:'T3 (Juil-Sep)'},{n:4,lbl:'T4 (Oct-Déc)'}];
+    trimBar.innerHTML=trims.map(function(t){
+      var on=(window.SUIVI_TRIMESTRE===t.n);
+      return '<button data-action="suivi-trimestre" data-trim="'+(t.n===null?'':t.n)+'" style="padding:6px 14px;border-radius:16px;border:1.5px solid '+(on?'#854f0b':'#e8d5b0')+';background:'+(on?'#854f0b':'#fff')+';color:'+(on?'#fff':'#854f0b')+';font-size:12px;font-weight:600;cursor:pointer;">'+t.lbl+'</button>';
+    }).join('')
+    +'<button data-action="print-trimestre" style="padding:6px 14px;border-radius:16px;border:1.5px solid #2d6a1f;background:#2d6a1f;color:#fff;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;">🖨️ Imprimer '+(window.SUIVI_TRIMESTRE?'T'+window.SUIVI_TRIMESTRE:'année')+'</button>';
+  }
+
+  // Fonction trimestre d'une facture (1-4) a partir du mois
+  function trimestreOf(r){ return Math.floor(getSuiviMonth(r)/3)+1; }
+
+  // VUE COMPTABLE: factures de l'annee choisie (+ trimestre si selectionne)
+  var inYearAll=SUIVI2.map(function(r,i){return {r:r,origIdx:i};}).filter(function(o){
+    if(getSuiviYear(o.r)!==window.SUIVI_YEAR) return false;
+    if(window.SUIVI_TRIMESTRE && trimestreOf(o.r)!==window.SUIVI_TRIMESTRE) return false;
+    return true;
+  });
 
   // CARTES DE TOTAUX (sur toute l'annee, avant filtres etat/paiement/recherche)
   var totFacture=0,totEncaisse=0,totEnCours=0,totImpaye=0;
