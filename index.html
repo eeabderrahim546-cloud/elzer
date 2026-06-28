@@ -774,6 +774,8 @@ async function loadDevisPrices(){
     console.log('[DEVIS] prix charges='+Object.keys(DEVIS_PRICES).length);
     if(Object.keys(DEVIS_PRICES).length){
       DEVIS_INFO={from:(devis.date_from||devis.dateFrom),to:(devis.date_to||devis.dateTo),count:Object.keys(DEVIS_PRICES).length};
+      // Redessiner le catalogue pour appliquer les prix du devis (au cas ou build() a deja eu lieu)
+      if(typeof build==='function' && document.getElementById('ct')){ try{ build(); }catch(e){} }
     }
   }catch(e){ console.log('[DEVIS] erreur chargement:',e&&e.message); }
 }
@@ -1346,8 +1348,10 @@ function toggleModifCmd(){
       var safeN=item.n.replace(/[^a-z0-9]/gi,'_');
       var curQty=exists?exists.qty:0;
       html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:'+bg+';border-bottom:0.5px solid #f0f5ea;">';
-      html+='<div><div style="font-size:12px;">'+(exists?'<span style=color:#2d6a1f>&#10003; </span>':'')+item.n+'</div>';
-      html+='<div style="font-size:10px;color:#888;">'+item.u+(item.p?' · '+item.p+' Dh':'')+'</div></div>';
+      var mEffP=(typeof effectivePrice==='function')?effectivePrice(item):(item.p||'');
+      var mDevisBadge=(typeof hasDevisPrice==='function'&&hasDevisPrice(item))?' <span style="font-size:8px;background:#2d6a1f;color:#fff;padding:1px 4px;border-radius:3px;">DEVIS</span>':'';
+      html+='<div><div style="font-size:12px;">'+(exists?'<span style=color:#2d6a1f>&#10003; </span>':'')+item.n+mDevisBadge+'</div>';
+      html+='<div style="font-size:10px;color:#888;">'+item.u+(mEffP?' · '+mEffP+' Dh':'')+'</div></div>';
       html+='<div style="display:flex;align-items:center;gap:6px;">';
       html+='<button data-adj="1" data-name="'+safeN+'" data-orig="'+item.n+'" data-unit="'+(item.u||'kg')+'" data-d="-1" style="width:26px;height:26px;border-radius:50%;border:0.5px solid #ccc;background:#f5f5f5;cursor:pointer;font-size:14px;">-</button>';
       html+='<span id="mq-'+safeN+'" style="min-width:24px;text-align:center;font-size:13px;font-weight:500;">'+curQty+'</span>';
