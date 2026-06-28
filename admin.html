@@ -988,6 +988,7 @@ document.addEventListener('click',async function(e){
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
+  else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
     var nm=decodeURIComponent(el.dataset.name);
@@ -1415,6 +1416,69 @@ function getNextBLNumForClient(clientName){
 // Appliquer le format BL a toutes les commandes existantes
 
 // Appliquer le format facture a toutes les factures existantes
+// Reparer les numeros de factures en double: garde le 1er, donne un numero LIBRE aux suivants
+function reparerNumerosFactures(){
+  loadSuivi2();
+  if(!SUIVI2.length){toast('Aucune facture');return;}
+  // Grouper par prefixe et detecter les numeros utilises
+  function parseNum(s){
+    var m=String(s||'').match(/^(.*?)(\d+)$/);
+    if(!m) return null;
+    return {prefix:m[1], n:parseInt(m[2]), len:m[2].length};
+  }
+  // Construire l'ensemble des numeros utilises par prefixe
+  var usedByPrefix={}; // prefix -> {num:true}
+  var lenByPrefix={};
+  SUIVI2.forEach(function(f){
+    var p=parseNum(f.num);
+    if(!p) return;
+    if(!usedByPrefix[p.prefix]){ usedByPrefix[p.prefix]={}; lenByPrefix[p.prefix]=p.len; }
+    lenByPrefix[p.prefix]=Math.max(lenByPrefix[p.prefix],p.len);
+  });
+  // Detecter les doublons (en gardant la 1ere occurrence dans l'ordre actuel)
+  var seen={}; // prefix -> {num: true}  (numeros DEJA attribues definitivement)
+  var corrections=[];
+  // 1er passage: marquer les numeros de la 1ere occurrence comme reserves
+  SUIVI2.forEach(function(f){
+    var p=parseNum(f.num);
+    if(!p) return;
+    if(!seen[p.prefix]) seen[p.prefix]={};
+    if(!seen[p.prefix][p.n]){
+      seen[p.prefix][p.n]=true; // 1ere occurrence: on garde
+    }
+  });
+  // 2e passage: pour les doublons (numero deja vu par une 1ere occ), attribuer un numero libre
+  var assigned={}; // prefix -> {num:true} numeros deja donnes pendant la reparation
+  // Recopier seen dans assigned pour ne pas reutiliser un numero existant
+  Object.keys(seen).forEach(function(pfx){ assigned[pfx]={}; Object.keys(seen[pfx]).forEach(function(n){ assigned[pfx][n]=true; }); });
+  var firstOccDone={};
+  SUIVI2.forEach(function(f){
+    var p=parseNum(f.num);
+    if(!p) return;
+    if(!firstOccDone[p.prefix]) firstOccDone[p.prefix]={};
+    if(!firstOccDone[p.prefix][p.n]){
+      firstOccDone[p.prefix][p.n]=true; // c'est la 1ere occurrence, on ne touche pas
+      return;
+    }
+    // DOUBLON: trouver le plus petit numero libre
+    var n=1;
+    while(assigned[p.prefix][n]){ n++; }
+    assigned[p.prefix][n]=true;
+    var newNum=p.prefix+String(n).padStart(lenByPrefix[p.prefix]||p.len,'0');
+    corrections.push({client:f.client, mois:f.mois, ancien:f.num, nouveau:newNum, ref:f});
+  });
+  if(!corrections.length){toast('Aucun doublon à réparer');return;}
+  var msg='Réparer '+corrections.length+' facture(s) en double ?\n\n';
+  corrections.forEach(function(c){ msg+='• '+c.client+' ('+c.mois+') : '+c.ancien+' → '+c.nouveau+'\n'; });
+  msg+='\nLes montants, clients, dates et états ne changent PAS. Seul le numéro en double est corrigé.';
+  if(!confirm(msg)) return;
+  corrections.forEach(function(c){ c.ref.num=c.nouveau; });
+  saveSuivi2();
+  if(typeof saveSuivi2ToSupabase==='function'){ try{ saveSuivi2ToSupabase(); }catch(e){} }
+  toast('✅ '+corrections.length+' numéro(s) corrigé(s)');
+  renderSuivi2();
+}
+
 function applyFactFormatToAll(){
   // Lire le format depuis l'input OU le localStorage
   var inp=document.getElementById('set-fact-format');
@@ -6317,7 +6381,8 @@ function renderSuivi2(){
       alertHtml+='<div style="background:#ffecec;border:1px solid #f09595;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:12px;color:#a32d2d;">⚠️ Numéro(s) manquant(s) dans la séquence : <strong>'+trous.slice(0,10).join(', ')+(trous.length>10?'…':'')+'</strong></div>';
     }
     if(doublons.length){
-      alertHtml+='<div style="background:#fff3e0;border:1px solid #ef9f27;border-radius:8px;padding:10px 12px;font-size:12px;color:#854f0b;">⚠️ Numéro(s) en double : <strong>'+[...new Set(doublons)].join(', ')+'</strong></div>';
+      alertHtml+='<div style="background:#fff3e0;border:1px solid #ef9f27;border-radius:8px;padding:10px 12px;font-size:12px;color:#854f0b;">⚠️ Numéro(s) en double : <strong>'+[...new Set(doublons)].join(', ')+'</strong>'
+        +'<div style="margin-top:8px;"><button class="btn btn-sm" style="background:#c47a00;color:#fff;" data-action="reparer-num-factures">🔧 Réparer les numéros en double</button></div></div>';
     }
     if(!trous.length&&!doublons.length&&inYearAll.length){
       alertHtml='<div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:8px;padding:8px 12px;font-size:12px;color:#27500a;">✅ Séquence de numéros correcte (aucun trou ni doublon)</div>';
