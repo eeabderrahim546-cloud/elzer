@@ -1661,7 +1661,8 @@ async function editDelivDate(id){
     await supaFetch('POST','commandes',{id:supaId,client:o.client,deliver_date:nd,items:JSON.stringify(payload),total:o.total||0,status:o.status||'nouvelle',mode:o.mode||'simple',created_at:o.createdAt||new Date().toISOString()});
   }catch(e){}
   toast('✅ Date de livraison mise à jour');
-  renderCommandes();
+  if(typeof renderCommandes==='function'){ try{ renderCommandes(); }catch(e){} }
+  if(typeof renderHistorique==='function'){ try{ renderHistorique(); }catch(e){} }
 }
 window.editDelivDate=editDelivDate;
 
@@ -5665,6 +5666,7 @@ function renderHistorique(){
         +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
         +'<td style="padding:9px 12px;text-align:center;"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap;">'
         +'<button class="btn btn-s btn-sm" data-action="view-bl" data-id="'+o.id+'">👁️</button>'
+        +'<button class="btn btn-sm" style="background:#eaf3de;border:1px solid #c0dd97;color:#27500a;" data-action="edit-deliv-date" data-id="'+o.id+'" title="Changer la date de livraison">📅</button>'
         +'<button class="btn btn-s btn-sm" data-action="print-bl" data-id="'+o.id+'">🖨️</button>'
         +'<button class="btn btn-b btn-sm" data-action="pdf-bl" data-id="'+o.id+'">📄</button>'
         +(o.facture?'<span style="font-size:10px;color:#27ae60;font-weight:600;padding:3px 6px;">✅</span>':'<button class="btn btn-a btn-sm" data-action="mark-bl-facture" data-id="'+o.id+'">€</button>')
