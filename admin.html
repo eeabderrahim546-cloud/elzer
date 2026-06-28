@@ -3035,7 +3035,12 @@ function renderFacturationContent(){
   });
   if(!filtered.length){document.getElementById('facturation-content').innerHTML='<div class="empty"><div class="empty-i">🧾</div><p>Aucune commande.</p></div>';return;}
   var byClient={};
-  filtered.forEach(function(o){if(!byClient[o.client])byClient[o.client]=[];byClient[o.client].push(o);});
+  var dispNameFC={}; // cle normalisee -> nom affiche (1ere orthographe)
+  filtered.forEach(function(o){
+    var key=normName(o.client);
+    if(!byClient[key]){ byClient[key]=[]; dispNameFC[key]=o.client; }
+    byClient[key].push(o);
+  });
   var html='';
   // Pour numerotation sequentielle: prefixe + longueur depuis Reglages
   var _fmt=localStorage.getItem('elzer_fact_format')||('ELD'+new Date().getFullYear()+'/0001');
@@ -3052,7 +3057,7 @@ function renderFacturationContent(){
   });
   function _nextFreeNum(){ _maxNum++; if(_maxNum<_startNum)_maxNum=_startNum; return _prefix+String(_maxNum).padStart(_numLen,'0'); }
   Object.entries(byClient).forEach(function(entry){
-    var cli=entry[0],bls=entry[1];
+    var cli=dispNameFC[entry[0]],bls=entry[1];
     // Calculer le total depuis les articles
     var totalClient=0;
     bls.forEach(function(o){
