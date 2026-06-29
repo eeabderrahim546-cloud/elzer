@@ -17,6 +17,7 @@
 <link rel="manifest" href="manifest_admin.json"/>
 <link rel="apple-touch-icon" href="icon.svg"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--g9:#4a5d42;--g8:#5a7050;--g7:#6b8a5e;--g6:#7d9c6f;--g2:#dce8d3;--g1:#eef3e9;--g0:#f7faf4;--blue:#1a5c9e;--bl:#e8f4ff;--amb:#c47a00;--aml:#fff3e0;--red:#d32f2f;--rl:#ffecec;--gy9:#111;--gy7:#333;--gy5:#666;--gy3:#ccc;--gy1:#f5f5f5;--wh:#fff;--fn:Arial,sans-serif;--mn:monospace;--sh:0 2px 12px rgba(0,0,0,.08);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -690,6 +691,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <button class="btn" style="background:#c47a00;color:#fff;" data-action="apply-fact-format-all">🔄 Appliquer le format aux factures</button>
       </div>
+
+      <div style="background:#eaf3de;border:1px solid #a8c98a;border-radius:12px;padding:18px;max-width:600px;margin-top:16px;">
+        <div style="font-size:14px;font-weight:600;color:#27500a;margin-bottom:6px;">📥 Sauvegarde / Export Excel</div>
+        <div style="font-size:12px;color:#5a7050;margin-bottom:12px;">Télécharge un fichier Excel (.xlsx) avec toutes tes données : BL, détail des articles, factures et clients. À enregistrer sur ton ordinateur pour archivage ou pour ton comptable.</div>
+        <button class="btn" style="background:#2d6a1f;color:#fff;" data-action="export-excel">📥 Télécharger Excel complet</button>
+      </div>
     </div>
 
 <!-- MODALS -->
@@ -989,6 +996,7 @@ document.addEventListener('click',async function(e){
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
+  else if(a==='export-excel'){exportExcelComplet();}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1480,6 +1488,68 @@ function reparerNumerosFactures(){
   if(typeof saveSuivi2ToSupabase==='function'){ try{ saveSuivi2ToSupabase(); }catch(e){} }
   toast('✅ '+corrections.length+' numéro(s) corrigé(s)');
   renderSuivi2();
+}
+
+// Exporter toutes les donnees en Excel (.xlsx) multi-onglets
+function exportExcelComplet(){
+  if(typeof XLSX==='undefined'){ toast('Bibliothèque Excel en cours de chargement, réessayez dans un instant'); return; }
+  toast('Préparation du fichier Excel...');
+  try{
+    var allOrders=load('terrasse_orders',[]);
+    var allClients=load('admin_clients',load('elzer_clients',[]));
+    loadSuivi2();
+    var allFactures=SUIVI2||[];
+
+    // Helper date livraison lisible
+    function dLiv(o){ return o.delivDate?o.delivDate:''; }
+    function dCre(o){ return o.createdAt?new Date(o.createdAt).toLocaleDateString('fr-FR'):''; }
+    var statusLbl={nouvelle:'Nouvelle',preparation:'En préparation',livree:'Livrée',annulee:'Annulée'};
+
+    // ONGLET 1: BL (totaux)
+    var blRows=[['N° BL','Client','Date livraison','Date réception','Statut','Nb articles','Total (Dh)','Facturé']];
+    allOrders.filter(function(o){return o.status!=='annulee';}).sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');}).forEach(function(o){
+      blRows.push([ o.bl||o.id||'', o.client||'', dLiv(o), dCre(o), statusLbl[o.status]||o.status||'', (o.items||[]).length, Math.round(o.total||0), o.facture?'Oui':'Non' ]);
+    });
+
+    // ONGLET 2: Detail BL (article par article)
+    var detRows=[['N° BL','Client','Date livraison','Article','Quantité','Unité','Prix unitaire (Dh)','Total ligne (Dh)']];
+    allOrders.filter(function(o){return o.status!=='annulee';}).sort(function(a,b){return (a.delivDate||'').localeCompare(b.delivDate||'');}).forEach(function(o){
+      (o.items||[]).forEach(function(it){
+        var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
+        var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
+        detRows.push([ o.bl||o.id||'', o.client||'', dLiv(o), it.name||'', qty, it.unit||'', pu, Math.round(pu*qty*100)/100 ]);
+      });
+    });
+
+    // ONGLET 3: Factures
+    function factDate(r){
+      if(r.mois && /^\d{4}-\d{2}$/.test(r.mois)){ var my=parseInt(r.mois.substring(0,4)),mm=parseInt(r.mois.substring(5,7)); return new Date(my,mm,0).toLocaleDateString('fr-FR'); }
+      return r.date||'';
+    }
+    var factRows=[['N° Facture','Client','Mois','Montant (Dh)','Date','État','Règlement','Chèque/LC','Commentaire']];
+    allFactures.slice().sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));}).forEach(function(r){
+      factRows.push([ r.num||'', r.client||'', r.mois||'', parseFloat(r.mt||0), factDate(r), r.etat||'', r.reglement||'', r.chq||'', r.comment||'' ]);
+    });
+
+    // ONGLET 4: Clients
+    var cliRows=[['Nom','Type','Téléphone','WhatsApp','Email','Adresse','ICE','RC','IF']];
+    (allClients||[]).forEach(function(c){
+      cliRows.push([ c.name||'', c.type||'', c.tel||'', c.wa||'', c.email||'', c.adresse||'', c.ice||'', c.rc||'', c.iff||'' ]);
+    });
+
+    var wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(blRows), 'BL');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detRows), 'Détail BL');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(factRows), 'Factures');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(cliRows), 'Clients');
+
+    var dateStr=new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, 'ELZER_export_'+dateStr+'.xlsx');
+    toast('✅ Fichier Excel téléchargé');
+  }catch(e){
+    console.error('Export Excel error:',e);
+    toast('Erreur export: '+(e&&e.message||'inconnue'));
+  }
 }
 
 function applyFactFormatToAll(){
