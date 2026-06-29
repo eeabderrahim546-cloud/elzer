@@ -6577,10 +6577,16 @@ async function syncFromSupabase(){
       save('terrasse_orders',merged);
       orders=merged;
       var newCount=orders.filter(function(o){return o.status==='nouvelle';}).length;
-      document.getElementById('nb-new').textContent=newCount;
-      // Mettre a jour affichage (rafraichir les deux vues principales pour eviter ecran vide)
-      try{ if(typeof renderDashboard==='function') renderDashboard(); }catch(e){}
-      try{ if(typeof renderCommandes==='function') renderCommandes(); }catch(e){}
+      var nbNewEl=document.getElementById('nb-new');
+      if(nbNewEl) nbNewEl.textContent=newCount;
+      // Rafraichir UNIQUEMENT le panneau actuellement affiche (evite de redessiner par-dessus la navigation)
+      try{
+        var activePanel=document.querySelector('.panel.active');
+        var pid=activePanel?activePanel.id.replace('panel-',''):'';
+        if(pid==='dashboard' && typeof renderDashboard==='function') renderDashboard();
+        else if(pid==='commandes' && typeof renderCommandes==='function') renderCommandes();
+        // Les autres panneaux (facturation, suivi, historique...) ne sont PAS redessines par le sync auto
+      }catch(e){}
       // Notifier nouvelles commandes
       if(mapped.length>oldCount && oldCount>0){
         toast('Nouvelle commande recue!');
@@ -6633,7 +6639,7 @@ document.addEventListener('click', function(e){
 // Chargement immediat des commandes depuis Supabase au demarrage (important en navigation privee ou localStorage vide)
 setTimeout(function(){ syncFromSupabase(); }, 300);
 setTimeout(function(){ syncFromSupabase(); }, 2500);
-setInterval(syncFromSupabase,10000);
+setInterval(syncFromSupabase,30000);
 
 // ── MOT DE PASSE ADMIN ── gere par admin-login.html
 
