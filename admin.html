@@ -4112,8 +4112,8 @@ function printDevis(id){
   }
   var total=0;
   var rows=(d.items||[]).map(function(i,idx){
-    var pu=parseFloat(i.prix)||0;
-    var qty=parseFloat(i.qty)||1;
+    var pu=parseFloat(String(i.prix).replace(',','.'))||0;
+    var qty=parseFloat(String(i.qty).replace(',','.'))||1;
     var lt=pu*qty;
     total+=lt;
     var bg=idx%2===0?'#fff':'#fafcf8';
@@ -4894,7 +4894,7 @@ function saveDevis(editId){
     var isEx=row.dataset.excluded==='1';
     if(isEx){excluded[name]=true;return;}
     var inp=row.querySelector('.dv-prix');
-    var prix=inp?inp.value.trim():'';
+    var prix=inp?inp.value.trim().replace(',','.'):'';
     if(prix) items.push({name:name,unit:unit,prix:prix});
   });
   
