@@ -338,6 +338,13 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="stat" onclick="goToCmdView('tomorrow')" style="cursor:pointer;" title="Voir les livraisons de demain"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
         <div class="stat" onclick="goToCmdView('new')" style="cursor:pointer;" title="Voir les nouvelles commandes"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
       </div>
+      <div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:13px;color:#27500a;font-weight:600;">📄 Rapport du jour</span>
+        <label style="font-size:12px;color:#5a7050;">Date :
+          <input type="date" id="dash-pdf-date" style="padding:6px 8px;border:1.5px solid #c0dd97;border-radius:6px;font-size:12px;margin-left:4px;"/>
+        </label>
+        <button class="btn" style="background:#2d6a1f;color:#fff;" data-action="print-jour-pdf">🖨️ Imprimer / Enregistrer PDF</button>
+      </div>
       <div id="dash-operations"></div>
     </div>
     <div class="panel" id="panel-commandes">
@@ -989,6 +996,7 @@ document.addEventListener('click',async function(e){
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
+  else if(a==='print-jour-pdf'){printJourPDF();}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1482,6 +1490,125 @@ function reparerNumerosFactures(){
   renderSuivi2();
 }
 
+// Imprimer / enregistrer en PDF le rapport du jour (BL livres + factures du jour et du mois + suivi)
+function printJourPDF(){
+  var dEl=document.getElementById('dash-pdf-date');
+  var dStr=dEl?dEl.value:'';
+  if(!dStr){
+    dStr=new Date().toISOString().split('T')[0];
+  }
+  // dStr au format AAAA-MM-JJ
+  var dateObj=new Date(dStr+'T12:00:00');
+  if(isNaN(dateObj.getTime())){ toast('Date invalide'); return; }
+  var dispDate=dateObj.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  var mois=dStr.substring(0,7); // AAAA-MM
+  var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+
+  orders=load('terrasse_orders',[]);
+  loadSuivi2();
+
+  // 1. BL livres ce jour (delivDate = dStr, hors annule)
+  var blsJour=orders.filter(function(o){return o.delivDate===dStr && o.status!=='annulee';});
+  blsJour.sort(function(a,b){return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));});
+
+  // 2. Factures du jour ET du mois
+  function factDate(r){
+    if(r.mois && /^\d{4}-\d{2}$/.test(r.mois)){
+      var my=parseInt(r.mois.substring(0,4)),mm=parseInt(r.mois.substring(5,7));
+      var ld=new Date(my,mm,0);
+      return ld.getFullYear()+'-'+String(ld.getMonth()+1).padStart(2,'0')+'-'+String(ld.getDate()).padStart(2,'0');
+    }
+    var p=String(r.date||'').split('/');
+    if(p.length===3) return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+    return '';
+  }
+  var factJour=SUIVI2.filter(function(r){return factDate(r)===dStr;});
+  var factMois=SUIVI2.filter(function(r){return r.mois===mois;});
+  factJour.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
+  factMois.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
+
+  // 3. Totaux
+  var totalBL=blsJour.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var totalFactMois=factMois.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+  function calcEtats(list){
+    var enc=0,enc2=0,imp=0;
+    list.forEach(function(r){
+      var mt=parseFloat(r.mt||0);
+      var e=(r.etat||'').toUpperCase().trim();
+      if(e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ') enc+=mt;
+      else if(e==='EN COURS') enc2+=mt;
+      else imp+=mt;
+    });
+    return {enc:enc,enc2:enc2,imp:imp};
+  }
+  var etatsMois=calcEtats(factMois);
+
+  // Construction HTML
+  var blRows=blsJour.length?blsJour.map(function(o){
+    var nb=(o.items||[]).length;
+    var st={'nouvelle':'Nouvelle','preparation':'En préparation','livree':'Livrée'}[o.status]||o.status;
+    return '<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(o.bl||o.id||'')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(o.client||'')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">'+nb+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">'+Math.round(o.total||0).toLocaleString('fr-FR')+' Dh</td>'
+      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+st+'</td></tr>';
+  }).join(''):'<tr><td colspan="5" style="padding:14px;text-align:center;color:#999;font-style:italic;">Aucun BL livré ce jour</td></tr>';
+
+  function factRowsHtml(list){
+    if(!list.length) return '<tr><td colspan="6" style="padding:14px;text-align:center;color:#999;font-style:italic;">Aucune facture</td></tr>';
+    return list.map(function(r){
+      return '<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.num||'')+'</td>'
+        +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.client||'')+'</td>'
+        +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.mois||'')+'</td>'
+        +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">'+parseFloat(r.mt||0).toLocaleString('fr-FR')+' Dh</td>'
+        +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.reglement||'')+'</td>'
+        +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(r.etat||'')+'</td></tr>';
+    }).join('');
+  }
+
+  var html='<html><head><meta charset="utf-8"><title>Rapport du jour - '+dStr+'</title>'
+    +'<style>@media print { @page { margin: 1cm; } body { -webkit-print-color-adjust: exact; } }</style></head>'
+    +'<body style="font-family:Arial,sans-serif;color:#333;padding:20px;font-size:13px;">'
+    +'<div style="border-bottom:3px solid #2d6a1f;padding-bottom:10px;margin-bottom:18px;">'
+    +'<h1 style="color:#2d6a1f;font-size:22px;margin:0;">ELZER Distribution</h1>'
+    +'<div style="font-size:14px;color:#666;">Rapport du jour — '+dispDate+'</div>'
+    +'</div>'
+    // Cartes de synthese
+    +'<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">'
+    +'<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#3b6d11;">BL livrés</div><div style="font-size:18px;font-weight:bold;color:#27500a;">'+blsJour.length+'</div><div style="font-size:11px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#f1efe8;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#666;">Factures du jour</div><div style="font-size:18px;font-weight:bold;">'+factJour.length+'</div><div style="font-size:11px;color:#666;">émises ce jour</div></div>'
+    +'<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">Facturé mois</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#854f0b;">'+moisLbl+'</div></div>'
+    +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#a32d2d;">Impayé mois</div><div style="font-size:18px;font-weight:bold;color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#a32d2d;">en attente</div></div>'
+    +'</div>'
+    // Section 1: BL
+    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🚚 BL livrés ce jour ('+blsJour.length+')</h2>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N° BL</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:center;">Articles</th><th style="padding:7px 10px;text-align:right;">Total</th><th style="padding:7px 10px;text-align:left;">Statut</th></tr></thead>'
+    +'<tbody>'+blRows+'</tbody>'
+    +(blsJour.length?'<tfoot><tr style="background:#eaf3de;font-weight:bold;"><td colspan="3" style="padding:8px 10px;text-align:right;">TOTAL BL livrés :</td><td style="padding:8px 10px;text-align:right;color:#27500a;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</td><td></td></tr></tfoot>':'')
+    +'</table>'
+    // Section 2: Factures du jour
+    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🧾 Factures émises ce jour ('+factJour.length+')</h2>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
+    +'<tbody>'+factRowsHtml(factJour)+'</tbody></table>'
+    // Section 3: Suivi des factures du mois
+    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">💰 Suivi des factures — '+moisLbl+' ('+factMois.length+')</h2>'
+    +'<div style="font-size:12px;margin-bottom:8px;color:#666;">Total facturé : <b>'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</b> · Encaissé : <b style="color:#27500a;">'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</b> · En cours : <b style="color:#854f0b;">'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</b> · Impayé : <b style="color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</b></div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
+    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
+    +'<tbody>'+factRowsHtml(factMois)+'</tbody></table>'
+    +'<div style="margin-top:24px;font-size:11px;color:#999;text-align:center;">Document généré le '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' — ELZER Distribution, Marrakech</div>'
+    +'<div style="margin-top:8px;font-size:11px;color:#999;text-align:center;">Pour enregistrer en PDF : Imprimer → Destination → "Enregistrer au format PDF"</div>'
+    +'</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){ toast('Autorisez les pop-ups pour imprimer'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){ try{ w.print(); }catch(e){} }, 500);
+}
+
 function applyFactFormatToAll(){
   // Lire le format depuis l'input OU le localStorage
   var inp=document.getElementById('set-fact-format');
@@ -1630,6 +1757,9 @@ function renderDashboard(){
   if(e=document.getElementById('d-prep')) e.textContent=aPreparer.length;
   if(e=document.getElementById('d-tomorrow')) e.textContent=livTomorrow.length;
   if(e=document.getElementById('d-late')) e.textContent=nouvelles.length;
+  // Initialiser la date du PDF du jour a aujourd'hui (sans ecraser une saisie manuelle)
+  var dPdf=document.getElementById('dash-pdf-date');
+  if(dPdf && !dPdf.value){ dPdf.value=today; }
   var nbn=document.getElementById('nb-new'); if(nbn) nbn.textContent=nouvelles.length;
   
   var ops=document.getElementById('dash-operations');
