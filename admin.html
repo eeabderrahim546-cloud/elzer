@@ -339,8 +339,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="stat" onclick="goToCmdView('new')" style="cursor:pointer;" title="Voir les nouvelles commandes"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
       </div>
       <div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <span style="font-size:13px;color:#27500a;font-weight:600;">📄 Rapport du jour</span>
-        <label style="font-size:12px;color:#5a7050;">Date :
+        <span style="font-size:13px;color:#27500a;font-weight:600;">📄 Rapport cumulatif du mois</span>
+        <label style="font-size:12px;color:#5a7050;">Jusqu'au :
           <input type="date" id="dash-pdf-date" style="padding:6px 8px;border:1.5px solid #c0dd97;border-radius:6px;font-size:12px;margin-left:4px;"/>
         </label>
         <button class="btn" style="background:#2d6a1f;color:#fff;" data-action="print-jour-pdf">🖨️ Imprimer / Enregistrer PDF</button>
@@ -1497,38 +1497,39 @@ function printJourPDF(){
   if(!dStr){
     dStr=new Date().toISOString().split('T')[0];
   }
-  // dStr au format AAAA-MM-JJ
+  // dStr au format AAAA-MM-JJ - on utilise seulement le MOIS
   var dateObj=new Date(dStr+'T12:00:00');
   if(isNaN(dateObj.getTime())){ toast('Date invalide'); return; }
-  var dispDate=dateObj.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   var mois=dStr.substring(0,7); // AAAA-MM
   var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 
   orders=load('terrasse_orders',[]);
   loadSuivi2();
 
-  // 1. BL livres ce jour (delivDate = dStr, hors annule)
-  var blsJour=orders.filter(function(o){return o.delivDate===dStr && o.status!=='annulee';});
-  blsJour.sort(function(a,b){return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));});
+  // Date limite: du 1er du mois jusqu'a dStr inclus (cumulatif, pas de jours futurs)
+  var dateLimit=dStr; // AAAA-MM-JJ
+  var moisStart=mois+'-01'; // AAAA-MM-01
 
-  // 2. Factures du jour ET du mois
-  function factDate(r){
-    if(r.mois && /^\d{4}-\d{2}$/.test(r.mois)){
-      var my=parseInt(r.mois.substring(0,4)),mm=parseInt(r.mois.substring(5,7));
-      var ld=new Date(my,mm,0);
-      return ld.getFullYear()+'-'+String(ld.getMonth()+1).padStart(2,'0')+'-'+String(ld.getDate()).padStart(2,'0');
-    }
-    var p=String(r.date||'').split('/');
-    if(p.length===3) return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
-    return '';
-  }
-  var factJour=SUIVI2.filter(function(r){return factDate(r)===dStr;});
+  // 1. BL du 1er du mois jusqu'a dStr inclus (hors annule) - tri par date
+  var blsMois=orders.filter(function(o){
+    if(o.status==='annulee') return false;
+    if(!o.delivDate) return false;
+    var d=String(o.delivDate).substring(0,10);
+    return d>=moisStart && d<=dateLimit;
+  });
+  blsMois.sort(function(a,b){
+    var da=String(a.delivDate||'').substring(0,10);
+    var db=String(b.delivDate||'').substring(0,10);
+    if(da!==db) return da.localeCompare(db);
+    return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));
+  });
+
+  // 2. Factures du mois
   var factMois=SUIVI2.filter(function(r){return r.mois===mois;});
-  factJour.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
   factMois.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
 
   // 3. Totaux
-  var totalBL=blsJour.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var totalBL=blsMois.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
   var totalFactMois=factMois.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
   function calcEtats(list){
     var enc=0,enc2=0,imp=0;
@@ -1543,16 +1544,31 @@ function printJourPDF(){
   }
   var etatsMois=calcEtats(factMois);
 
-  // Construction HTML
-  var blRows=blsJour.length?blsJour.map(function(o){
-    var nb=(o.items||[]).length;
+  // Construction HTML : BL AVEC DETAIL ARTICLE PAR ARTICLE
+  var blSections=blsMois.length?blsMois.map(function(o){
     var st={'nouvelle':'Nouvelle','preparation':'En préparation','livree':'Livrée'}[o.status]||o.status;
-    return '<tr><td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(o.bl||o.id||'')+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+(o.client||'')+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:center;">'+nb+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;">'+Math.round(o.total||0).toLocaleString('fr-FR')+' Dh</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid #eee;">'+st+'</td></tr>';
-  }).join(''):'<tr><td colspan="5" style="padding:14px;text-align:center;color:#999;font-style:italic;">Aucun BL livré ce jour</td></tr>';
+    var dateLiv=String(o.delivDate||'').substring(0,10);
+    var dateLivFr=dateLiv?new Date(dateLiv+'T12:00:00').toLocaleDateString('fr-FR'):'';
+    var items=(o.items||[]);
+    var itemRows=items.length?items.map(function(it){
+      var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
+      var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
+      var lt=pu*qty;
+      return '<tr><td style="padding:4px 10px;border-bottom:1px solid #f0f0f0;font-size:11px;">'+(it.name||'')+'</td>'
+        +'<td style="padding:4px 10px;border-bottom:1px solid #f0f0f0;text-align:center;font-size:11px;">'+(Number.isInteger(qty)?qty:qty.toFixed(2).replace('.',','))+' '+(it.unit||'')+'</td>'
+        +'<td style="padding:4px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:11px;">'+pu.toFixed(2).replace('.',',')+' Dh</td>'
+        +'<td style="padding:4px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-size:11px;font-weight:600;">'+lt.toFixed(2).replace('.',',')+' Dh</td></tr>';
+    }).join(''):'<tr><td colspan="4" style="padding:8px;text-align:center;color:#999;font-style:italic;font-size:11px;">Aucun article</td></tr>';
+    return '<div style="margin-bottom:14px;border:1px solid #d5e2c5;border-radius:6px;overflow:hidden;page-break-inside:avoid;">'
+      +'<div style="background:#eaf3de;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'
+      +'<div><b>'+(o.bl||o.id||'')+'</b> · '+(o.client||'')+' · Livraison '+dateLivFr+' · '+st+'</div>'
+      +'<div style="font-weight:bold;color:#27500a;">'+Math.round(o.total||0).toLocaleString('fr-FR')+' Dh</div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;">'
+      +'<thead><tr style="background:#f5f8f0;"><th style="padding:5px 10px;text-align:left;font-size:10px;color:#666;">Article</th><th style="padding:5px 10px;text-align:center;font-size:10px;color:#666;">Qté</th><th style="padding:5px 10px;text-align:right;font-size:10px;color:#666;">P.U</th><th style="padding:5px 10px;text-align:right;font-size:10px;color:#666;">Total</th></tr></thead>'
+      +'<tbody>'+itemRows+'</tbody></table>'
+      +'</div>';
+  }).join(''):'<div style="padding:20px;text-align:center;color:#999;font-style:italic;">Aucun BL pour ce mois</div>';
 
   function factRowsHtml(list){
     if(!list.length) return '<tr><td colspan="6" style="padding:14px;text-align:center;color:#999;font-style:italic;">Aucune facture</td></tr>';
@@ -1566,38 +1582,37 @@ function printJourPDF(){
     }).join('');
   }
 
-  var html='<html><head><meta charset="utf-8"><title>Rapport du jour - '+dStr+'</title>'
+  var html='<html><head><meta charset="utf-8"><title>Rapport du mois - '+mois+'</title>'
     +'<style>@media print { @page { margin: 1cm; } body { -webkit-print-color-adjust: exact; } }</style></head>'
     +'<body style="font-family:Arial,sans-serif;color:#333;padding:20px;font-size:13px;">'
     +'<div style="border-bottom:3px solid #2d6a1f;padding-bottom:10px;margin-bottom:18px;">'
     +'<h1 style="color:#2d6a1f;font-size:22px;margin:0;">ELZER Distribution</h1>'
-    +'<div style="font-size:14px;color:#666;">Rapport du jour — '+dispDate+'</div>'
+    +'<div style="font-size:14px;color:#666;">Rapport cumulatif — du 1<sup>er</sup> au '+dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>'
     +'</div>'
-    // Cartes de synthese
+    // Cartes de synthese du mois
     +'<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">'
-    +'<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#3b6d11;">BL livrés</div><div style="font-size:18px;font-weight:bold;color:#27500a;">'+blsJour.length+'</div><div style="font-size:11px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>'
-    +'<div style="background:#f1efe8;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#666;">Factures du jour</div><div style="font-size:18px;font-weight:bold;">'+factJour.length+'</div><div style="font-size:11px;color:#666;">émises ce jour</div></div>'
-    +'<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">Facturé mois</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#854f0b;">'+moisLbl+'</div></div>'
-    +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#a32d2d;">Impayé mois</div><div style="font-size:18px;font-weight:bold;color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#a32d2d;">en attente</div></div>'
+    +'<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#3b6d11;">BL cumulés</div><div style="font-size:18px;font-weight:bold;color:#27500a;">'+blsMois.length+'</div><div style="font-size:11px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">Facturé</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#854f0b;">'+factMois.length+' facture(s)</div></div>'
+    +'<div style="background:#dff5df;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#0a4d0a;">Encaissé</div><div style="font-size:18px;font-weight:bold;color:#0a4d0a;">'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#f5efe0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">En cours</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#a32d2d;">Impayé</div><div style="font-size:18px;font-weight:bold;color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</div></div>'
     +'</div>'
-    // Section 1: BL
-    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🚚 BL livrés ce jour ('+blsJour.length+')</h2>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
-    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N° BL</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:center;">Articles</th><th style="padding:7px 10px;text-align:right;">Total</th><th style="padding:7px 10px;text-align:left;">Statut</th></tr></thead>'
-    +'<tbody>'+blRows+'</tbody>'
-    +(blsJour.length?'<tfoot><tr style="background:#eaf3de;font-weight:bold;"><td colspan="3" style="padding:8px 10px;text-align:right;">TOTAL BL livrés :</td><td style="padding:8px 10px;text-align:right;color:#27500a;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</td><td></td></tr></tfoot>':'')
-    +'</table>'
-    // Section 2: Factures du jour
-    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🧾 Factures émises ce jour ('+factJour.length+')</h2>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
-    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
-    +'<tbody>'+factRowsHtml(factJour)+'</tbody></table>'
-    // Section 3: Suivi des factures du mois
-    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">💰 Suivi des factures — '+moisLbl+' ('+factMois.length+')</h2>'
-    +'<div style="font-size:12px;margin-bottom:8px;color:#666;">Total facturé : <b>'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</b> · Encaissé : <b style="color:#27500a;">'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</b> · En cours : <b style="color:#854f0b;">'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</b> · Impayé : <b style="color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</b></div>'
+    // Section 1: BL avec detail article par article
+    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🚚 BL du 1<sup>er</sup> au '+dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+' — détail par article ('+blsMois.length+')</h2>'
+    +blSections
+    // Section 2: Factures du mois
+    +'<h2 style="color:#27500a;font-size:16px;margin:22px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;page-break-before:auto;">🧾 Factures du mois ('+factMois.length+')</h2>'
     +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
     +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
     +'<tbody>'+factRowsHtml(factMois)+'</tbody></table>'
+    // Section 3: Suivi resume
+    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">💰 Suivi des factures — '+moisLbl+'</h2>'
+    +'<div style="font-size:13px;padding:12px;background:#f8faf5;border:1px solid #d5e2c5;border-radius:8px;">'
+    +'<div style="margin-bottom:6px;">Total facturé : <b>'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</b></div>'
+    +'<div style="margin-bottom:6px;color:#27500a;">✅ Encaissé : <b>'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</b></div>'
+    +'<div style="margin-bottom:6px;color:#854f0b;">⏳ En cours : <b>'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</b></div>'
+    +'<div style="color:#a32d2d;">❌ Impayé : <b>'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</b></div>'
+    +'</div>'
     +'<div style="margin-top:24px;font-size:11px;color:#999;text-align:center;">Document généré le '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' — ELZER Distribution, Marrakech</div>'
     +'<div style="margin-top:8px;font-size:11px;color:#999;text-align:center;">Pour enregistrer en PDF : Imprimer → Destination → "Enregistrer au format PDF"</div>'
     +'</body></html>';
