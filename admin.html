@@ -349,7 +349,8 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="bl">🚚 BL (détail)</button>
           <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="factures">🧾 Factures</button>
           <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="suivi">💰 Suivi</button>
-          <button class="btn btn-sm" style="background:#2d6a1f;color:#fff;" data-action="print-rapport" data-section="tout">📄 Tout imprimer</button>
+          <button class="btn btn-sm" style="background:#2d6a1f;color:#fff;" data-action="print-rapport" data-section="tout">📄 Tout (liste)</button>
+          <button class="btn btn-sm" style="background:#1a5c12;color:#fff;" data-action="print-pages-separees">📦 Tout (1 par page)</button>
         </div>
       </div>
       <div id="dash-operations"></div>
@@ -1004,6 +1005,7 @@ document.addEventListener('click',async function(e){
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
   else if(a==='print-rapport'){printRapportMois(el.dataset.section||'tout');}
+  else if(a==='print-pages-separees'){printRapportPagesSeparees();}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1653,6 +1655,99 @@ function printRapportMois(section){
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ try{ w.print(); }catch(e){} }, 500);
+}
+
+// Rapport cumulatif: page resume + CHAQUE BL sur sa page + CHAQUE facture sur sa page
+function printRapportPagesSeparees(){
+  var dEl=document.getElementById('dash-pdf-date');
+  var dStr=dEl?dEl.value:'';
+  if(!dStr){ dStr=new Date().toISOString().split('T')[0]; }
+  var dateObj=new Date(dStr+'T12:00:00');
+  if(isNaN(dateObj.getTime())){ toast('Date invalide'); return; }
+  var mois=dStr.substring(0,7);
+  var moisStart=mois+'-01';
+  var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  var dateFullFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  orders=load('terrasse_orders',[]);
+  loadSuivi2();
+
+  // BL du 1er au dStr inclus (hors annule)
+  var blsMois=orders.filter(function(o){
+    if(o.status==='annulee') return false;
+    if(!o.delivDate) return false;
+    var d=String(o.delivDate).substring(0,10);
+    return d>=moisStart && d<=dStr;
+  });
+  blsMois.sort(function(a,b){
+    var da=String(a.delivDate||'').substring(0,10), db=String(b.delivDate||'').substring(0,10);
+    if(da!==db) return da.localeCompare(db);
+    return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));
+  });
+
+  // Factures du mois
+  var factMois=SUIVI2.filter(function(r){return r.mois===mois;});
+  factMois.sort(function(a,b){return String(a.num||'').localeCompare(String(b.num||''));});
+
+  // Totaux
+  var totalBL=blsMois.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var totalFact=factMois.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+  var enc=0,enc2=0,imp=0;
+  factMois.forEach(function(r){
+    var mt=parseFloat(r.mt||0), e=(r.etat||'').toUpperCase().trim();
+    if(e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ') enc+=mt;
+    else if(e==='EN COURS') enc2+=mt;
+    else imp+=mt;
+  });
+
+  if(!blsMois.length && !factMois.length){ toast('Aucune donnée pour cette période'); return; }
+
+  // PAGE 1: RESUME
+  var pageResume='<div style="page-break-after:always;padding:20px;font-family:Arial,sans-serif;">'
+    +'<div style="border-bottom:3px solid #2d6a1f;padding-bottom:10px;margin-bottom:20px;">'
+    +'<h1 style="color:#2d6a1f;font-size:24px;margin:0;">ELZER Distribution</h1>'
+    +'<div style="font-size:15px;color:#666;">Rapport cumulatif — du 1<sup>er</sup> au '+dateFullFr+'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">'
+    +'<div style="background:#eaf3de;border-radius:8px;padding:14px 20px;flex:1;min-width:150px;"><div style="font-size:12px;color:#3b6d11;">BL cumulés</div><div style="font-size:22px;font-weight:bold;color:#27500a;">'+blsMois.length+'</div><div style="font-size:12px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#fff3e0;border-radius:8px;padding:14px 20px;flex:1;min-width:150px;"><div style="font-size:12px;color:#854f0b;">Facturé</div><div style="font-size:22px;font-weight:bold;color:#854f0b;">'+Math.round(totalFact).toLocaleString('fr-FR')+' Dh</div><div style="font-size:12px;color:#854f0b;">'+factMois.length+' facture(s)</div></div>'
+    +'<div style="background:#dff5df;border-radius:8px;padding:14px 20px;flex:1;min-width:150px;"><div style="font-size:12px;color:#0a4d0a;">Encaissé</div><div style="font-size:22px;font-weight:bold;color:#0a4d0a;">'+Math.round(enc).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#f5efe0;border-radius:8px;padding:14px 20px;flex:1;min-width:150px;"><div style="font-size:12px;color:#854f0b;">En cours</div><div style="font-size:22px;font-weight:bold;color:#854f0b;">'+Math.round(enc2).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'<div style="background:#ffecec;border-radius:8px;padding:14px 20px;flex:1;min-width:150px;"><div style="font-size:12px;color:#a32d2d;">Impayé</div><div style="font-size:22px;font-weight:bold;color:#a32d2d;">'+Math.round(imp).toLocaleString('fr-FR')+' Dh</div></div>'
+    +'</div>'
+    +'<div style="font-size:13px;color:#555;line-height:1.8;">'
+    +'<div style="font-weight:600;color:#2d6a1f;margin-bottom:6px;">Contenu de ce document :</div>'
+    +'• 1 page de résumé (celle-ci)<br>'
+    +'• '+blsMois.length+' bon(s) de livraison — 1 par page<br>'
+    +'• '+factMois.length+' facture(s) — 1 par page<br>'
+    +'</div>'
+    +'<div style="margin-top:30px;font-size:11px;color:#999;">Généré le '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' — ELZER Distribution, Marrakech</div>'
+    +'</div>';
+
+  // CHAQUE BL sur sa page (reutilise buildBLHtml)
+  var blPages='';
+  blsMois.forEach(function(o){
+    var blHtml=(typeof buildBLHtml==='function')?buildBLHtml(o,false):'<div>BL '+(o.bl||o.id)+'</div>';
+    blPages+='<div style="page-break-after:always;">'+blHtml+'</div>';
+  });
+
+  // CHAQUE facture sur sa page (reutilise buildFactureMensuelleHtml)
+  var factPages='';
+  factMois.forEach(function(r){
+    var fHtml=(typeof buildFactureMensuelleHtml==='function')?buildFactureMensuelleHtml(r.client, r.mois, r.num):'<div>Facture '+(r.num||'')+'</div>';
+    factPages+='<div style="page-break-after:always;">'+fHtml+'</div>';
+  });
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rapport '+mois+' - pages separees</title>'
+    +'<style>@media print{@page{margin:1cm;}} body{margin:0;font-family:Arial,sans-serif;}</style></head><body>'
+    +pageResume+blPages+factPages
+    +'</body></html>';
+
+  var w=window.open('','_blank');
+  if(!w){ toast('Autorisez les pop-ups pour imprimer'); return; }
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){ try{ w.print(); }catch(e){} }, 700);
 }
 
 function applyFactFormatToAll(){
