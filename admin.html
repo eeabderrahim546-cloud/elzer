@@ -338,12 +338,19 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         <div class="stat" onclick="goToCmdView('tomorrow')" style="cursor:pointer;" title="Voir les livraisons de demain"><div class="stat-n" id="d-tomorrow" style="color:#1a7aff">0</div><div class="stat-l">📅 Pour demain</div></div>
         <div class="stat" onclick="goToCmdView('new')" style="cursor:pointer;" title="Voir les nouvelles commandes"><div class="stat-n" id="d-late" style="color:#1a7aff">0</div><div class="stat-l">🆕 Nouvelles</div></div>
       </div>
-      <div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-        <span style="font-size:13px;color:#27500a;font-weight:600;">📄 Rapport cumulatif du mois</span>
-        <label style="font-size:12px;color:#5a7050;">Jusqu'au :
-          <input type="date" id="dash-pdf-date" style="padding:6px 8px;border:1.5px solid #c0dd97;border-radius:6px;font-size:12px;margin-left:4px;"/>
-        </label>
-        <button class="btn" style="background:#2d6a1f;color:#fff;" data-action="print-jour-pdf">🖨️ Imprimer / Enregistrer PDF</button>
+      <div style="background:#eaf3de;border:1px solid #c0dd97;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <span style="font-size:13px;color:#27500a;font-weight:600;">📄 Rapport cumulatif du mois</span>
+          <label style="font-size:12px;color:#5a7050;">Jusqu'au :
+            <input type="date" id="dash-pdf-date" style="padding:6px 8px;border:1.5px solid #c0dd97;border-radius:6px;font-size:12px;margin-left:4px;"/>
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="bl">🚚 BL (détail)</button>
+          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="factures">🧾 Factures</button>
+          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="suivi">💰 Suivi</button>
+          <button class="btn btn-sm" style="background:#2d6a1f;color:#fff;" data-action="print-rapport" data-section="tout">📄 Tout imprimer</button>
+        </div>
       </div>
       <div id="dash-operations"></div>
     </div>
@@ -996,7 +1003,7 @@ document.addEventListener('click',async function(e){
   else if(a==='save-fact-format'){saveFactFormat();}
   else if(a==='apply-bl-format-all'){applyBLFormatToAll();}
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
-  else if(a==='print-jour-pdf'){printJourPDF();}
+  else if(a==='print-rapport'){printRapportMois(el.dataset.section||'tout');}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1490,8 +1497,9 @@ function reparerNumerosFactures(){
   renderSuivi2();
 }
 
-// Imprimer / enregistrer en PDF le rapport du jour (BL livres + factures du jour et du mois + suivi)
-function printJourPDF(){
+// Imprimer le rapport cumulatif du mois - section: 'bl' | 'factures' | 'suivi' | 'tout'
+function printRapportMois(section){
+  section=section||'tout';
   var dEl=document.getElementById('dash-pdf-date');
   var dStr=dEl?dEl.value:'';
   if(!dStr){
@@ -1582,37 +1590,60 @@ function printJourPDF(){
     }).join('');
   }
 
-  var html='<html><head><meta charset="utf-8"><title>Rapport du mois - '+mois+'</title>'
+  var showBL=(section==='bl'||section==='tout');
+  var showFact=(section==='factures'||section==='tout');
+  var showSuivi=(section==='suivi'||section==='tout');
+  var titreSection={bl:'BL',factures:'Factures',suivi:'Suivi des factures',tout:'Rapport complet'}[section]||'Rapport';
+  var dateFullFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  var dateShortFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long'});
+
+  // Cartes de synthese: adaptees a la section
+  var cartes='<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">';
+  if(showBL) cartes+='<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#3b6d11;">BL cumulés</div><div style="font-size:18px;font-weight:bold;color:#27500a;">'+blsMois.length+'</div><div style="font-size:11px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>';
+  if(showFact||showSuivi){
+    cartes+='<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">Facturé</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#854f0b;">'+factMois.length+' facture(s)</div></div>'
+      +'<div style="background:#dff5df;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#0a4d0a;">Encaissé</div><div style="font-size:18px;font-weight:bold;color:#0a4d0a;">'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</div></div>'
+      +'<div style="background:#f5efe0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">En cours</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</div></div>'
+      +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#a32d2d;">Impayé</div><div style="font-size:18px;font-weight:bold;color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</div></div>';
+  }
+  cartes+='</div>';
+
+  var corps='';
+  // Section BL
+  if(showBL){
+    corps+='<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🚚 BL du 1<sup>er</sup> au '+dateShortFr+' — détail par article ('+blsMois.length+')</h2>'
+      +blSections;
+  }
+  // Section Factures
+  if(showFact){
+    corps+='<h2 style="color:#27500a;font-size:16px;margin:22px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🧾 Factures du mois ('+factMois.length+')</h2>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
+      +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
+      +'<tbody>'+factRowsHtml(factMois)+'</tbody></table>';
+  }
+  // Section Suivi
+  if(showSuivi){
+    corps+='<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">💰 Suivi des factures — '+moisLbl+'</h2>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">'
+      +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
+      +'<tbody>'+factRowsHtml(factMois)+'</tbody></table>'
+      +'<div style="font-size:13px;padding:12px;background:#f8faf5;border:1px solid #d5e2c5;border-radius:8px;">'
+      +'<div style="margin-bottom:6px;">Total facturé : <b>'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</b></div>'
+      +'<div style="margin-bottom:6px;color:#27500a;">✅ Encaissé : <b>'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</b></div>'
+      +'<div style="margin-bottom:6px;color:#854f0b;">⏳ En cours : <b>'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</b></div>'
+      +'<div style="color:#a32d2d;">❌ Impayé : <b>'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</b></div>'
+      +'</div>';
+  }
+
+  var html='<html><head><meta charset="utf-8"><title>'+titreSection+' - '+dStr+'</title>'
     +'<style>@media print { @page { margin: 1cm; } body { -webkit-print-color-adjust: exact; } }</style></head>'
     +'<body style="font-family:Arial,sans-serif;color:#333;padding:20px;font-size:13px;">'
     +'<div style="border-bottom:3px solid #2d6a1f;padding-bottom:10px;margin-bottom:18px;">'
     +'<h1 style="color:#2d6a1f;font-size:22px;margin:0;">ELZER Distribution</h1>'
-    +'<div style="font-size:14px;color:#666;">Rapport cumulatif — du 1<sup>er</sup> au '+dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})+'</div>'
+    +'<div style="font-size:14px;color:#666;">'+titreSection+' — du 1<sup>er</sup> au '+dateFullFr+'</div>'
     +'</div>'
-    // Cartes de synthese du mois
-    +'<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;">'
-    +'<div style="background:#eaf3de;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#3b6d11;">BL cumulés</div><div style="font-size:18px;font-weight:bold;color:#27500a;">'+blsMois.length+'</div><div style="font-size:11px;color:#3b6d11;">'+Math.round(totalBL).toLocaleString('fr-FR')+' Dh</div></div>'
-    +'<div style="background:#fff3e0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">Facturé</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</div><div style="font-size:11px;color:#854f0b;">'+factMois.length+' facture(s)</div></div>'
-    +'<div style="background:#dff5df;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#0a4d0a;">Encaissé</div><div style="font-size:18px;font-weight:bold;color:#0a4d0a;">'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</div></div>'
-    +'<div style="background:#f5efe0;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#854f0b;">En cours</div><div style="font-size:18px;font-weight:bold;color:#854f0b;">'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</div></div>'
-    +'<div style="background:#ffecec;border-radius:8px;padding:10px 16px;flex:1;min-width:140px;"><div style="font-size:11px;color:#a32d2d;">Impayé</div><div style="font-size:18px;font-weight:bold;color:#a32d2d;">'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</div></div>'
-    +'</div>'
-    // Section 1: BL avec detail article par article
-    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">🚚 BL du 1<sup>er</sup> au '+dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})+' — détail par article ('+blsMois.length+')</h2>'
-    +blSections
-    // Section 2: Factures du mois
-    +'<h2 style="color:#27500a;font-size:16px;margin:22px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;page-break-before:auto;">🧾 Factures du mois ('+factMois.length+')</h2>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:18px;">'
-    +'<thead><tr style="background:#5a7050;color:#fff;"><th style="padding:7px 10px;text-align:left;">N°</th><th style="padding:7px 10px;text-align:left;">Client</th><th style="padding:7px 10px;text-align:left;">Mois</th><th style="padding:7px 10px;text-align:right;">Montant</th><th style="padding:7px 10px;text-align:left;">Règlement</th><th style="padding:7px 10px;text-align:left;">État</th></tr></thead>'
-    +'<tbody>'+factRowsHtml(factMois)+'</tbody></table>'
-    // Section 3: Suivi resume
-    +'<h2 style="color:#27500a;font-size:16px;margin:18px 0 8px 0;border-left:4px solid #5a7050;padding-left:10px;">💰 Suivi des factures — '+moisLbl+'</h2>'
-    +'<div style="font-size:13px;padding:12px;background:#f8faf5;border:1px solid #d5e2c5;border-radius:8px;">'
-    +'<div style="margin-bottom:6px;">Total facturé : <b>'+Math.round(totalFactMois).toLocaleString('fr-FR')+' Dh</b></div>'
-    +'<div style="margin-bottom:6px;color:#27500a;">✅ Encaissé : <b>'+Math.round(etatsMois.enc).toLocaleString('fr-FR')+' Dh</b></div>'
-    +'<div style="margin-bottom:6px;color:#854f0b;">⏳ En cours : <b>'+Math.round(etatsMois.enc2).toLocaleString('fr-FR')+' Dh</b></div>'
-    +'<div style="color:#a32d2d;">❌ Impayé : <b>'+Math.round(etatsMois.imp).toLocaleString('fr-FR')+' Dh</b></div>'
-    +'</div>'
+    +cartes
+    +corps
     +'<div style="margin-top:24px;font-size:11px;color:#999;text-align:center;">Document généré le '+new Date().toLocaleDateString('fr-FR')+' à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' — ELZER Distribution, Marrakech</div>'
     +'<div style="margin-top:8px;font-size:11px;color:#999;text-align:center;">Pour enregistrer en PDF : Imprimer → Destination → "Enregistrer au format PDF"</div>'
     +'</body></html>';
