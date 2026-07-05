@@ -1499,6 +1499,23 @@ function reparerNumerosFactures(){
   renderSuivi2();
 }
 
+// Normalise une date (delivDate/createdAt) vers AAAA-MM-JJ, quel que soit son format d'origine
+// (ISO avec heure, DD/MM/AAAA, objet Date serialise...). Retourne null si impossible a interpreter.
+function elzerNormDate(v){
+  if(!v) return null;
+  var s=String(v).trim();
+  if(!s) return null;
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m) return m[3]+'-'+m[2]+'-'+m[1];
+  var d=new Date(s);
+  if(!isNaN(d.getTime())){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  return null;
+}
+
 // Imprimer le rapport cumulatif du mois - section: 'bl' | 'factures' | 'suivi' | 'tout'
 function printRapportMois(section){
   section=section||'tout';
@@ -1521,15 +1538,17 @@ function printRapportMois(section){
   var moisStart=mois+'-01'; // AAAA-MM-01
 
   // 1. BL du 1er du mois jusqu'a dStr inclus (hors annule) - tri par date
+  // Utilise elzerNormDate pour accepter tous les formats de date (ISO+heure, DD/MM/AAAA...)
+  // et se rabat sur createdAt si delivDate est absent ou illisible, pour ne perdre aucun BL.
   var blsMois=orders.filter(function(o){
     if(o.status==='annulee') return false;
-    if(!o.delivDate) return false;
-    var d=String(o.delivDate).substring(0,10);
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt);
+    if(!d) return false;
     return d>=moisStart && d<=dateLimit;
   });
   blsMois.sort(function(a,b){
-    var da=String(a.delivDate||'').substring(0,10);
-    var db=String(b.delivDate||'').substring(0,10);
+    var da=elzerNormDate(a.delivDate)||elzerNormDate(a.createdAt)||'';
+    var db=elzerNormDate(b.delivDate)||elzerNormDate(b.createdAt)||'';
     if(da!==db) return da.localeCompare(db);
     return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));
   });
@@ -1673,14 +1692,16 @@ function printRapportPagesSeparees(){
   loadSuivi2();
 
   // BL du 1er au dStr inclus (hors annule)
+  // Utilise elzerNormDate pour accepter tous les formats de date (ISO+heure, DD/MM/AAAA...)
+  // et se rabat sur createdAt si delivDate est absent ou illisible, pour ne perdre aucun BL.
   var blsMois=orders.filter(function(o){
     if(o.status==='annulee') return false;
-    if(!o.delivDate) return false;
-    var d=String(o.delivDate).substring(0,10);
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt);
+    if(!d) return false;
     return d>=moisStart && d<=dStr;
   });
   blsMois.sort(function(a,b){
-    var da=String(a.delivDate||'').substring(0,10), db=String(b.delivDate||'').substring(0,10);
+    var da=elzerNormDate(a.delivDate)||elzerNormDate(a.createdAt)||'', db=elzerNormDate(b.delivDate)||elzerNormDate(b.createdAt)||'';
     if(da!==db) return da.localeCompare(db);
     return String(a.bl||a.id||'').localeCompare(String(b.bl||b.id||''));
   });
