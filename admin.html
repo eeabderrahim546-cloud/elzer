@@ -302,8 +302,9 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
     <button class="sbi" data-panel="reglages"><span class="ico">⚙️</span><span>Réglages</span></button>
   </div>
   <div class="sb-foot" style="display:flex;flex-direction:column;gap:4px;">
-  <button data-action="change-admin-pwd" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.5);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;text-align:left;width:100%;margin-bottom:3px;">Changer mot de passe</button>
+  <button data-action="change-admin-pwd" style="background:rgba(255,255,255,.15);border:none;color:#fff;font-size:11px;font-weight:500;padding:6px 8px;border-radius:5px;cursor:pointer;text-align:center;width:100%;margin-bottom:3px;">🔑 Changer mot de passe</button>
   <button data-action="change-wa-group" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.5);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;text-align:left;width:100%;margin-bottom:3px;">Groupe WhatsApp</button>
+  <button data-action="logout-admin" style="background:rgba(200,50,50,.85);border:none;color:#fff;font-size:12px;font-weight:600;padding:8px 10px;border-radius:6px;cursor:pointer;text-align:center;width:100%;margin-top:4px;margin-bottom:4px;">🔒 Déconnexion</button>
   <span style="font-size:10px;color:rgba(255,255,255,.3);">v3.0 ELZER</span>
 </div>
 </div>
@@ -1299,8 +1300,31 @@ document.addEventListener('click',async function(e){
     else if(a==='send-wa-link'){window.open('https://wa.me/'+el.dataset.wa+'?text='+encodeURIComponent(el.dataset.msg),'_blank');}
     else if(a==='close-modal-cmd'){closeModal('modal-cmd');}
   else if(a==='change-admin-pwd'){
-    var np=prompt('Nouveau mot de passe admin (actuel: '+load('admin_password','elzer2026')+')');
-    if(np&&np.trim()){save('admin_password',np.trim());toast('Mot de passe admin change!');}
+    var currentPwd=load('admin_password','elzer2026');
+    var oldTry=prompt('🔐 Sécurité — Entrez votre mot de passe ACTUEL :');
+    if(oldTry===null) return;
+    if(String(oldTry).trim()!==currentPwd){
+      alert('❌ Mot de passe actuel incorrect. Aucun changement.');
+      return;
+    }
+    var np1=prompt('Nouveau mot de passe (minimum 4 caractères) :');
+    if(np1===null) return;
+    np1=String(np1).trim();
+    if(np1.length<4){ alert('❌ Trop court : minimum 4 caractères. Aucun changement.'); return; }
+    if(np1===currentPwd){ alert('❌ Le nouveau mot de passe doit être différent de l\'ancien.'); return; }
+    var np2=prompt('Confirmez le nouveau mot de passe :');
+    if(np2===null) return;
+    if(np1!==String(np2).trim()){ alert('❌ Les deux mots de passe ne correspondent pas. Aucun changement.'); return; }
+    save('admin_password',np1);
+    alert('✅ Mot de passe changé avec succès !\n\nVous allez être déconnecté pour tester le nouveau mot de passe.');
+    try{ sessionStorage.removeItem('elzer-admin-ok'); }catch(err){}
+    window.location.replace('admin-login.html');
+  }
+  else if(a==='logout-admin'){
+    if(confirm('Se déconnecter ? Vous devrez ressaisir le mot de passe pour revenir.')){
+      try{ sessionStorage.removeItem('elzer-admin-ok'); }catch(err){}
+      window.location.replace('admin-login.html');
+    }
   }
     return;
   }
