@@ -1597,7 +1597,9 @@ function downloadRapportPdfMois(){
   var M=15;                                   // marges
   var y=M;
 
-  function fmtDh(n){ return Math.round(n).toLocaleString('fr-FR')+' Dh'; }
+  function fmtFr(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+  function fmtFr2(n){ var s=Number(n).toFixed(2), p=s.split('.'); return fmtFr(p[0])+','+p[1]; }
+  function fmtDh(n){ return fmtFr(Math.round(n))+' Dh'; }
   function fmtDateFr(iso){
     if(!iso) return '';
     var s=String(iso).substring(0,10);
@@ -1695,8 +1697,8 @@ function downloadRapportPdfMois(){
             return [
               String(it.name||''),
               (Number.isInteger(qty)?qty:qty.toFixed(2).replace('.',','))+' '+(it.unit||''),
-              pu.toFixed(2).replace('.',',')+' Dh',
-              lt.toFixed(2).replace('.',',')+' Dh'
+              fmtFr2(pu)+' Dh',
+              fmtFr2(lt)+' Dh'
             ];
           });
           doc.autoTable({
