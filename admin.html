@@ -18,6 +18,7 @@
 <link rel="apple-touch-icon" href="icon.svg"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--g9:#4a5d42;--g8:#5a7050;--g7:#6b8a5e;--g6:#7d9c6f;--g2:#dce8d3;--g1:#eef3e9;--g0:#f7faf4;--blue:#1a5c9e;--bl:#e8f4ff;--amb:#c47a00;--aml:#fff3e0;--red:#d32f2f;--rl:#ffecec;--gy9:#111;--gy7:#333;--gy5:#666;--gy3:#ccc;--gy1:#f5f5f5;--wh:#fff;--fn:Arial,sans-serif;--mn:monospace;--sh:0 2px 12px rgba(0,0,0,.08);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -348,6 +349,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-sm" style="background:#0F6E56;color:#fff;font-weight:600;padding:8px 16px;" data-action="download-rapport-pdf">📥 Télécharger le PDF (BL + Factures + Suivi, groupés par client)</button>
+          <button class="btn btn-sm" style="background:#1F7A4A;color:#fff;font-weight:600;padding:8px 16px;" data-action="download-rapport-xlsx">📊 Télécharger Excel (.xlsx)</button>
         </div>
       </div>
       <div id="dash-operations"></div>
@@ -1004,6 +1006,7 @@ document.addEventListener('click',async function(e){
   else if(a==='print-rapport'){printRapportMois(el.dataset.section||'tout');}
   else if(a==='print-pages-separees'){printRapportPagesSeparees();}
   else if(a==='download-rapport-pdf'){downloadRapportPdfMois();}
+  else if(a==='download-rapport-xlsx'){downloadRapportXlsxMois();}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1853,6 +1856,216 @@ function downloadRapportPdfMois(){
   var fileName='ELZER_Rapport_'+mois+'_au_'+dStr+'.pdf';
   doc.save(fileName);
   toast('✅ PDF téléchargé : '+fileName);
+}
+
+// ============================================================
+// TELECHARGER LE RAPPORT CUMULATIF DU MOIS EN EXCEL (.xlsx)
+// 5 feuilles : Resume / BL / BL_Articles / Factures / Suivi
+// Format pratique pour la comptable : tri, filtre, tableau croise dynamique.
+// ============================================================
+function downloadRapportXlsxMois(){
+  var dEl=document.getElementById('dash-pdf-date');
+  var dStr=dEl?dEl.value:'';
+  if(!dStr) dStr=new Date().toISOString().split('T')[0];
+  var dateObj=new Date(dStr+'T12:00:00');
+  if(isNaN(dateObj.getTime())){ toast('Date invalide'); return; }
+
+  if(typeof XLSX==='undefined'){ toast('Bibliothèque Excel non chargée, rechargez la page'); return; }
+
+  var mois=dStr.substring(0,7);
+  var moisStart=mois+'-01';
+  var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  var dateFullFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  orders=load('terrasse_orders',[]);
+  loadSuivi2();
+
+  // BL du mois (meme filtre robuste que le PDF)
+  var blsMois=orders.filter(function(o){
+    if(o.status==='annulee') return false;
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt);
+    if(!d) return false;
+    return d>=moisStart && d<=dStr;
+  });
+  blsMois.sort(function(a,b){
+    var na=(a.client||'').toLowerCase(), nb=(b.client||'').toLowerCase();
+    if(na!==nb) return na.localeCompare(nb);
+    var da=elzerNormDate(a.delivDate)||elzerNormDate(a.createdAt)||'';
+    var db=elzerNormDate(b.delivDate)||elzerNormDate(b.createdAt)||'';
+    return da.localeCompare(db);
+  });
+
+  // Factures du mois
+  var factMois=SUIVI2.filter(function(r){return r.mois===mois;});
+  factMois.sort(function(a,b){
+    var na=(a.client||'').toLowerCase(), nb=(b.client||'').toLowerCase();
+    if(na!==nb) return na.localeCompare(nb);
+    return String(a.num||'').localeCompare(String(b.num||''));
+  });
+
+  // Etat helpers
+  function isEncaisse(e){ e=(e||'').toUpperCase().trim(); return e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ'||e==='ENCAISSE'||e==='ENCAISSÉ'; }
+  function isEnCours(e){ return (e||'').toUpperCase().trim()==='EN COURS'; }
+  function etatLbl(e){
+    if(isEncaisse(e)) return 'Encaissée';
+    if(isEnCours(e)) return 'En cours';
+    return e?e:'Impayée / autre';
+  }
+  function dateFr(iso){
+    if(!iso) return '';
+    var s=String(iso).substring(0,10);
+    var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m?m[3]+'/'+m[2]+'/'+m[1]:s;
+  }
+
+  // Totaux
+  var totalBL=blsMois.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var totalFact=factMois.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+  var enc=0, encours=0, imp=0, nbEnc=0, nbEncours=0, nbImp=0;
+  factMois.forEach(function(r){
+    var mt=parseFloat(r.mt||0);
+    if(isEncaisse(r.etat)){ enc+=mt; nbEnc++; }
+    else if(isEnCours(r.etat)){ encours+=mt; nbEncours++; }
+    else { imp+=mt; nbImp++; }
+  });
+  var nbClientsBL={}; blsMois.forEach(function(o){ nbClientsBL[o.client||'?']=1; });
+  var nbClientsFact={}; factMois.forEach(function(r){ nbClientsFact[r.client||'?']=1; });
+
+  var wb=XLSX.utils.book_new();
+
+  // ========= FEUILLE 1 : RESUME =========
+  var resume=[
+    ['ELZER DISTRIBUTION'],
+    ['Rapport cumulatif mensuel — '+moisLbl],
+    ['Du 1er au '+dateFullFr],
+    [],
+    ['Section','Nombre','Montant (Dh)','Clients','Détails'],
+    ['Bons de livraison', blsMois.length, Math.round(totalBL), Object.keys(nbClientsBL).length, ''],
+    ['Factures', factMois.length, Math.round(totalFact), Object.keys(nbClientsFact).length, ''],
+    [],
+    ['Suivi factures — récap','','','',''],
+    ['État','Nombre','Montant (Dh)','% du total',''],
+    ['Encaissées', nbEnc, Math.round(enc), totalFact?Math.round(100*enc/totalFact)+'%':'0%', ''],
+    ['En cours', nbEncours, Math.round(encours), totalFact?Math.round(100*encours/totalFact)+'%':'0%', ''],
+    ['Impayées / autre', nbImp, Math.round(imp), totalFact?Math.round(100*imp/totalFact)+'%':'0%', ''],
+    ['TOTAL', factMois.length, Math.round(totalFact), '100%', '']
+  ];
+  var wsResume=XLSX.utils.aoa_to_sheet(resume);
+  wsResume['!cols']=[{wch:28},{wch:12},{wch:16},{wch:12},{wch:22}];
+  wsResume['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:4}},
+    {s:{r:1,c:0},e:{r:1,c:4}},
+    {s:{r:2,c:0},e:{r:2,c:4}},
+    {s:{r:8,c:0},e:{r:8,c:4}}
+  ];
+  XLSX.utils.book_append_sheet(wb,wsResume,'Résumé');
+
+  // ========= FEUILLE 2 : BL (une ligne par BL) =========
+  var blRows=[['Client','N° BL','Date livraison','Statut','Nb articles','Total (Dh)']];
+  blsMois.forEach(function(o){
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
+    var st={'nouvelle':'Nouvelle','preparation':'En préparation','livree':'Livrée'}[o.status]||o.status||'';
+    blRows.push([
+      o.client||'',
+      o.bl||o.id||'',
+      dateFr(d),
+      st,
+      (o.items||[]).length,
+      Math.round(parseFloat(o.total)||0)
+    ]);
+  });
+  // Ligne total
+  blRows.push(['','','','TOTAL', blsMois.length, Math.round(totalBL)]);
+  var wsBL=XLSX.utils.aoa_to_sheet(blRows);
+  wsBL['!cols']=[{wch:30},{wch:14},{wch:14},{wch:14},{wch:12},{wch:14}];
+  wsBL['!autofilter']={ref:'A1:F'+blRows.length};
+  XLSX.utils.book_append_sheet(wb,wsBL,'BL');
+
+  // ========= FEUILLE 3 : BL_Articles (une ligne par article) =========
+  var artRows=[['Client','N° BL','Date livraison','Article','Quantité','Unité','P.U. (Dh)','Total ligne (Dh)']];
+  blsMois.forEach(function(o){
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
+    var dateStr=dateFr(d);
+    var items=o.items||[];
+    if(!items.length){
+      artRows.push([o.client||'', o.bl||o.id||'', dateStr, '(aucun article détaillé)', '', '', '', Math.round(parseFloat(o.total)||0)]);
+      return;
+    }
+    items.forEach(function(it){
+      var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
+      var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
+      var lt=pu*qty;
+      artRows.push([
+        o.client||'',
+        o.bl||o.id||'',
+        dateStr,
+        it.name||'',
+        Number.isInteger(qty)?qty:parseFloat(qty.toFixed(2)),
+        it.unit||'',
+        parseFloat(pu.toFixed(2)),
+        parseFloat(lt.toFixed(2))
+      ]);
+    });
+  });
+  var wsArt=XLSX.utils.aoa_to_sheet(artRows);
+  wsArt['!cols']=[{wch:30},{wch:14},{wch:14},{wch:32},{wch:10},{wch:8},{wch:12},{wch:14}];
+  wsArt['!autofilter']={ref:'A1:H'+artRows.length};
+  XLSX.utils.book_append_sheet(wb,wsArt,'BL_Articles');
+
+  // ========= FEUILLE 4 : FACTURES =========
+  var factRows=[['Client','N° Facture','Date','Montant (Dh)','Règlement','Chèque/LC','État','Mois','Commentaire']];
+  factMois.forEach(function(r){
+    factRows.push([
+      r.client||'',
+      r.num||'',
+      dateFr(r.date),
+      Math.round(parseFloat(r.mt)||0),
+      r.reglement||'',
+      r.chq||'',
+      etatLbl(r.etat),
+      r.mois||'',
+      r.comment||''
+    ]);
+  });
+  factRows.push(['','','TOTAL', Math.round(totalFact), '','','','','']);
+  var wsFact=XLSX.utils.aoa_to_sheet(factRows);
+  wsFact['!cols']=[{wch:30},{wch:16},{wch:12},{wch:14},{wch:18},{wch:14},{wch:16},{wch:10},{wch:30}];
+  wsFact['!autofilter']={ref:'A1:I'+factRows.length};
+  XLSX.utils.book_append_sheet(wb,wsFact,'Factures');
+
+  // ========= FEUILLE 5 : SUIVI (recap par etat + detail) =========
+  var suiviRows=[
+    ['Récapitulatif par état'],
+    ['État','Nombre','Montant (Dh)','% du total'],
+    ['Encaissées', nbEnc, Math.round(enc), totalFact?Math.round(100*enc/totalFact)+'%':'0%'],
+    ['En cours', nbEncours, Math.round(encours), totalFact?Math.round(100*encours/totalFact)+'%':'0%'],
+    ['Impayées / autre', nbImp, Math.round(imp), totalFact?Math.round(100*imp/totalFact)+'%':'0%'],
+    ['TOTAL', factMois.length, Math.round(totalFact), '100%'],
+    [],
+    ['Détail des factures par état']
+  ];
+  suiviRows.push(['État','N° Facture','Client','Date','Montant (Dh)','Règlement']);
+  ['ENC','COURS','IMP'].forEach(function(cat){
+    var list=factMois.filter(function(r){
+      if(cat==='ENC') return isEncaisse(r.etat);
+      if(cat==='COURS') return isEnCours(r.etat);
+      return !isEncaisse(r.etat) && !isEnCours(r.etat);
+    });
+    list.forEach(function(r){
+      suiviRows.push([etatLbl(r.etat), r.num||'', r.client||'', dateFr(r.date), Math.round(parseFloat(r.mt)||0), r.reglement||'']);
+    });
+  });
+  var wsSuivi=XLSX.utils.aoa_to_sheet(suiviRows);
+  wsSuivi['!cols']=[{wch:18},{wch:16},{wch:30},{wch:12},{wch:14},{wch:18}];
+  wsSuivi['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:3}},
+    {s:{r:7,c:0},e:{r:7,c:5}}
+  ];
+  XLSX.utils.book_append_sheet(wb,wsSuivi,'Suivi');
+
+  var fileName='ELZER_Rapport_'+mois+'_au_'+dStr+'.xlsx';
+  XLSX.writeFile(wb, fileName);
+  toast('✅ Excel téléchargé : '+fileName);
 }
 
 // Imprimer le rapport cumulatif du mois - section: 'bl' | 'factures' | 'suivi' | 'tout'
