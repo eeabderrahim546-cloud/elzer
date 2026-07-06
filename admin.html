@@ -1518,6 +1518,61 @@ function elzerNormDate(v){
 }
 
 // ============================================================
+// HELPERS PARTAGES : coordonnees client (utilises par PDF et Excel)
+// Les coordonnees sont lues depuis la variable globale 'clients'
+// (chargee au demarrage depuis 'admin_clients' - Parametres > Clients).
+// ============================================================
+function elzerFindClientByName(name){
+  if(!name) return null;
+  var target=String(name).trim().toLowerCase();
+  for(var i=0;i<clients.length;i++){
+    if(String(clients[i].name||'').trim().toLowerCase()===target) return clients[i];
+  }
+  return null;
+}
+function elzerClientCoordsAll(c){
+  // Retourne tous les champs, meme vides (pour Excel : ligne uniforme avec '—')
+  return [
+    ['Téléphone',   (c&&c.tel)?String(c.tel):'—'],
+    ['WhatsApp',    (c&&c.wa)?('+'+String(c.wa).replace(/^\+/,'')):'—'],
+    ['Email',       (c&&c.email)?String(c.email):'—'],
+    ['Adresse',     (c&&c.adresse)?String(c.adresse):'—'],
+    ['ICE',         (c&&c.ice)?String(c.ice):'—'],
+    ['RC / Patente',(c&&c.rc)?String(c.rc):'—'],
+    ['IF',          (c&&c.iff)?String(c.iff):'—']
+  ];
+}
+function elzerClientCoordsFilled(c){
+  // Retourne seulement les champs remplis (pour PDF compact)
+  if(!c) return [];
+  var out=[];
+  if(c.tel) out.push(['Tél',String(c.tel)]);
+  if(c.wa) out.push(['WhatsApp','+'+String(c.wa).replace(/^\+/,'')]);
+  if(c.email) out.push(['Email',String(c.email)]);
+  if(c.adresse) out.push(['Adresse',String(c.adresse)]);
+  if(c.ice) out.push(['ICE',String(c.ice)]);
+  if(c.rc) out.push(['RC',String(c.rc)]);
+  if(c.iff) out.push(['IF',String(c.iff)]);
+  return out;
+}
+function elzerSanitizeSheetName(name){
+  // Excel : max 31 chars, interdits : / \ ? * [ ] :
+  var s=String(name||'Client').replace(/[\\\/\?\*\[\]:]/g,'-').trim();
+  if(s.length>31) s=s.substring(0,31);
+  return s||'Client';
+}
+function elzerUniqueSheetName(base,taken){
+  if(!taken[base]){ taken[base]=1; return base; }
+  var i=2;
+  while(true){
+    var suffix=' ~'+i;
+    var s=(base.length+suffix.length>31)?(base.substring(0,31-suffix.length)+suffix):(base+suffix);
+    if(!taken[s]){ taken[s]=1; return s; }
+    i++;
+  }
+}
+
+// ============================================================
 // TELECHARGER LE RAPPORT CUMULATIF DU MOIS EN PDF
 // - Un seul bouton, un seul fichier PDF telechargeable
 // - Groupe par client (chaque client sur ses propres pages)
@@ -1675,7 +1730,24 @@ function downloadRapportPdfMois(){
       doc.setFontSize(12); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
       doc.text('Client : '+client,M+3,y+6.8);
       doc.text(listeBL.length+' BL — '+fmtDh(sousTotal),PW-M-3,y+6.8,{align:'right'});
-      y+=14;
+      y+=12;
+
+      // Coordonnees client (depuis Parametres > Clients)
+      var coords=elzerClientCoordsFilled(elzerFindClientByName(client));
+      if(coords.length){
+        var cH=Math.ceil(coords.length/2)*5+3;
+        doc.setFillColor(253,252,247); doc.setDrawColor(220,220,210); doc.setLineWidth(0.2);
+        doc.rect(M,y,PW-2*M,cH,'FD');
+        doc.setFontSize(8.5); doc.setTextColor(60);
+        var colX=[M+3, M+(PW-2*M)/2+3];
+        coords.forEach(function(kv,idx){
+          var col=idx%2, row=Math.floor(idx/2);
+          var xx=colX[col], yy=y+4+row*5;
+          doc.setFont('helvetica','bold'); doc.text(kv[0]+' :',xx,yy);
+          doc.setFont('helvetica','normal'); doc.text(String(kv[1]).substring(0,60),xx+18,yy);
+        });
+        y+=cH+2;
+      }
 
       listeBL.forEach(function(o){
         var dateLiv=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
@@ -1754,7 +1826,24 @@ function downloadRapportPdfMois(){
       doc.setFontSize(12); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
       doc.text('Client : '+client,M+3,y+6.8);
       doc.text(listeFact.length+' fact. — '+fmtDh(sousTotal),PW-M-3,y+6.8,{align:'right'});
-      y+=13;
+      y+=11;
+
+      // Coordonnees client
+      var coordsF=elzerClientCoordsFilled(elzerFindClientByName(client));
+      if(coordsF.length){
+        var cHF=Math.ceil(coordsF.length/2)*5+3;
+        doc.setFillColor(253,252,247); doc.setDrawColor(220,220,210); doc.setLineWidth(0.2);
+        doc.rect(M,y,PW-2*M,cHF,'FD');
+        doc.setFontSize(8.5); doc.setTextColor(60);
+        var colXF=[M+3, M+(PW-2*M)/2+3];
+        coordsF.forEach(function(kv,idx){
+          var col=idx%2, row=Math.floor(idx/2);
+          var xx=colXF[col], yy=y+4+row*5;
+          doc.setFont('helvetica','bold'); doc.text(kv[0]+' :',xx,yy);
+          doc.setFont('helvetica','normal'); doc.text(String(kv[1]).substring(0,60),xx+18,yy);
+        });
+        y+=cHF+2;
+      }
 
       doc.autoTable({
         startY:y,
@@ -1860,12 +1949,16 @@ function downloadRapportPdfMois(){
 
 // ============================================================
 // TELECHARGER LE RAPPORT CUMULATIF DU MOIS EN EXCEL (.xlsx)
-// 4 feuilles avec mise en page hierarchique et styles :
-//   - Resume : totaux et recap
-//   - BL detailles : chaque client + BL detailles article par article
-//   - Factures detaillees : chaque client + factures avec regle/etat
-//   - Suivi factures : groupees par etat (encaissees / en cours / impayees)
-// Utilise xlsx-js-style pour les couleurs et le formatage.
+// Structure :
+//   - Feuille "Resume" : recap global (par client + suivi)
+//   - Une feuille PAR CLIENT contenant :
+//        * coordonnees (Tel, WhatsApp, Email, Adresse, ICE, RC, IF)
+//          lues depuis Parametres > Clients (admin_clients)
+//        * BL du client (article par article)
+//        * Factures du client (avec etat colore)
+//        * Total client
+//   - Feuille "Suivi factures" : globalement par etat (encaissees/en cours/impayees)
+// Necessite xlsx-js-style pour les styles.
 // ============================================================
 function downloadRapportXlsxMois(){
   var dEl=document.getElementById('dash-pdf-date');
@@ -1881,6 +1974,8 @@ function downloadRapportXlsxMois(){
   var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
   var dateFullFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
 
+  // Recharger les donnees fraiches
+  clients=load('admin_clients',clients);
   orders=load('terrasse_orders',[]);
   loadSuivi2();
 
@@ -1898,10 +1993,10 @@ function downloadRapportXlsxMois(){
     var db=elzerNormDate(b.delivDate)||elzerNormDate(b.createdAt)||'';
     return da.localeCompare(db);
   });
-  var blByClient={}, clientOrderBL=[];
+  var blByClient={};
   blsMois.forEach(function(o){
     var c=o.client||'Client inconnu';
-    if(!blByClient[c]){ blByClient[c]=[]; clientOrderBL.push(c); }
+    if(!blByClient[c]) blByClient[c]=[];
     blByClient[c].push(o);
   });
 
@@ -1911,12 +2006,18 @@ function downloadRapportXlsxMois(){
     if(na!==nb) return na.localeCompare(nb);
     return String(a.num||'').localeCompare(String(b.num||''));
   });
-  var factByClient={}, clientOrderFact=[];
+  var factByClient={};
   factMois.forEach(function(r){
     var c=r.client||'Client inconnu';
-    if(!factByClient[c]){ factByClient[c]=[]; clientOrderFact.push(c); }
+    if(!factByClient[c]) factByClient[c]=[];
     factByClient[c].push(r);
   });
+
+  // Union des clients ayant BL ou factures (ordre alphabetique)
+  var allClientsSet={};
+  Object.keys(blByClient).forEach(function(c){allClientsSet[c]=1;});
+  Object.keys(factByClient).forEach(function(c){allClientsSet[c]=1;});
+  var allClients=Object.keys(allClientsSet).sort(function(a,b){return a.toLowerCase().localeCompare(b.toLowerCase());});
 
   function isEncaisse(e){ e=(e||'').toUpperCase().trim(); return e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ'||e==='ENCAISSE'||e==='ENCAISSÉ'; }
   function isEnCours(e){ return (e||'').toUpperCase().trim()==='EN COURS'; }
@@ -1934,308 +2035,260 @@ function downloadRapportXlsxMois(){
   });
 
   // ===== STYLES =====
-  var thinBorder={top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
+  var thin={top:{style:'thin',color:{rgb:'BFBFBF'}},bottom:{style:'thin',color:{rgb:'BFBFBF'}},left:{style:'thin',color:{rgb:'BFBFBF'}},right:{style:'thin',color:{rgb:'BFBFBF'}}};
   var S={
-    title:{ font:{bold:true,sz:14,color:{rgb:'FFFFFF'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    subtitle:{ font:{italic:true,sz:11,color:{rgb:'666666'},name:'Calibri'}, alignment:{horizontal:'center',vertical:'center'} },
-    section:{ font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'173404'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    client:{ font:{bold:true,sz:12,color:{rgb:'173404'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'97C459'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    clientR:{ font:{bold:true,sz:12,color:{rgb:'173404'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'97C459'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    blHead:{ font:{bold:true,sz:11,color:{rgb:'3B6D11'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'EAF3DE'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    blHeadR:{ font:{bold:true,sz:11,color:{rgb:'3B6D11'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'EAF3DE'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    th:{ font:{bold:true,sz:10,color:{rgb:'444444'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'F1EFE8'}}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    td:{ font:{sz:10,name:'Calibri'}, alignment:{horizontal:'left',vertical:'center'}, border:thinBorder },
-    tdC:{ font:{sz:10,name:'Calibri'}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    tdN:{ font:{sz:10,name:'Calibri'}, alignment:{horizontal:'right',vertical:'center'}, border:thinBorder, numFmt:'#,##0.00' },
-    tdD:{ font:{sz:10,name:'Calibri'}, alignment:{horizontal:'right',vertical:'center'}, border:thinBorder, numFmt:'#,##0.00" Dh"' },
-    tdDh:{ font:{sz:10,name:'Calibri'}, alignment:{horizontal:'right',vertical:'center'}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    sub:{ font:{bold:true,sz:11,color:{rgb:'412402'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'FAEEDA'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    subR:{ font:{bold:true,sz:11,color:{rgb:'412402'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'FAEEDA'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    grand:{ font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    grandR:{ font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    stEnc:{ font:{bold:true,sz:10,color:{rgb:'0F6E56'},name:'Calibri'}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    stCours:{ font:{bold:true,sz:10,color:{rgb:'854F0B'},name:'Calibri'}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    stImp:{ font:{bold:true,sz:10,color:{rgb:'A32D2D'},name:'Calibri'}, alignment:{horizontal:'center',vertical:'center'}, border:thinBorder },
-    catEnc:{ font:{bold:true,sz:12,color:{rgb:'04342C'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'9FE1CB'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    catEncR:{ font:{bold:true,sz:12,color:{rgb:'04342C'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'9FE1CB'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    catCours:{ font:{bold:true,sz:12,color:{rgb:'412402'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'FAC775'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    catCoursR:{ font:{bold:true,sz:12,color:{rgb:'412402'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'FAC775'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' },
-    catImp:{ font:{bold:true,sz:12,color:{rgb:'501313'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'F7C1C1'}}, alignment:{horizontal:'left',vertical:'center',indent:1}, border:thinBorder },
-    catImpR:{ font:{bold:true,sz:12,color:{rgb:'501313'},name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'F7C1C1'}}, alignment:{horizontal:'right',vertical:'center',indent:1}, border:thinBorder, numFmt:'#,##0" Dh"' }
+    title:{font:{bold:true,sz:14,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    subtitle:{font:{italic:true,sz:11,color:{rgb:'666666'},name:'Calibri'},alignment:{horizontal:'center',vertical:'center'}},
+    clientName:{font:{bold:true,sz:14,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'173404'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    section:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'173404'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    coordHead:{font:{bold:true,sz:11,color:{rgb:'444444'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'F1EFE8'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    coordLbl:{font:{bold:true,sz:10,color:{rgb:'555555'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'FDFCF7'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    coordVal:{font:{sz:10,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'FDFCF7'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    blHead:{font:{bold:true,sz:11,color:{rgb:'3B6D11'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'EAF3DE'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    blHeadR:{font:{bold:true,sz:11,color:{rgb:'3B6D11'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'EAF3DE'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'},
+    th:{font:{bold:true,sz:10,color:{rgb:'444444'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'F1EFE8'}},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    td:{font:{sz:10,name:'Calibri'},alignment:{horizontal:'left',vertical:'center'},border:thin},
+    tdC:{font:{sz:10,name:'Calibri'},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    tdN:{font:{sz:10,name:'Calibri'},alignment:{horizontal:'right',vertical:'center'},border:thin,numFmt:'#,##0.00'},
+    tdD:{font:{sz:10,name:'Calibri'},alignment:{horizontal:'right',vertical:'center'},border:thin,numFmt:'#,##0.00" Dh"'},
+    tdDh:{font:{sz:10,name:'Calibri'},alignment:{horizontal:'right',vertical:'center'},border:thin,numFmt:'#,##0" Dh"'},
+    sub:{font:{bold:true,sz:11,color:{rgb:'412402'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'FAEEDA'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    subR:{font:{bold:true,sz:11,color:{rgb:'412402'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'FAEEDA'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'},
+    grand:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    grandR:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'},
+    stEnc:{font:{bold:true,sz:10,color:{rgb:'0F6E56'},name:'Calibri'},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    stCours:{font:{bold:true,sz:10,color:{rgb:'854F0B'},name:'Calibri'},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    stImp:{font:{bold:true,sz:10,color:{rgb:'A32D2D'},name:'Calibri'},alignment:{horizontal:'center',vertical:'center'},border:thin},
+    catEnc:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    catEncR:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'0F6E56'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'},
+    catCours:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'854F0B'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    catCoursR:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'854F0B'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'},
+    catImp:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'A32D2D'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:thin},
+    catImpR:{font:{bold:true,sz:12,color:{rgb:'FFFFFF'},name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:'A32D2D'}},alignment:{horizontal:'right',vertical:'center',indent:1},border:thin,numFmt:'#,##0" Dh"'}
   };
 
-  // ===== HELPERS DE CONSTRUCTION =====
-  // Sheet builder : on ecrit cellule par cellule et on collecte les merges + col widths
-  function SheetBuilder(nbCols){
-    this.ws={}; this.row=0; this.nbCols=nbCols; this.merges=[]; this.maxRow=0;
-  }
+  // ===== SHEET BUILDER =====
+  function SheetBuilder(nbCols){ this.ws={}; this.row=0; this.nbCols=nbCols; this.merges=[]; this.maxRow=0; }
   SheetBuilder.prototype.set=function(r,c,val,style){
     var addr=XLSX.utils.encode_cell({r:r,c:c});
     var type='s';
     if(typeof val==='number'){ type='n'; }
     else if(val===null||val===undefined){ val=''; }
     this.ws[addr]={v:val,t:type};
-    if(style){
-      this.ws[addr].s=style;
-      if(style.numFmt) this.ws[addr].z=style.numFmt;
-    }
+    if(style){ this.ws[addr].s=style; if(style.numFmt) this.ws[addr].z=style.numFmt; }
     if(r>this.maxRow) this.maxRow=r;
   };
   SheetBuilder.prototype.rowLine=function(cells){
-    // cells = array de {v,s} ou null pour cellule vide stylee (ex: fill continuation)
     var r=this.row;
     for(var c=0;c<cells.length;c++){
       var cell=cells[c];
       if(cell) this.set(r,c,cell.v!==undefined?cell.v:'',cell.s);
     }
-    this.row++;
-    return this;
+    this.row++; return this;
   };
-  SheetBuilder.prototype.mergeRow=function(r,c1,c2){
-    this.merges.push({s:{r:r,c:c1},e:{r:r,c:c2}});
-    return this;
-  };
+  SheetBuilder.prototype.mergeRow=function(r,c1,c2){ this.merges.push({s:{r:r,c:c1},e:{r:r,c:c2}}); return this; };
   SheetBuilder.prototype.blank=function(){ this.row++; return this; };
-  SheetBuilder.prototype.finalize=function(colWidths, rowHeights){
+  SheetBuilder.prototype.finalize=function(colWidths){
     this.ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:Math.max(this.maxRow,this.row-1),c:this.nbCols-1}});
     if(this.merges.length) this.ws['!merges']=this.merges;
     if(colWidths) this.ws['!cols']=colWidths.map(function(w){return {wch:w};});
-    if(rowHeights) this.ws['!rows']=rowHeights;
     return this.ws;
   };
 
   var wb=XLSX.utils.book_new();
+  var takenSheetNames={};
 
   // ============================================================
   // FEUILLE 1 : RESUME
   // ============================================================
   (function(){
-    var NC=5; var b=new SheetBuilder(NC);
-    // Titre
-    b.rowLine([{v:'ELZER DISTRIBUTION — Rapport cumulatif du mois — '+moisLbl,s:S.title},null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.rowLine([{v:'Du 1er au '+dateFullFr,s:S.subtitle},null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.blank();
-    // Tableau resume BL / Factures
-    b.rowLine([{v:'Section',s:S.th},{v:'Nombre',s:S.th},{v:'Montant (Dh)',s:S.th},{v:'Nb clients',s:S.th},{v:'Détail',s:S.th}]);
-    b.rowLine([{v:'Bons de livraison',s:S.td},{v:blsMois.length,s:S.tdC},{v:Math.round(totalBL),s:S.tdDh},{v:clientOrderBL.length,s:S.tdC},{v:'Voir feuille "BL détaillés"',s:S.td}]);
-    b.rowLine([{v:'Factures',s:S.td},{v:factMois.length,s:S.tdC},{v:Math.round(totalFact),s:S.tdDh},{v:clientOrderFact.length,s:S.tdC},{v:'Voir feuille "Factures détaillées"',s:S.td}]);
-    b.blank();
-    // Section suivi
-    b.rowLine([{v:'Suivi factures — récapitulatif',s:S.section},null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.rowLine([{v:'État',s:S.th},{v:'Nombre',s:S.th},{v:'Montant (Dh)',s:S.th},{v:'% du total',s:S.th},{v:'',s:S.th}]);
-    b.rowLine([{v:'Encaissées',s:S.stEnc},{v:nbEnc,s:S.tdC},{v:Math.round(enc),s:S.tdDh},{v:totalFact?Math.round(100*enc/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td}]);
-    b.rowLine([{v:'En cours',s:S.stCours},{v:nbEncours,s:S.tdC},{v:Math.round(encours),s:S.tdDh},{v:totalFact?Math.round(100*encours/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td}]);
-    b.rowLine([{v:'Impayées / autre',s:S.stImp},{v:nbImp,s:S.tdC},{v:Math.round(imp),s:S.tdDh},{v:totalFact?Math.round(100*imp/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td}]);
-    b.rowLine([{v:'TOTAL',s:S.grand},{v:factMois.length,s:Object.assign({},S.grand,{alignment:{horizontal:'center',vertical:'center'}})},{v:Math.round(totalFact),s:S.grandR},{v:'100%',s:Object.assign({},S.grand,{alignment:{horizontal:'center',vertical:'center'}})},{v:'',s:S.grand}]);
-
-    var ws=b.finalize([30,14,18,12,32]);
-    XLSX.utils.book_append_sheet(wb,ws,'Résumé');
-  })();
-
-  // ============================================================
-  // FEUILLE 2 : BL DETAILLES (hierarchique par client)
-  // ============================================================
-  (function(){
     var NC=6; var b=new SheetBuilder(NC);
-    // Titre
-    b.rowLine([{v:'ELZER — Bons de livraison détaillés — '+moisLbl,s:S.title},null,null,null,null,null]);
+    b.rowLine([{v:'ELZER DISTRIBUTION — Rapport cumulatif du mois — '+moisLbl,s:S.title},null,null,null,null,null]);
     b.mergeRow(b.row-1,0,NC-1);
     b.rowLine([{v:'Du 1er au '+dateFullFr,s:S.subtitle},null,null,null,null,null]);
     b.mergeRow(b.row-1,0,NC-1);
     b.blank();
-    b.rowLine([{v:'1 · BONS DE LIVRAISON — DÉTAIL PAR CLIENT',s:S.section},null,null,null,null,null]);
+
+    // Recap par client
+    b.rowLine([{v:'Récapitulatif par client ('+allClients.length+' client'+(allClients.length>1?'s':'')+')',s:S.section},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+    b.rowLine([{v:'Client',s:S.th},{v:'Nb BL',s:S.th},{v:'Total BL',s:S.th},{v:'Nb Factures',s:S.th},{v:'Total Factures',s:S.th},{v:'Encaissé',s:S.th}]);
+
+    allClients.forEach(function(cname){
+      var listeBL=blByClient[cname]||[], listeF=factByClient[cname]||[];
+      var tBL=listeBL.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+      var tF=listeF.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+      var tE=0; listeF.forEach(function(r){ if(isEncaisse(r.etat)) tE+=(parseFloat(r.mt)||0); });
+      b.rowLine([
+        {v:cname,s:S.td},
+        {v:listeBL.length,s:S.tdC},
+        {v:Math.round(tBL),s:S.tdDh},
+        {v:listeF.length,s:S.tdC},
+        {v:Math.round(tF),s:S.tdDh},
+        {v:Math.round(tE),s:S.tdDh}
+      ]);
+    });
+    b.rowLine([
+      {v:'TOTAL',s:S.grand},
+      {v:blsMois.length,s:Object.assign({},S.grand,{alignment:{horizontal:'center',vertical:'center'}})},
+      {v:Math.round(totalBL),s:S.grandR},
+      {v:factMois.length,s:Object.assign({},S.grand,{alignment:{horizontal:'center',vertical:'center'}})},
+      {v:Math.round(totalFact),s:S.grandR},
+      {v:Math.round(enc),s:S.grandR}
+    ]);
+    b.blank();
+
+    // Suivi factures
+    b.rowLine([{v:'Suivi des factures — récapitulatif par état',s:S.section},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+    b.rowLine([{v:'État',s:S.th},{v:'Nombre',s:S.th},{v:'Montant',s:S.th},{v:'% du total',s:S.th},{v:'',s:S.th},{v:'',s:S.th}]);
+    b.rowLine([{v:'Encaissées',s:S.stEnc},{v:nbEnc,s:S.tdC},{v:Math.round(enc),s:S.tdDh},{v:totalFact?Math.round(100*enc/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td},{v:'',s:S.td}]);
+    b.rowLine([{v:'En cours',s:S.stCours},{v:nbEncours,s:S.tdC},{v:Math.round(encours),s:S.tdDh},{v:totalFact?Math.round(100*encours/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td},{v:'',s:S.td}]);
+    b.rowLine([{v:'Impayées / autre',s:S.stImp},{v:nbImp,s:S.tdC},{v:Math.round(imp),s:S.tdDh},{v:totalFact?Math.round(100*imp/totalFact)+'%':'0%',s:S.tdC},{v:'',s:S.td},{v:'',s:S.td}]);
+
+    var ws=b.finalize([32,12,16,14,16,14]);
+    var name=elzerUniqueSheetName('Résumé',takenSheetNames);
+    XLSX.utils.book_append_sheet(wb,ws,name);
+  })();
+
+  // ============================================================
+  // UNE FEUILLE PAR CLIENT
+  // ============================================================
+  allClients.forEach(function(cname){
+    var listeBL=blByClient[cname]||[];
+    var listeF=factByClient[cname]||[];
+    var tBL=listeBL.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+    var tF=listeF.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+    var tE=0; listeF.forEach(function(r){ if(isEncaisse(r.etat)) tE+=(parseFloat(r.mt)||0); });
+    var fiche=elzerFindClientByName(cname);
+    var coords=elzerClientCoordsAll(fiche);
+    var typeStr=(fiche&&fiche.type)?fiche.type:'—';
+
+    var NC=6; var b=new SheetBuilder(NC);
+
+    // Titre
+    b.rowLine([{v:'ELZER DISTRIBUTION — Rapport '+moisLbl+' (du 1er au '+dateFullFr+')',s:S.title},null,null,null,null,null]);
     b.mergeRow(b.row-1,0,NC-1);
     b.blank();
 
-    if(!blsMois.length){
-      b.rowLine([{v:'Aucun BL sur cette période.',s:S.td},null,null,null,null,null]);
+    // Nom client
+    b.rowLine([{v:cname+'   —   '+typeStr,s:S.clientName},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+
+    // Coordonnees
+    b.rowLine([{v:'Coordonnées',s:S.coordHead},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+    coords.forEach(function(kv){
+      b.rowLine([{v:kv[0],s:S.coordLbl},{v:kv[1],s:S.coordVal},null,null,null,null]);
+      b.mergeRow(b.row-1,1,NC-1);
+    });
+    b.blank();
+
+    // Section 1 : BL du client
+    b.rowLine([{v:'1 · BONS DE LIVRAISON ('+listeBL.length+')',s:S.section},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+
+    if(!listeBL.length){
+      b.rowLine([{v:'Aucun BL sur cette période.',s:Object.assign({},S.td,{font:{sz:10,italic:true,color:{rgb:'999999'},name:'Calibri'}})},null,null,null,null,null]);
       b.mergeRow(b.row-1,0,NC-1);
     } else {
-      clientOrderBL.forEach(function(client,cliIdx){
-        var listeBL=blByClient[client];
-        var sousTotal=listeBL.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
-
-        // En-tete client (bandeau vert)
+      listeBL.forEach(function(o){
+        var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
+        var st={'nouvelle':'Nouvelle','preparation':'En préparation','livree':'Livrée'}[o.status]||o.status||'';
         b.rowLine([
-          {v:'Client : '+client,s:S.client},
-          null, null, null,
-          {v:listeBL.length+' BL',s:S.clientR},
-          {v:Math.round(sousTotal),s:S.clientR}
-        ]);
-        b.mergeRow(b.row-1,0,3);
-
-        listeBL.forEach(function(o){
-          var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
-          var st={'nouvelle':'Nouvelle','preparation':'En préparation','livree':'Livrée'}[o.status]||o.status||'';
-          // En-tete BL
-          b.rowLine([
-            {v:'BL '+(o.bl||o.id||'')+' — '+dateFr(d)+' — '+st,s:S.blHead},
-            null, null, null, null,
-            {v:Math.round(parseFloat(o.total)||0),s:S.blHeadR}
-          ]);
-          b.mergeRow(b.row-1,0,4);
-
-          // En-tete colonnes articles
-          b.rowLine([
-            {v:'Article',s:S.th},
-            {v:'Quantité',s:S.th},
-            {v:'Unité',s:S.th},
-            {v:'P.U. (Dh)',s:S.th},
-            {v:'Total (Dh)',s:S.th},
-            {v:'Statut',s:S.th}
-          ]);
-
-          var items=o.items||[];
-          if(items.length){
-            items.forEach(function(it){
-              var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
-              var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
-              var lt=pu*qty;
-              b.rowLine([
-                {v:String(it.name||''),s:S.td},
-                {v:qty,s:S.tdN},
-                {v:String(it.unit||''),s:S.tdC},
-                {v:pu,s:S.tdD},
-                {v:lt,s:S.tdD},
-                {v:st,s:S.tdC}
-              ]);
-            });
-          } else {
-            b.rowLine([{v:'(aucun article détaillé)',s:Object.assign({},S.td,{font:{sz:10,italic:true,color:{rgb:'999999'},name:'Calibri'}})},null,null,null,null,null]);
-            b.mergeRow(b.row-1,0,NC-1);
-          }
-        });
-
-        // Sous-total client
-        b.rowLine([
-          {v:'Sous-total BL — '+client,s:S.sub},
+          {v:'BL '+(o.bl||o.id||'')+' — '+dateFr(d)+' — '+st,s:S.blHead},
           null,null,null,null,
-          {v:Math.round(sousTotal),s:S.subR}
+          {v:Math.round(parseFloat(o.total)||0),s:S.blHeadR}
         ]);
         b.mergeRow(b.row-1,0,4);
-        b.blank();
-      });
 
-      // Grand total
-      b.rowLine([
-        {v:'TOTAL GÉNÉRAL BL — '+moisLbl+' ('+clientOrderBL.length+' clients — '+blsMois.length+' BL)',s:S.grand},
-        null,null,null,null,
-        {v:Math.round(totalBL),s:S.grandR}
-      ]);
+        b.rowLine([
+          {v:'Article',s:S.th},{v:'Quantité',s:S.th},{v:'Unité',s:S.th},{v:'P.U. (Dh)',s:S.th},{v:'Total (Dh)',s:S.th},{v:'Statut',s:S.th}
+        ]);
+
+        var items=o.items||[];
+        if(items.length){
+          items.forEach(function(it){
+            var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
+            var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
+            var lt=pu*qty;
+            b.rowLine([
+              {v:String(it.name||''),s:S.td},
+              {v:qty,s:S.tdN},
+              {v:String(it.unit||''),s:S.tdC},
+              {v:pu,s:S.tdD},
+              {v:lt,s:S.tdD},
+              {v:st,s:S.tdC}
+            ]);
+          });
+        } else {
+          b.rowLine([{v:'(aucun article détaillé)',s:Object.assign({},S.td,{font:{sz:10,italic:true,color:{rgb:'999999'},name:'Calibri'}})},null,null,null,null,null]);
+          b.mergeRow(b.row-1,0,NC-1);
+        }
+      });
+      b.rowLine([{v:'Sous-total BL',s:S.sub},null,null,null,null,{v:Math.round(tBL),s:S.subR}]);
       b.mergeRow(b.row-1,0,4);
     }
-
-    var ws=b.finalize([32,12,10,14,14,14]);
-    XLSX.utils.book_append_sheet(wb,ws,'BL détaillés');
-  })();
-
-  // ============================================================
-  // FEUILLE 3 : FACTURES DETAILLEES (hierarchique par client)
-  // ============================================================
-  (function(){
-    var NC=7; var b=new SheetBuilder(NC);
-    b.rowLine([{v:'ELZER — Factures détaillées — '+moisLbl,s:S.title},null,null,null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.rowLine([{v:'Du 1er au '+dateFullFr,s:S.subtitle},null,null,null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.blank();
-    b.rowLine([{v:'2 · FACTURES — DÉTAIL PAR CLIENT',s:S.section},null,null,null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
     b.blank();
 
-    if(!factMois.length){
-      b.rowLine([{v:'Aucune facture sur cette période.',s:S.td},null,null,null,null,null,null]);
+    // Section 2 : Factures du client
+    b.rowLine([{v:'2 · FACTURES ('+listeF.length+')',s:S.section},null,null,null,null,null]);
+    b.mergeRow(b.row-1,0,NC-1);
+
+    if(!listeF.length){
+      b.rowLine([{v:'Aucune facture sur cette période.',s:Object.assign({},S.td,{font:{sz:10,italic:true,color:{rgb:'999999'},name:'Calibri'}})},null,null,null,null,null]);
       b.mergeRow(b.row-1,0,NC-1);
     } else {
-      clientOrderFact.forEach(function(client){
-        var listeFact=factByClient[client];
-        var sousTotal=listeFact.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
-        var sousEnc=0;
-        listeFact.forEach(function(r){ if(isEncaisse(r.etat)) sousEnc+=(parseFloat(r.mt)||0); });
-
-        // En-tete client
-        b.rowLine([
-          {v:'Client : '+client,s:S.client},
-          null,null,null,null,
-          {v:listeFact.length+' fact.',s:S.clientR},
-          {v:Math.round(sousTotal),s:S.clientR}
-        ]);
-        b.mergeRow(b.row-1,0,4);
-
-        // En-tete colonnes
-        b.rowLine([
-          {v:'N° Facture',s:S.th},
-          {v:'Date',s:S.th},
-          {v:'Montant (Dh)',s:S.th},
-          {v:'Règlement',s:S.th},
-          {v:'Chèque/LC',s:S.th},
-          {v:'État',s:S.th},
-          {v:'Commentaire',s:S.th}
-        ]);
-
-        listeFact.forEach(function(r){
-          var stStyle = isEncaisse(r.etat)?S.stEnc:(isEnCours(r.etat)?S.stCours:S.stImp);
-          b.rowLine([
-            {v:String(r.num||''),s:S.td},
-            {v:dateFr(r.date),s:S.tdC},
-            {v:Math.round(parseFloat(r.mt)||0),s:S.tdDh},
-            {v:String(r.reglement||''),s:S.td},
-            {v:String(r.chq||''),s:S.tdC},
-            {v:etatLbl(r.etat),s:stStyle},
-            {v:String(r.comment||''),s:S.td}
-          ]);
-        });
-
-        // Sous-total client
-        b.rowLine([
-          {v:'Sous-total Fact. — '+client+' (dont encaissé : '+Math.round(sousEnc).toLocaleString('fr-FR').replace(/\u202F/g,' ')+' Dh)',s:S.sub},
-          null,null,null,null,null,
-          {v:Math.round(sousTotal),s:S.subR}
-        ]);
-        b.mergeRow(b.row-1,0,5);
-        b.blank();
-      });
-
-      // Grand total
-      var pctEnc = totalFact?Math.round(100*enc/totalFact):0;
       b.rowLine([
-        {v:'TOTAL GÉNÉRAL FACTURES — dont encaissé : '+Math.round(enc).toLocaleString('fr-FR').replace(/\u202F/g,' ')+' Dh ('+pctEnc+'%)',s:S.grand},
-        null,null,null,null,null,
-        {v:Math.round(totalFact),s:S.grandR}
+        {v:'N° Facture',s:S.th},{v:'Date',s:S.th},{v:'Montant',s:S.th},{v:'Règlement',s:S.th},{v:'Chèque/LC',s:S.th},{v:'État',s:S.th}
       ]);
-      b.mergeRow(b.row-1,0,5);
+      listeF.forEach(function(r){
+        var stStyle = isEncaisse(r.etat)?S.stEnc:(isEnCours(r.etat)?S.stCours:S.stImp);
+        b.rowLine([
+          {v:String(r.num||''),s:S.td},
+          {v:dateFr(r.date),s:S.tdC},
+          {v:Math.round(parseFloat(r.mt)||0),s:S.tdDh},
+          {v:String(r.reglement||''),s:S.td},
+          {v:String(r.chq||''),s:S.tdC},
+          {v:etatLbl(r.etat),s:stStyle}
+        ]);
+      });
+      b.rowLine([{v:'Sous-total Fact. (dont encaissé : '+Math.round(tE)+' Dh)',s:S.sub},null,null,null,null,{v:Math.round(tF),s:S.subR}]);
+      b.mergeRow(b.row-1,0,4);
     }
+    b.blank();
 
-    var ws=b.finalize([18,12,14,18,14,16,26]);
-    XLSX.utils.book_append_sheet(wb,ws,'Factures détaillées');
-  })();
+    // Total client
+    b.rowLine([
+      {v:'TOTAL CLIENT — '+cname,s:S.grand},null,null,
+      {v:'BL : '+Math.round(tBL)+' Dh',s:Object.assign({},S.grand,{alignment:{horizontal:'right',vertical:'center'}})},
+      {v:'',s:S.grand},
+      {v:Math.round(tF),s:S.grandR}
+    ]);
+    b.mergeRow(b.row-1,0,2);
+
+    var ws=b.finalize([28,14,12,16,16,14]);
+    var sheetName=elzerUniqueSheetName(elzerSanitizeSheetName(cname),takenSheetNames);
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  });
 
   // ============================================================
-  // FEUILLE 4 : SUIVI FACTURES (par etat, avec couleur)
+  // FEUILLE FINALE : SUIVI FACTURES (par etat)
   // ============================================================
   (function(){
     var NC=6; var b=new SheetBuilder(NC);
     b.rowLine([{v:'ELZER — Suivi factures — '+moisLbl,s:S.title},null,null,null,null,null]);
     b.mergeRow(b.row-1,0,NC-1);
-    b.rowLine([{v:'Du 1er au '+dateFullFr,s:S.subtitle},null,null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
-    b.blank();
-    b.rowLine([{v:'3 · SUIVI FACTURES — DÉTAIL PAR ÉTAT',s:S.section},null,null,null,null,null]);
-    b.mergeRow(b.row-1,0,NC-1);
     b.blank();
 
     var categories=[
-      {code:'ENC', titre:'Factures encaissées', headStyle:S.catEnc, headStyleR:S.catEncR, filter:function(r){return isEncaisse(r.etat);}, nb:nbEnc, total:enc},
-      {code:'COURS', titre:'Factures en cours', headStyle:S.catCours, headStyleR:S.catCoursR, filter:function(r){return isEnCours(r.etat);}, nb:nbEncours, total:encours},
-      {code:'IMP', titre:'Factures impayées / autre', headStyle:S.catImp, headStyleR:S.catImpR, filter:function(r){return !isEncaisse(r.etat) && !isEnCours(r.etat);}, nb:nbImp, total:imp}
+      {titre:'Factures encaissées',headStyle:S.catEnc,headStyleR:S.catEncR,filter:function(r){return isEncaisse(r.etat);},nb:nbEnc,total:enc},
+      {titre:'Factures en cours',headStyle:S.catCours,headStyleR:S.catCoursR,filter:function(r){return isEnCours(r.etat);},nb:nbEncours,total:encours},
+      {titre:'Factures impayées / autre',headStyle:S.catImp,headStyleR:S.catImpR,filter:function(r){return !isEncaisse(r.etat)&&!isEnCours(r.etat);},nb:nbImp,total:imp}
     ];
 
     categories.forEach(function(cat){
       var list=factMois.filter(cat.filter);
-      // En-tete categorie coloree
       b.rowLine([
         {v:cat.titre+' ('+cat.nb+')',s:cat.headStyle},
         null,null,null,null,
@@ -2248,12 +2301,7 @@ function downloadRapportXlsxMois(){
         b.mergeRow(b.row-1,0,NC-1);
       } else {
         b.rowLine([
-          {v:'N° Facture',s:S.th},
-          {v:'Client',s:S.th},
-          {v:'Date',s:S.th},
-          {v:'Montant (Dh)',s:S.th},
-          {v:'Règlement',s:S.th},
-          {v:'Chèque/LC',s:S.th}
+          {v:'N° Facture',s:S.th},{v:'Client',s:S.th},{v:'Date',s:S.th},{v:'Montant',s:S.th},{v:'Règlement',s:S.th},{v:'Chèque/LC',s:S.th}
         ]);
         list.forEach(function(r){
           b.rowLine([
@@ -2269,17 +2317,16 @@ function downloadRapportXlsxMois(){
       b.blank();
     });
 
-    // Grand total
     b.rowLine([
       {v:'TOTAL — '+factMois.length+' facture(s)',s:S.grand},
-      null,null,null,
-      {v:'',s:S.grand},
+      null,null,null,{v:'',s:S.grand},
       {v:Math.round(totalFact),s:S.grandR}
     ]);
     b.mergeRow(b.row-1,0,3);
 
     var ws=b.finalize([18,32,12,14,18,16]);
-    XLSX.utils.book_append_sheet(wb,ws,'Suivi factures');
+    var name=elzerUniqueSheetName('Suivi factures',takenSheetNames);
+    XLSX.utils.book_append_sheet(wb,ws,name);
   })();
 
   var fileName='ELZER_Rapport_'+mois+'_au_'+dStr+'.xlsx';
