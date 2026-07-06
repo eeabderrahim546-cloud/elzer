@@ -334,9 +334,13 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
         RC:52057 · IF:06526715 · ICE:000073472000003
       </div>
     </div>
-    <div style="text-align:right;">
-      <div style="font-size:12px;font-weight:500;color:#fff;" id="page-title">Tableau de bord</div>
-      <div style="font-size:9px;color:rgba(255,255,255,.4);" id="top-date"></div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="text-align:right;">
+        <div style="font-size:12px;font-weight:500;color:#fff;" id="page-title">Tableau de bord</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.4);" id="top-date"></div>
+      </div>
+      <button data-action="change-admin-pwd" title="Changer le mot de passe" style="background:rgba(255,255,255,.18);border:none;color:#fff;font-size:16px;padding:7px 10px;border-radius:8px;cursor:pointer;line-height:1;">🔑</button>
+      <button data-action="logout-admin" title="Déconnexion" style="background:rgba(200,50,50,.9);border:none;color:#fff;font-size:13px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;">🔒 Déconnexion</button>
     </div>
   </div>
   <div class="content">
