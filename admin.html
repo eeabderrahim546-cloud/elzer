@@ -17,6 +17,7 @@
 <link rel="manifest" href="manifest_admin.json"/>
 <link rel="apple-touch-icon" href="icon.svg"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{--g9:#4a5d42;--g8:#5a7050;--g7:#6b8a5e;--g6:#7d9c6f;--g2:#dce8d3;--g1:#eef3e9;--g0:#f7faf4;--blue:#1a5c9e;--bl:#e8f4ff;--amb:#c47a00;--aml:#fff3e0;--red:#d32f2f;--rl:#ffecec;--gy9:#111;--gy7:#333;--gy5:#666;--gy3:#ccc;--gy1:#f5f5f5;--wh:#fff;--fn:Arial,sans-serif;--mn:monospace;--sh:0 2px 12px rgba(0,0,0,.08);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -346,11 +347,7 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
           </label>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="bl">🚚 BL (détail)</button>
-          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="factures">🧾 Factures</button>
-          <button class="btn btn-sm" style="background:#5a7050;color:#fff;" data-action="print-rapport" data-section="suivi">💰 Suivi</button>
-          <button class="btn btn-sm" style="background:#2d6a1f;color:#fff;" data-action="print-rapport" data-section="tout">📄 Tout (liste)</button>
-          <button class="btn btn-sm" style="background:#1a5c12;color:#fff;" data-action="print-pages-separees">📦 Tout (1 par page)</button>
+          <button class="btn btn-sm" style="background:#0F6E56;color:#fff;font-weight:600;padding:8px 16px;" data-action="download-rapport-pdf">📥 Télécharger le PDF (BL + Factures + Suivi, groupés par client)</button>
         </div>
       </div>
       <div id="dash-operations"></div>
@@ -1006,6 +1003,7 @@ document.addEventListener('click',async function(e){
   else if(a==='apply-fact-format-all'){applyFactFormatToAll();}
   else if(a==='print-rapport'){printRapportMois(el.dataset.section||'tout');}
   else if(a==='print-pages-separees'){printRapportPagesSeparees();}
+  else if(a==='download-rapport-pdf'){downloadRapportPdfMois();}
   else if(a==='reparer-num-factures'){reparerNumerosFactures();}
   else if(a==='test-link'){window.open(el.dataset.url,'_blank');}
   else if(a==='edit-client'){
@@ -1514,6 +1512,345 @@ function elzerNormDate(v){
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
   return null;
+}
+
+// ============================================================
+// TELECHARGER LE RAPPORT CUMULATIF DU MOIS EN PDF
+// - Un seul bouton, un seul fichier PDF telechargeable
+// - Groupe par client (chaque client sur ses propres pages)
+// - Sections separees : 1) BL par client, 2) Factures par client, 3) Suivi factures
+// ============================================================
+function downloadRapportPdfMois(){
+  var dEl=document.getElementById('dash-pdf-date');
+  var dStr=dEl?dEl.value:'';
+  if(!dStr) dStr=new Date().toISOString().split('T')[0];
+  var dateObj=new Date(dStr+'T12:00:00');
+  if(isNaN(dateObj.getTime())){ toast('Date invalide'); return; }
+
+  var mois=dStr.substring(0,7);
+  var moisStart=mois+'-01';
+  var moisLbl=dateObj.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  var dateFullFr=dateObj.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+  orders=load('terrasse_orders',[]);
+  loadSuivi2();
+
+  // BL du mois (filtre robuste : accepte tous formats de date, fallback createdAt)
+  var blsMois=orders.filter(function(o){
+    if(o.status==='annulee') return false;
+    var d=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt);
+    if(!d) return false;
+    return d>=moisStart && d<=dStr;
+  });
+  // Tri : par client (alpha) puis par date
+  blsMois.sort(function(a,b){
+    var na=(a.client||'').toLowerCase(), nb=(b.client||'').toLowerCase();
+    if(na!==nb) return na.localeCompare(nb);
+    var da=elzerNormDate(a.delivDate)||elzerNormDate(a.createdAt)||'';
+    var db=elzerNormDate(b.delivDate)||elzerNormDate(b.createdAt)||'';
+    return da.localeCompare(db);
+  });
+
+  // Grouper BL par client
+  var blByClient={}, clientOrderBL=[];
+  blsMois.forEach(function(o){
+    var c=o.client||'Client inconnu';
+    if(!blByClient[c]){ blByClient[c]=[]; clientOrderBL.push(c); }
+    blByClient[c].push(o);
+  });
+
+  // Factures du mois - triees par client puis par numero
+  var factMois=SUIVI2.filter(function(r){return r.mois===mois;});
+  factMois.sort(function(a,b){
+    var na=(a.client||'').toLowerCase(), nb=(b.client||'').toLowerCase();
+    if(na!==nb) return na.localeCompare(nb);
+    return String(a.num||'').localeCompare(String(b.num||''));
+  });
+  var factByClient={}, clientOrderFact=[];
+  factMois.forEach(function(r){
+    var c=r.client||'Client inconnu';
+    if(!factByClient[c]){ factByClient[c]=[]; clientOrderFact.push(c); }
+    factByClient[c].push(r);
+  });
+
+  // Totaux
+  var totalBL=blsMois.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+  var totalFact=factMois.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+  function isEncaisse(e){ e=(e||'').toUpperCase().trim(); return e==='REGLER'||e==='REGLE'||e==='PAYE'||e==='PAYÉ'||e==='ENCAISSE'||e==='ENCAISSÉ'; }
+  function isEnCours(e){ return (e||'').toUpperCase().trim()==='EN COURS'; }
+  var enc=0, encours=0, imp=0, nbEnc=0, nbEncours=0, nbImp=0;
+  factMois.forEach(function(r){
+    var mt=parseFloat(r.mt||0);
+    if(isEncaisse(r.etat)){ enc+=mt; nbEnc++; }
+    else if(isEnCours(r.etat)){ encours+=mt; nbEncours++; }
+    else { imp+=mt; nbImp++; }
+  });
+
+  // Verifier jsPDF + autoTable
+  if(!window.jspdf){ toast('jsPDF non chargé, réessayez dans 1 seconde'); return; }
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!=='function'){ toast('Plugin autoTable non chargé, rechargez la page'); return; }
+
+  var PW=doc.internal.pageSize.getWidth();   // 210mm
+  var PH=doc.internal.pageSize.getHeight();  // 297mm
+  var M=15;                                   // marges
+  var y=M;
+
+  function fmtDh(n){ return Math.round(n).toLocaleString('fr-FR')+' Dh'; }
+  function fmtDateFr(iso){
+    if(!iso) return '';
+    var s=String(iso).substring(0,10);
+    var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m?m[3]+'/'+m[2]+'/'+m[1]:s;
+  }
+  function needSpace(h){ if(y+h>PH-M){ doc.addPage(); y=M; return true; } return false; }
+  function pageBreak(){ doc.addPage(); y=M; }
+
+  // ===== PAGE 1 : PAGE DE GARDE =====
+  doc.setFontSize(22); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+  doc.text('ELZER DISTRIBUTION',PW/2,y+12,{align:'center'});
+  doc.setFontSize(13); doc.setTextColor(0); doc.setFont('helvetica','normal');
+  doc.text('Rapport cumulatif mensuel',PW/2,y+22,{align:'center'});
+  doc.setFontSize(11); doc.setTextColor(80);
+  doc.text('Du 1er au '+dateFullFr,PW/2,y+30,{align:'center'});
+  y=M+45;
+
+  // Encadre totaux
+  doc.setDrawColor(15,110,86); doc.setLineWidth(0.5);
+  doc.setFillColor(225,245,238);
+  doc.rect(M,y,PW-2*M,38,'FD');
+  var colW=(PW-2*M)/3;
+  doc.setFontSize(9); doc.setTextColor(90); doc.setFont('helvetica','normal');
+  doc.text('TOTAL BL',M+colW/2,y+8,{align:'center'});
+  doc.text('TOTAL FACTURES',M+colW+colW/2,y+8,{align:'center'});
+  doc.text('ENCAISSÉ',M+2*colW+colW/2,y+8,{align:'center'});
+  doc.setFontSize(15); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+  doc.text(fmtDh(totalBL),M+colW/2,y+19,{align:'center'});
+  doc.text(fmtDh(totalFact),M+colW+colW/2,y+19,{align:'center'});
+  doc.text(fmtDh(enc),M+2*colW+colW/2,y+19,{align:'center'});
+  doc.setFontSize(8); doc.setTextColor(90); doc.setFont('helvetica','normal');
+  doc.text(blsMois.length+' BL / '+clientOrderBL.length+' client(s)',M+colW/2,y+29,{align:'center'});
+  doc.text(factMois.length+' facture(s)',M+colW+colW/2,y+29,{align:'center'});
+  doc.text((totalFact?Math.round(100*enc/totalFact):0)+'% du total',M+2*colW+colW/2,y+29,{align:'center'});
+  y+=48;
+
+  // Sommaire
+  doc.setFontSize(13); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+  doc.text('Sommaire',M,y);
+  doc.setLineWidth(0.6); doc.line(M,y+2,PW-M,y+2);
+  y+=10;
+  doc.setFontSize(11); doc.setTextColor(0); doc.setFont('helvetica','normal');
+  doc.text('1. Bons de livraison — par client',M+5,y);
+  doc.text(blsMois.length+' BL — '+fmtDh(totalBL),PW-M-5,y,{align:'right'});
+  y+=8;
+  doc.text('2. Factures — par client',M+5,y);
+  doc.text(factMois.length+' factures — '+fmtDh(totalFact),PW-M-5,y,{align:'right'});
+  y+=8;
+  doc.text('3. Suivi des factures — récapitulatif',M+5,y);
+  y+=8;
+
+  // ===== SECTION 1 : BL PAR CLIENT =====
+  if(blsMois.length){
+    pageBreak();
+    doc.setFontSize(15); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+    doc.text('1 · Bons de livraison — par client',M,y);
+    doc.setLineWidth(0.6); doc.line(M,y+2,PW-M,y+2);
+    y+=12;
+
+    clientOrderBL.forEach(function(client,cliIdx){
+      var listeBL=blByClient[client];
+      var sousTotal=listeBL.reduce(function(s,o){return s+(parseFloat(o.total)||0);},0);
+      // Nouvelle page par client (sauf le premier qui suit le titre de section)
+      if(cliIdx>0) pageBreak();
+
+      // En-tete client
+      doc.setFillColor(234,243,222); doc.setDrawColor(151,196,89); doc.setLineWidth(0.3);
+      doc.rect(M,y,PW-2*M,10,'FD');
+      doc.setFontSize(12); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
+      doc.text('Client : '+client,M+3,y+6.8);
+      doc.text(listeBL.length+' BL — '+fmtDh(sousTotal),PW-M-3,y+6.8,{align:'right'});
+      y+=14;
+
+      listeBL.forEach(function(o){
+        var dateLiv=elzerNormDate(o.delivDate)||elzerNormDate(o.createdAt)||'';
+        var items=o.items||[];
+        var st={'nouvelle':'Nouvelle','preparation':'En prép.','livree':'Livrée'}[o.status]||o.status||'';
+
+        // En-tete BL
+        needSpace(15);
+        doc.setFillColor(245,250,240); doc.setDrawColor(200,220,180); doc.setLineWidth(0.2);
+        doc.rect(M,y,PW-2*M,7,'FD');
+        doc.setFontSize(10); doc.setTextColor(50); doc.setFont('helvetica','bold');
+        doc.text('BL '+(o.bl||o.id||'')+' — '+fmtDateFr(dateLiv)+(st?' — '+st:''),M+2,y+5);
+        doc.text(fmtDh(parseFloat(o.total)||0),PW-M-2,y+5,{align:'right'});
+        y+=8;
+
+        // Articles
+        if(items.length){
+          var body=items.map(function(it){
+            var pu=parseFloat(String(it.prix||it.price||'0').replace(',','.'))||0;
+            var qty=parseFloat(String(it.qty||0).replace(',','.'))||0;
+            var lt=pu*qty;
+            return [
+              String(it.name||''),
+              (Number.isInteger(qty)?qty:qty.toFixed(2).replace('.',','))+' '+(it.unit||''),
+              pu.toFixed(2).replace('.',',')+' Dh',
+              lt.toFixed(2).replace('.',',')+' Dh'
+            ];
+          });
+          doc.autoTable({
+            startY:y,
+            head:[['Article','Quantité','P.U.','Total']],
+            body:body,
+            theme:'grid',
+            headStyles:{fillColor:[230,240,220],textColor:60,fontSize:9,fontStyle:'bold'},
+            bodyStyles:{fontSize:9,textColor:40},
+            columnStyles:{1:{halign:'center'},2:{halign:'right'},3:{halign:'right',fontStyle:'bold'}},
+            margin:{left:M,right:M}
+          });
+          y=doc.lastAutoTable.finalY+4;
+        } else {
+          doc.setFontSize(9); doc.setTextColor(150); doc.setFont('helvetica','italic');
+          doc.text('Aucun article détaillé',M+2,y+4);
+          y+=8;
+        }
+      });
+
+      // Sous-total client BL
+      needSpace(10);
+      doc.setFillColor(240,245,232); doc.rect(M,y,PW-2*M,8,'F');
+      doc.setFontSize(10); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
+      doc.text('Sous-total BL — '+client,M+2,y+5.5);
+      doc.text(fmtDh(sousTotal)+' ('+listeBL.length+' BL)',PW-M-2,y+5.5,{align:'right'});
+      y+=12;
+    });
+  }
+
+  // ===== SECTION 2 : FACTURES PAR CLIENT =====
+  if(factMois.length){
+    pageBreak();
+    doc.setFontSize(15); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+    doc.text('2 · Factures — par client',M,y);
+    doc.setLineWidth(0.6); doc.line(M,y+2,PW-M,y+2);
+    y+=12;
+
+    clientOrderFact.forEach(function(client,cliIdx){
+      var listeFact=factByClient[client];
+      var sousTotal=listeFact.reduce(function(s,r){return s+(parseFloat(r.mt)||0);},0);
+      var sousEnc=0;
+      listeFact.forEach(function(r){ if(isEncaisse(r.etat)) sousEnc+=(parseFloat(r.mt)||0); });
+
+      if(cliIdx>0) needSpace(40); // nouvelle page si peu de place
+
+      // En-tete client
+      doc.setFillColor(234,243,222); doc.setDrawColor(151,196,89); doc.setLineWidth(0.3);
+      doc.rect(M,y,PW-2*M,10,'FD');
+      doc.setFontSize(12); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
+      doc.text('Client : '+client,M+3,y+6.8);
+      doc.text(listeFact.length+' fact. — '+fmtDh(sousTotal),PW-M-3,y+6.8,{align:'right'});
+      y+=13;
+
+      doc.autoTable({
+        startY:y,
+        head:[['N° Facture','Date','Montant','Règlement','Chèque/LC','État']],
+        body:listeFact.map(function(r){
+          return [
+            String(r.num||''),
+            fmtDateFr(r.date),
+            fmtDh(parseFloat(r.mt)||0),
+            String(r.reglement||''),
+            String(r.chq||''),
+            String(r.etat||'—')
+          ];
+        }),
+        theme:'grid',
+        headStyles:{fillColor:[230,240,220],textColor:60,fontSize:9,fontStyle:'bold'},
+        bodyStyles:{fontSize:9,textColor:40},
+        columnStyles:{2:{halign:'right'},5:{halign:'center'}},
+        margin:{left:M,right:M}
+      });
+      y=doc.lastAutoTable.finalY+3;
+
+      // Sous-total client factures
+      needSpace(10);
+      doc.setFillColor(240,245,232); doc.rect(M,y,PW-2*M,8,'F');
+      doc.setFontSize(10); doc.setTextColor(59,109,17); doc.setFont('helvetica','bold');
+      doc.text('Sous-total Factures — '+client,M+2,y+5.5);
+      doc.text(fmtDh(sousTotal)+' ('+fmtDh(sousEnc)+' encaissé)',PW-M-2,y+5.5,{align:'right'});
+      y+=12;
+    });
+  }
+
+  // ===== SECTION 3 : SUIVI RECAP =====
+  pageBreak();
+  doc.setFontSize(15); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+  doc.text('3 · Suivi des factures — récapitulatif',M,y);
+  doc.setLineWidth(0.6); doc.line(M,y+2,PW-M,y+2);
+  y+=12;
+
+  doc.autoTable({
+    startY:y,
+    head:[['État','Nombre','Montant','%']],
+    body:[
+      ['Encaissées',nbEnc,fmtDh(enc),(totalFact?Math.round(100*enc/totalFact):0)+'%'],
+      ['En cours',nbEncours,fmtDh(encours),(totalFact?Math.round(100*encours/totalFact):0)+'%'],
+      ['Impayées / autre',nbImp,fmtDh(imp),(totalFact?Math.round(100*imp/totalFact):0)+'%'],
+      ['TOTAL',factMois.length,fmtDh(totalFact),'100%']
+    ],
+    theme:'grid',
+    headStyles:{fillColor:[15,110,86],textColor:255,fontSize:10,fontStyle:'bold'},
+    bodyStyles:{fontSize:10},
+    columnStyles:{1:{halign:'center'},2:{halign:'right'},3:{halign:'right'}},
+    didParseCell:function(data){
+      if(data.row.index===3 && data.section==='body'){
+        data.cell.styles.fontStyle='bold';
+        data.cell.styles.fillColor=[255,248,225];
+      }
+    },
+    margin:{left:M,right:M}
+  });
+  y=doc.lastAutoTable.finalY+10;
+
+  // Detail factures par etat
+  var categories=[
+    {code:'enc', titre:'Factures encaissées', filter:function(r){return isEncaisse(r.etat);}},
+    {code:'cours', titre:'Factures en cours', filter:function(r){return isEnCours(r.etat);}},
+    {code:'imp', titre:'Factures impayées / autre', filter:function(r){return !isEncaisse(r.etat) && !isEnCours(r.etat);}}
+  ];
+  categories.forEach(function(cat){
+    var list=factMois.filter(cat.filter);
+    if(!list.length) return;
+    needSpace(25);
+    doc.setFontSize(11); doc.setTextColor(15,110,86); doc.setFont('helvetica','bold');
+    doc.text(cat.titre+' ('+list.length+')',M,y);
+    y+=3;
+    doc.autoTable({
+      startY:y,
+      head:[['N° Facture','Client','Date','Montant','Règlement']],
+      body:list.map(function(r){
+        return [String(r.num||''),String(r.client||''),fmtDateFr(r.date),fmtDh(parseFloat(r.mt)||0),String(r.reglement||'')];
+      }),
+      theme:'striped',
+      headStyles:{fillColor:[240,245,232],textColor:60,fontSize:9,fontStyle:'bold'},
+      bodyStyles:{fontSize:9},
+      columnStyles:{3:{halign:'right'}},
+      margin:{left:M,right:M}
+    });
+    y=doc.lastAutoTable.finalY+8;
+  });
+
+  // Pieds de page numerotes
+  var pageCount=doc.internal.getNumberOfPages();
+  for(var i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(150); doc.setFont('helvetica','normal');
+    doc.text('ELZER Distribution — Rapport '+moisLbl+' — Page '+i+'/'+pageCount,PW/2,PH-8,{align:'center'});
+  }
+
+  var fileName='ELZER_Rapport_'+mois+'_au_'+dStr+'.pdf';
+  doc.save(fileName);
+  toast('✅ PDF téléchargé : '+fileName);
 }
 
 // Imprimer le rapport cumulatif du mois - section: 'bl' | 'factures' | 'suivi' | 'tout'
