@@ -199,6 +199,12 @@ body{font-family:var(--fn);background:#eef2ea;color:var(--gy9);font-size:14px;}
   .sb.mobile-open {
     transform: translateX(0) !important;
   }
+  /* Quand la sidebar mobile est ouverte (220px), on rétablit le pied et le logo */
+  .sb.mobile-open .sb-foot,
+  .sb.mobile-open .sb-logo-t,
+  .sb.mobile-open .sb-logo-s,
+  .sb.mobile-open .sb-badge { display: block !important; }
+  .sb.mobile-open .sb-foot { display: flex !important; }
   
   /* Overlay sombre quand sidebar ouverte */
   .mobile-overlay {
