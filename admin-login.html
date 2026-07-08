@@ -38,28 +38,95 @@
   <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
     <div style="font-size:13px;font-weight:500;color:#666;text-align:center;margin-bottom:16px;">Administration - Acces reserve</div>
     <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="off" style="width:100%;padding:12px 16px;font-size:14px;border-radius:8px;border:1.5px solid #e0e8d8;box-sizing:border-box;margin-bottom:10px;outline:none;" onkeydown="if(event.key==='Enter')doLogin()"/>
-    <button onclick="doLogin()" style="width:100%;padding:13px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">Connexion</button>
+    <button id="login-btn" onclick="doLogin()" style="width:100%;padding:13px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">Connexion</button>
     <div id="err" style="color:#d32f2f;font-size:12px;text-align:center;margin-top:8px;display:none;">Mot de passe incorrect</div>
   </div>
 </div>
 <script src="elzer-crypto.js"></script>
 <script>
+// ===== Parametres de securite login =====
+var MAX_TENTATIVES = 5;          // #4 : nb d'echecs avant verrouillage
+var LOCK_MINUTES = 15;           // #4 : duree du verrouillage
+var LOCK_MS = LOCK_MINUTES*60*1000;
+
 function readStoredPwd(){
   var raw = localStorage.getItem('admin_password');
   if(raw===null || raw===undefined) return 'elzer2026';
-  // Peut etre stocke en JSON (via save()) ou en texte brut : on gere les deux
   try{
     var parsed = JSON.parse(raw);
     if(typeof parsed==='string') return parsed;
   }catch(e){}
   return raw;
 }
+
+// ---- Gestion de l'etat de verrouillage (persistant en localStorage) ----
+function getLockState(){
+  try{
+    var s = JSON.parse(localStorage.getItem('elzer_login_lock')||'{}');
+    return { fails: s.fails||0, until: s.until||0 };
+  }catch(e){ return { fails:0, until:0 }; }
+}
+function setLockState(st){
+  try{ localStorage.setItem('elzer_login_lock', JSON.stringify(st)); }catch(e){}
+}
+function resetLockState(){
+  try{ localStorage.removeItem('elzer_login_lock'); }catch(e){}
+}
+function isLocked(){
+  var st = getLockState();
+  return st.until && Date.now() < st.until;
+}
+
+function showErr(msg){
+  var el = document.getElementById('err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideErr(){ document.getElementById('err').style.display='none'; }
+
+function setFormDisabled(disabled){
+  document.getElementById('pwd').disabled = disabled;
+  document.getElementById('login-btn').disabled = disabled;
+  document.getElementById('login-btn').style.opacity = disabled ? '0.5' : '1';
+  document.getElementById('login-btn').style.cursor = disabled ? 'not-allowed' : 'pointer';
+}
+
+// Affiche le compte a rebours pendant un verrouillage
+var lockInterval = null;
+function startLockCountdown(){
+  setFormDisabled(true);
+  if(lockInterval) clearInterval(lockInterval);
+  function tick(){
+    var st = getLockState();
+    var remain = st.until - Date.now();
+    if(remain <= 0){
+      clearInterval(lockInterval); lockInterval=null;
+      resetLockState();
+      setFormDisabled(false);
+      hideErr();
+      return;
+    }
+    var min = Math.floor(remain/60000);
+    var sec = Math.floor((remain%60000)/1000);
+    showErr('🔒 Trop de tentatives. Réessayez dans '+min+':'+(sec<10?'0':'')+sec);
+  }
+  tick();
+  lockInterval = setInterval(tick, 1000);
+}
+
+var loginBusy = false;
 function doLogin(){
+  if(loginBusy) return;
+  if(isLocked()){ startLockCountdown(); return; }
+
   var v=document.getElementById('pwd').value;
   var stored=readStoredPwd();
+  loginBusy = true;
+  setFormDisabled(true);
+
   ElzerCrypto.verifyPassword(v, stored).then(function(res){
     if(res.ok){
-      // Conversion auto du clair vers hash au premier login reussi
+      resetLockState();
       if(res.needsUpgrade){
         ElzerCrypto.hashPassword(v).then(function(h){
           try{ localStorage.setItem('admin_password', JSON.stringify(h)); }catch(e){}
@@ -70,12 +137,40 @@ function doLogin(){
         sessionStorage.setItem('elzer-admin-ok','1');
         window.location.href='admin.html';
       }
-    } else {
-      document.getElementById('err').style.display='block';
-      document.getElementById('pwd').value='';
+      return;
     }
+
+    // Echec : incrementer le compteur
+    var st = getLockState();
+    st.fails = (st.fails||0) + 1;
+    document.getElementById('pwd').value='';
+
+    if(st.fails >= MAX_TENTATIVES){
+      // #4 : verrouillage
+      st.until = Date.now() + LOCK_MS;
+      setLockState(st);
+      startLockCountdown();
+      loginBusy = false;
+      return;
+    }
+    setLockState(st);
+
+    // #12 : delai progressif apres echec (1s, 2s, 3s...)
+    var restantes = MAX_TENTATIVES - st.fails;
+    var delaiSec = st.fails; // 1s au 1er echec, 2s au 2e...
+    showErr('❌ Mot de passe incorrect. '+restantes+' tentative'+(restantes>1?'s':'')+' restante'+(restantes>1?'s':'')+'.');
+    setTimeout(function(){
+      setFormDisabled(false);
+      loginBusy = false;
+      hideErr();
+      document.getElementById('pwd').focus();
+    }, delaiSec*1000);
   });
 }
+
+// Au chargement : si deja verrouille, afficher le compte a rebours
+if(isLocked()){ startLockCountdown(); }
+
 if(sessionStorage.getItem('elzer-admin-ok')==='1'){
   window.location.href='admin.html';
 }
