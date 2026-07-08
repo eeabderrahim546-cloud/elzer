@@ -19,6 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="elzer-crypto.js"></script>
 <style>
 :root{--g9:#4a5d42;--g8:#5a7050;--g7:#6b8a5e;--g6:#7d9c6f;--g2:#dce8d3;--g1:#eef3e9;--g0:#f7faf4;--blue:#1a5c9e;--bl:#e8f4ff;--amb:#c47a00;--aml:#fff3e0;--red:#d32f2f;--rl:#ffecec;--gy9:#111;--gy7:#333;--gy5:#666;--gy3:#ccc;--gy1:#f5f5f5;--wh:#fff;--fn:Arial,sans-serif;--mn:monospace;--sh:0 2px 12px rgba(0,0,0,.08);}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -781,6 +782,40 @@ if(sessionStorage.getItem('elzer-admin-ok')!=='1'){
   window.location.replace('admin-login.html');
 }
 
+// SECURITE: auto-deconnexion apres inactivite (#3)
+// Deconnexion automatique apres 30 min sans activite, avec avertissement 1 min avant.
+(function(){
+  var TIMEOUT_MS = 30*60*1000;   // 30 minutes
+  var WARN_MS    = 1*60*1000;    // avertir 1 min avant
+  var idleTimer=null, warnTimer=null, warnBox=null;
+
+  function doAutoLogout(){
+    try{ sessionStorage.removeItem('elzer-admin-ok'); }catch(e){}
+    window.location.replace('admin-login.html');
+  }
+  function showWarn(){
+    if(warnBox) return;
+    warnBox=document.createElement('div');
+    warnBox.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#a32d2d;color:#fff;padding:12px 16px;text-align:center;font-family:Arial,sans-serif;font-size:13px;font-weight:500;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+    warnBox.innerHTML='⚠️ Vous allez être déconnecté dans 1 minute pour inactivité. Bougez la souris pour rester connecté.';
+    document.body.appendChild(warnBox);
+  }
+  function clearWarn(){ if(warnBox){ warnBox.remove(); warnBox=null; } }
+  function reset(){
+    clearWarn();
+    if(idleTimer) clearTimeout(idleTimer);
+    if(warnTimer) clearTimeout(warnTimer);
+    warnTimer=setTimeout(showWarn, TIMEOUT_MS-WARN_MS);
+    idleTimer=setTimeout(doAutoLogout, TIMEOUT_MS);
+  }
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(function(ev){
+    window.addEventListener(ev, reset, {passive:true});
+  });
+  // Demarre le compteur une fois la page prete
+  if(document.body){ reset(); }
+  else { window.addEventListener('DOMContentLoaded', reset); }
+})();
+
 var PHONE = '212628664142';
 var NETLIFY_URL = window.location.origin + (window.location.pathname.includes('/elzer') ? '/elzer' : '');
 var SUPA_URL = 'https://ryfywqcgdvrhtpzfjsns.supabase.co';
@@ -788,6 +823,18 @@ var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 var TRAD = {"Ail": "آيل", "Ail épluché 1kg": "آيل مقشر", "Carotte": "كاروت", "Tomate": "طوماطيم", "Courgette verte": "كورجيت فيرت", "Oignon": "أونيون", "Pomme de terre": "بوم دو تير", "Poivron rouge": "بوافرون روج", "Poivron jaune": "بوافرون جون", "Aubergine": "أوبيرجين", "Concombre": "كونكومبر", "Poireaux": "بوارو", "Épinard": "إبينار", "Brocoli": "بروكولي", "Salade romaine": "سالاد رومين", "Salade mesclun": "سالاد ميسكلون", "Salade mâche": "سالاد ماش", "Roquette": "روكيت", "Avocat": "أفوكا", "Ananas": "أناناس", "Banane": "بانان", "Fraise": "فريز", "Framboise": "فرامبواز", "Citron jaune": "سيترون جون", "Citron vert": "سيترون فير", "Orange à jus": "أورانج أ جو", "Mangue avion": "مانغ أفيون", "Pastèque locale": "باستيك لوكال", "Pamplemousse": "بامبلموس", "Basilic": "بازيليك", "Coriandre": "كوريوندر", "Persil": "بيرسي", "Thym": "تيم", "Romarin": "روزماران", "Menthe fraîche": "مانت فريش", "Gingembre frais": "جانجامبر فري", "Safran bio": "سافران بيو"};
 
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+// SECURITE (#2): echappe les caracteres HTML dangereux dans les donnees utilisateur
+// (noms de clients, adresses, notes...) avant insertion via innerHTML.
+function escapeHtml(s){
+  if(s===null||s===undefined) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
 
 // ── NUMEROS BL CONTINUS ──
 function getMaxBLNum(){
@@ -1313,22 +1360,26 @@ document.addEventListener('click',async function(e){
     var currentPwd=load('admin_password','elzer2026');
     var oldTry=prompt('🔐 Sécurité — Entrez votre mot de passe ACTUEL :');
     if(oldTry===null) return;
-    if(String(oldTry).trim()!==currentPwd){
-      alert('❌ Mot de passe actuel incorrect. Aucun changement.');
-      return;
-    }
-    var np1=prompt('Nouveau mot de passe (minimum 4 caractères) :');
-    if(np1===null) return;
-    np1=String(np1).trim();
-    if(np1.length<4){ alert('❌ Trop court : minimum 4 caractères. Aucun changement.'); return; }
-    if(np1===currentPwd){ alert('❌ Le nouveau mot de passe doit être différent de l\'ancien.'); return; }
-    var np2=prompt('Confirmez le nouveau mot de passe :');
-    if(np2===null) return;
-    if(np1!==String(np2).trim()){ alert('❌ Les deux mots de passe ne correspondent pas. Aucun changement.'); return; }
-    save('admin_password',np1);
-    alert('✅ Mot de passe changé avec succès !\n\nVous allez être déconnecté pour tester le nouveau mot de passe.');
-    try{ sessionStorage.removeItem('elzer-admin-ok'); }catch(err){}
-    window.location.replace('admin-login.html');
+    ElzerCrypto.verifyPassword(String(oldTry).trim(), currentPwd).then(function(res){
+      if(!res.ok){
+        alert('❌ Mot de passe actuel incorrect. Aucun changement.');
+        return;
+      }
+      var np1=prompt('Nouveau mot de passe (minimum 4 caractères) :');
+      if(np1===null) return;
+      np1=String(np1).trim();
+      if(np1.length<4){ alert('❌ Trop court : minimum 4 caractères. Aucun changement.'); return; }
+      if(np1===String(oldTry).trim()){ alert('❌ Le nouveau mot de passe doit être différent de l\'ancien.'); return; }
+      var np2=prompt('Confirmez le nouveau mot de passe :');
+      if(np2===null) return;
+      if(np1!==String(np2).trim()){ alert('❌ Les deux mots de passe ne correspondent pas. Aucun changement.'); return; }
+      ElzerCrypto.hashPassword(np1).then(function(h){
+        save('admin_password',h);
+        alert('✅ Mot de passe changé avec succès !\n\nVous allez être déconnecté pour tester le nouveau mot de passe.');
+        try{ sessionStorage.removeItem('elzer-admin-ok'); }catch(err){}
+        window.location.replace('admin-login.html');
+      });
+    });
   }
   else if(a==='logout-admin'){
     if(confirm('Se déconnecter ? Vous devrez ressaisir le mot de passe pour revenir.')){
@@ -2442,7 +2493,7 @@ function printRapportMois(section){
     }).join(''):'<tr><td colspan="4" style="padding:8px;text-align:center;color:#999;font-style:italic;font-size:11px;">Aucun article</td></tr>';
     return '<div style="margin-bottom:14px;border:1px solid #d5e2c5;border-radius:6px;overflow:hidden;page-break-inside:avoid;">'
       +'<div style="background:#eaf3de;padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'
-      +'<div><b>'+(o.bl||o.id||'')+'</b> · '+(o.client||'')+' · Livraison '+dateLivFr+' · '+st+'</div>'
+      +'<div><b>'+escapeHtml(o.bl||o.id||'')+'</b> · '+escapeHtml(o.client||'')+' · Livraison '+dateLivFr+' · '+st+'</div>'
       +'<div style="font-weight:bold;color:#27500a;">'+Math.round(o.total||0).toLocaleString('fr-FR')+' Dh</div>'
       +'</div>'
       +'<table style="width:100%;border-collapse:collapse;">'
@@ -2793,7 +2844,7 @@ function renderDashboard(){
     return '<div style="background:#fff;border-radius:10px;border:1px solid #e2e8dd;border-left:4px solid '+({nouvelle:'#1a7aff',preparation:'#c47a00',livree:'#1aa84a',annulee:'#999'}[o.status]||'#999')+';padding:12px;margin-bottom:8px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
       +'<div style="flex:1;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:6px;">N° '+niceBL(o)+'</span>'
-      +'<span style="font-weight:600;font-size:14px;color:#333;">'+o.client+'</span></div>'
+      +'<span style="font-weight:600;font-size:14px;color:#333;">'+escapeHtml(o.client)+'</span></div>'
       +'<div style="font-size:11px;color:#888;margin-top:4px;">'+nbArticles+' article(s) · reçu '+cr+'</div>'
       +'<div style="font-size:11px;color:#5a7050;font-weight:600;margin-top:3px;">🚚 Livraison : '+dlivStr+' <button data-action="edit-deliv-date" data-id="'+o.id+'" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:#27500a;margin-left:4px;">📅 Changer</button></div>'
       +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
@@ -2963,7 +3014,7 @@ function buildCmdCardHtml(o){
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
     +(isNew?'<span style="background:#1a7aff;color:#fff;font-size:9px;font-weight:bold;padding:2px 7px;border-radius:10px;">NOUVEAU</span>':'')
     +'<span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">N° '+niceBL(o)+'</span>'
-    +'<span style="font-weight:600;font-size:15px;color:#333;">'+o.client+'</span>'
+    +'<span style="font-weight:600;font-size:15px;color:#333;">'+escapeHtml(o.client)+'</span>'
     +'</div>'
     +'<div style="font-size:11px;color:#888;margin-top:5px;">📦 '+nbArt+' article(s) · 💰 '+totalStr+' · Reçu '+cr+' · 🚚 Livraison '+dv+' <button data-action="edit-deliv-date" data-id="'+o.id+'" style="background:#eaf3de;border:1px solid #c0dd97;border-radius:5px;font-size:10px;padding:1px 6px;cursor:pointer;color:#27500a;">📅 Changer</button></div>'
     +((o.note||o.adminNote)?'<div style="font-size:11px;color:#b8860b;background:#fffbe6;border:1px solid #f0e0a0;border-radius:6px;padding:4px 8px;margin-top:5px;display:inline-block;">📝 '+String(o.note||o.adminNote).replace(/</g,"&lt;").substring(0,120)+'</div>':'')
@@ -3262,7 +3313,7 @@ function openCmdDetail(id){
   var dv=o.delivDate?new Date(o.delivDate+'T12:00:00').toLocaleDateString('fr-FR'):'';
   document.getElementById('modal-cmd-title').textContent='Commande #'+id;
   var items=o.items||[];
-  var html='<div style="margin-bottom:12px;font-size:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">CLIENT</div><div style="font-weight:600;">'+o.client+'</div></div><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">LIVRAISON</div><div style="font-weight:600;">'+dv+'</div></div><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">TOTAL</div><div style="font-weight:700;color:var(--g7);">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</div></div></div><div style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;"><div style="background:var(--g7);color:#fff;padding:6px 10px;font-size:10px;font-weight:700;">ARTICLES</div>'+items.map(function(i){var cs=i.custom?'background:#fff8ee;':'';var badge=i.custom?' <span style="font-size:9px;background:#f0a030;color:#fff;padding:1px 5px;border-radius:3px;">⚠️ NOUVEAU - vérifier prix</span>':'';return '<div style="display:flex;justify-content:space-between;padding:6px 12px;border-bottom:.5px solid #f5f5f5;font-size:12px;'+cs+'"><span>'+i.name+(i.type?' ('+i.type+')':'')+badge+'</span><strong style="color:var(--g7);">'+i.qty+' '+i.unit+'</strong></div>';}).join('')+'</div>';
+  var html='<div style="margin-bottom:12px;font-size:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">CLIENT</div><div style="font-weight:600;">'+escapeHtml(o.client)+'</div></div><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">LIVRAISON</div><div style="font-weight:600;">'+dv+'</div></div><div style="background:var(--g0);border-radius:8px;padding:10px;"><div style="color:var(--gy5);font-size:10px;">TOTAL</div><div style="font-weight:700;color:var(--g7);">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'')+'</div></div></div><div style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;"><div style="background:var(--g7);color:#fff;padding:6px 10px;font-size:10px;font-weight:700;">ARTICLES</div>'+items.map(function(i){var cs=i.custom?'background:#fff8ee;':'';var badge=i.custom?' <span style="font-size:9px;background:#f0a030;color:#fff;padding:1px 5px;border-radius:3px;">⚠️ NOUVEAU - vérifier prix</span>':'';return '<div style="display:flex;justify-content:space-between;padding:6px 12px;border-bottom:.5px solid #f5f5f5;font-size:12px;'+cs+'"><span>'+escapeHtml(i.name)+(i.type?' ('+escapeHtml(i.type)+')':'')+badge+'</span><strong style="color:var(--g7);">'+escapeHtml(String(i.qty))+' '+escapeHtml(i.unit||'')+'</strong></div>';}).join('')+'</div>';
   document.getElementById('modal-cmd-body').innerHTML=html;
   var footer='';
   if(o.status==='nouvelle') footer='<button class="btn btn-a" data-action="set-status-close" data-id="'+o.id+'" data-status="preparation">Preparer</button><button class="btn btn-d" data-action="set-status-close" data-id="'+o.id+'" data-status="annulee">Annuler</button>';
@@ -3351,11 +3402,11 @@ function renderClientsUnified(){
     var coords='';
     if(c.tel||c.email||c.adresse||c.ice){
       coords='<div style="background:#f7faf4;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:11px;color:#5a7050;line-height:1.6;">';
-      if(c.tel) coords+='📞 '+c.tel+'  ';
-      if(c.email) coords+='✉️ '+c.email+'<br>';
-      if(c.adresse) coords+='📍 '+c.adresse+'<br>';
-      if(c.ice) coords+='ICE: '+c.ice;
-      if(c.rc) coords+=' · RC: '+c.rc;
+      if(c.tel) coords+='📞 '+escapeHtml(c.tel)+'  ';
+      if(c.email) coords+='✉️ '+escapeHtml(c.email)+'<br>';
+      if(c.adresse) coords+='📍 '+escapeHtml(c.adresse)+'<br>';
+      if(c.ice) coords+='ICE: '+escapeHtml(c.ice);
+      if(c.rc) coords+=' · RC: '+escapeHtml(c.rc);
       coords+='</div>';
     } else {
       coords='<div style="background:#fff3e0;padding:6px 10px;border-radius:6px;margin:8px 0;font-size:10px;color:#c47a00;">⚠️ Coordonnées manquantes — cliquez Modifier</div>';
@@ -3364,9 +3415,9 @@ function renderClientsUnified(){
     return '<div style="background:#fff;border-radius:12px;border:1px solid #e2e8dd;padding:14px;">'
       +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
       +'<div style="width:40px;height:40px;border-radius:10px;background:#5a7050;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;flex-shrink:0;">'+initials+'</div>'
-      +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:15px;color:#333;">'+c.name+'</div>'
-      +'<div style="font-size:11px;color:#999;">'+(c.type||'Client')+' · '+nbOrders+' commande(s)</div></div>'
-      +(c.pwd?'<span style="font-size:9px;background:#fff3e0;color:#c47a00;padding:2px 6px;border-radius:4px;">🔒 '+c.pwd+'</span>':'')
+      +'<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:15px;color:#333;">'+escapeHtml(c.name)+'</div>'
+      +'<div style="font-size:11px;color:#999;">'+escapeHtml(c.type||'Client')+' · '+nbOrders+' commande(s)</div></div>'
+      +(c.pwd?'<span style="font-size:9px;background:#fff3e0;color:#c47a00;padding:2px 6px;border-radius:4px;">🔒 '+escapeHtml(c.pwd)+'</span>':'')
       +'</div>'
       +coords
       +'<div style="font-size:10px;background:#f0f0f0;border-radius:5px;padding:6px 8px;margin-bottom:8px;word-break:break-all;font-family:monospace;color:#666;">'+url+'</div>'
@@ -3390,17 +3441,17 @@ function renderClients(){
     var coords='';
     if(c.tel||c.email||c.adresse||c.ice){
       coords='<div style="background:#f7faf4;padding:8px 12px;border-radius:6px;margin-top:8px;font-size:11px;color:#5a7050;line-height:1.6;">';
-      if(c.tel) coords+='📞 '+c.tel+'<br>';
-      if(c.email) coords+='✉️ '+c.email+'<br>';
-      if(c.adresse) coords+='📍 '+c.adresse+'<br>';
-      if(c.ice) coords+='ICE: '+c.ice;
-      if(c.rc) coords+=' · RC: '+c.rc;
-      if(c.iff) coords+=' · IF: '+c.iff;
+      if(c.tel) coords+='📞 '+escapeHtml(c.tel)+'<br>';
+      if(c.email) coords+='✉️ '+escapeHtml(c.email)+'<br>';
+      if(c.adresse) coords+='📍 '+escapeHtml(c.adresse)+'<br>';
+      if(c.ice) coords+='ICE: '+escapeHtml(c.ice);
+      if(c.rc) coords+=' · RC: '+escapeHtml(c.rc);
+      if(c.iff) coords+=' · IF: '+escapeHtml(c.iff);
       coords+='</div>';
     } else {
       coords='<div style="background:#fff3e0;padding:8px 12px;border-radius:6px;margin-top:8px;font-size:11px;color:#c47a00;">⚠️ Coordonnées manquantes - cliquez Modifier</div>';
     }
-    return '<div class="cc"><div class="cc-hd"><div class="cc-av">'+initials+'</div><div><div class="cc-nm">'+c.name+'</div><div class="cc-tp">'+c.type+'</div></div></div><div class="cc-bd"><div class="cc-st"><span class="cc-sl">Commandes</span><span class="cc-sv">'+cOrders.length+'</span></div><div class="cc-st"><span class="cc-sl">WhatsApp</span><span class="cc-sv">'+(c.wa||'—')+'</span></div>'+coords+'</div><div class="cc-ac"><button class="btn btn-p btn-sm" data-action="client-link" data-id="'+c.id+'">Lien app</button><button class="btn btn-b btn-sm" data-action="client-edit" data-id="'+c.id+'">Modifier</button><button class="btn btn-d btn-sm" data-action="client-del" data-id="'+c.id+'">Suppr.</button></div></div>';
+    return '<div class="cc"><div class="cc-hd"><div class="cc-av">'+initials+'</div><div><div class="cc-nm">'+escapeHtml(c.name)+'</div><div class="cc-tp">'+escapeHtml(c.type||'')+'</div></div></div><div class="cc-bd"><div class="cc-st"><span class="cc-sl">Commandes</span><span class="cc-sv">'+cOrders.length+'</span></div><div class="cc-st"><span class="cc-sl">WhatsApp</span><span class="cc-sv">'+escapeHtml(c.wa||'—')+'</span></div>'+coords+'</div><div class="cc-ac"><button class="btn btn-p btn-sm" data-action="client-link" data-id="'+c.id+'">Lien app</button><button class="btn btn-b btn-sm" data-action="client-edit" data-id="'+c.id+'">Modifier</button><button class="btn btn-d btn-sm" data-action="client-del" data-id="'+c.id+'">Suppr.</button></div></div>';
   }).join('');
 }
 
@@ -5200,7 +5251,7 @@ function buildBLHtml(o, showNote){
     +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">Appt N\u00b015 Imm12 lot Sine<br>Av Allal Fassi, Marrakech<br>ICE: 003711905000045<br>RC: 129615 - IF: 06298456<br>Tel: +212 6 73 95 83 37</div></div>'
     +'<div style="flex:1;padding:16px 24px;">'
     +'<div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Client</div>'
-    +'<div style="font-size:14px;font-weight:600;color:#333;">'+o.client+'</div>'
+    +'<div style="font-size:14px;font-weight:600;color:#333;">'+escapeHtml(o.client)+'</div>'
     +'<div style="font-size:11px;color:#777;line-height:1.5;margin-top:3px;">'
     +(cli.adresse?cli.adresse+'<br>':'')
     +(cli.tel?'Tel: '+cli.tel+'<br>':'')
@@ -5725,7 +5776,7 @@ function renderCalendrier(){
         return d.getFullYear()===calYear&&d.getMonth()===calMonth&&d.getDate()===day;
       });
       det.innerHTML='<div style="background:#fff;border-radius:8px;border:1px solid #e0e8d8;overflow:hidden;"><div style="padding:8px 12px;background:#eaf3de;font-size:12px;font-weight:600;color:#27500a;">'+day+'/'+String(calMonth+1).padStart(2,'0')+'/'+calYear+' — '+dayOrders.length+' livraison(s)</div>'+
-        dayOrders.map(function(o){return '<div style="padding:8px 12px;border-top:0.5px solid #f0f5ea;font-size:12px;display:flex;justify-content:space-between;"><span>'+o.client+'</span><span style="color:#6b8a5e;font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'—')+'</span></div>';}).join('')+'</div>';
+        dayOrders.map(function(o){return '<div style="padding:8px 12px;border-top:0.5px solid #f0f5ea;font-size:12px;display:flex;justify-content:space-between;"><span>'+escapeHtml(o.client)+'</span><span style="color:#6b8a5e;font-weight:600;">'+(o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'—')+'</span></div>';}).join('')+'</div>';
     } else {
       det.innerHTML='<div style="font-size:12px;color:#888;padding:8px;">Pas de livraison le '+day+'/'+String(calMonth+1).padStart(2,'0')+'</div>';
     }
@@ -6078,7 +6129,7 @@ function openBLEdit(orderId){
       '</div>';
   }).join('');
   
-  var html='<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#6b8a5e;">Commande #'+orderId+' — '+o.client+'</div>'+
+  var html='<div style="margin-bottom:8px;font-size:13px;font-weight:600;color:#6b8a5e;">Commande #'+orderId+' — '+escapeHtml(o.client)+'</div>'+
     '<div id="bl-edit-items" style="border:1px solid #e0e8d8;border-radius:8px;overflow:hidden;margin-bottom:8px;">'+
     '<div style="display:grid;grid-template-columns:1fr 60px 60px 70px 30px;padding:6px 10px;background:#f4fbed;font-size:10px;font-weight:600;color:#6b8a5e;text-transform:uppercase;gap:4px;"><span>Produit</span><span>Qte</span><span>Unite</span><span>Prix Dh</span><span></span></div>'+
     itemsHTML+'</div>'+
@@ -6469,7 +6520,7 @@ function renderHistorique(){
       var totalStr=o.total?Math.round(o.total).toLocaleString('fr-FR')+' Dh':'-';
       return '<tr style="background:'+bg+';border-bottom:1px solid #f0f0f0;">'
         +'<td style="padding:9px 12px;"><span style="background:#5a7050;color:#fff;font-size:11px;font-weight:bold;padding:3px 9px;border-radius:6px;">'+o.id+'</span></td>'
-        +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+o.client+'</td>'
+        +'<td style="padding:9px 12px;font-size:13px;font-weight:500;color:#333;">'+escapeHtml(o.client)+'</td>'
         +'<td style="padding:9px 12px;text-align:center;font-size:12px;color:#666;">'+dv+'</td>'
         +'<td style="padding:9px 12px;text-align:right;font-size:13px;font-weight:600;color:#5a7050;">'+totalStr+'</td>'
         +'<td style="padding:9px 12px;text-align:center;">'+statusBadge(o.status)+'</td>'
