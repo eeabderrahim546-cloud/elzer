@@ -37,22 +37,44 @@
   </div>
   <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
     <div style="font-size:13px;font-weight:500;color:#666;text-align:center;margin-bottom:16px;">Administration - Acces reserve</div>
-    <input type="password" id="pwd" placeholder="Mot de passe" style="width:100%;padding:12px 16px;font-size:14px;border-radius:8px;border:1.5px solid #e0e8d8;box-sizing:border-box;margin-bottom:10px;outline:none;" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="off" style="width:100%;padding:12px 16px;font-size:14px;border-radius:8px;border:1.5px solid #e0e8d8;box-sizing:border-box;margin-bottom:10px;outline:none;" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button onclick="doLogin()" style="width:100%;padding:13px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">Connexion</button>
     <div id="err" style="color:#d32f2f;font-size:12px;text-align:center;margin-top:8px;display:none;">Mot de passe incorrect</div>
   </div>
 </div>
+<script src="elzer-crypto.js"></script>
 <script>
+function readStoredPwd(){
+  var raw = localStorage.getItem('admin_password');
+  if(raw===null || raw===undefined) return 'elzer2026';
+  // Peut etre stocke en JSON (via save()) ou en texte brut : on gere les deux
+  try{
+    var parsed = JSON.parse(raw);
+    if(typeof parsed==='string') return parsed;
+  }catch(e){}
+  return raw;
+}
 function doLogin(){
   var v=document.getElementById('pwd').value;
-  var s=localStorage.getItem('admin_password')||'elzer2026';
-  if(v===s){
-    sessionStorage.setItem('elzer-admin-ok','1');
-    window.location.href='admin.html';
-  } else {
-    document.getElementById('err').style.display='block';
-    document.getElementById('pwd').value='';
-  }
+  var stored=readStoredPwd();
+  ElzerCrypto.verifyPassword(v, stored).then(function(res){
+    if(res.ok){
+      // Conversion auto du clair vers hash au premier login reussi
+      if(res.needsUpgrade){
+        ElzerCrypto.hashPassword(v).then(function(h){
+          try{ localStorage.setItem('admin_password', JSON.stringify(h)); }catch(e){}
+          sessionStorage.setItem('elzer-admin-ok','1');
+          window.location.href='admin.html';
+        });
+      } else {
+        sessionStorage.setItem('elzer-admin-ok','1');
+        window.location.href='admin.html';
+      }
+    } else {
+      document.getElementById('err').style.display='block';
+      document.getElementById('pwd').value='';
+    }
+  });
 }
 if(sessionStorage.getItem('elzer-admin-ok')==='1'){
   window.location.href='admin.html';
