@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://ryfywqcgdvrhtpzfjsns.supabase.co; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self';"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
 <title>ELZER — Commande</title>
 <link rel="manifest" href="manifest.json"/>
@@ -316,6 +317,11 @@ html,body{width:100%;max-width:100vw;overflow-x:hidden;}
 
 const SUPA_URL='https://ryfywqcgdvrhtpzfjsns.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5Znl3cWNnZHZyaHRwemZqc25zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMzU4MDQsImV4cCI6MjA5NTkxMTgwNH0.CBvMyW66erhqfbNCqud4iRUuYXr2DXW6FZMvCYJz9R0';
+// SECURITE (#9): echappe le HTML pour neutraliser toute injection via ?client= dans l'URL
+function escapeHtml(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 async function supaFetch(method,path,body=null){
   var headers={'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=minimal'};
   if(method==='POST') headers['Prefer']='resolution=merge-duplicates,return=minimal';
@@ -330,7 +336,6 @@ async function supaFetch(method,path,body=null){
   throw new Error('Supabase '+r.status+': '+txt.substring(0,200));
 }
 async function saveOrderToSupabase(order){
-  console.log('ELZER: Envoi commande vers Supabase...', order.id, order.client);
   try{
     // Stocker le numero BL dans le JSON items (pas besoin de colonne dediee)
     var payload={__bl:order.bl||order.id, items:order.items};
@@ -389,7 +394,10 @@ async function loadOrdersFromSupabase(){try{const data=await supaFetch('GET','co
 async function updateStatusSupabase(id,status){try{await supaFetch('PATCH','commandes?id=eq.'+id,{status});}catch(e){}}
 
 const P=new URLSearchParams(window.location.search);
-const CID=P.get('client')||P.get('c')||localStorage.getItem('elzer_default_client')||'';
+var CID=P.get('client')||P.get('c')||localStorage.getItem('elzer_default_client')||'';
+// SECURITE (#9): neutraliser tout caractere dangereux venant de l'URL
+// (garde lettres/chiffres/espaces/tirets/underscores + accents, retire < > " ' etc.)
+CID=String(CID).replace(/[<>"'`\\/{}()=;]/g,'').substring(0,60);
 const NETLIFY=window.location.origin;
 const PHONE='212628664142';
 // Clients par défaut
@@ -524,7 +532,7 @@ document.getElementById('cdtxt').textContent=now.toLocaleDateString('fr-FR',{wee
   var overlay=document.createElement('div');
   overlay.id='cli-login';
   overlay.style.cssText='position:fixed;inset:0;background:#0f2d0a;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;';
-  overlay.innerHTML='<div style="background:#fff;border-radius:16px;padding:32px 28px;width:300px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:13px;font-weight:600;margin:12px 0 6px;">'+CLI.name+'</div><div style="font-size:12px;color:#888;margin-bottom:16px;">Entrez votre mot de passe</div><input type="password" id="cpwd-inp" placeholder="Mot de passe" style="width:100%;padding:12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;box-sizing:border-box;"/><button id="cpwd-btn" style="width:100%;padding:12px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;">Connexion</button><div id="cpwd-err" style="color:#d32f2f;font-size:12px;margin-top:8px;display:none;">Mot de passe incorrect</div></div>';
+  overlay.innerHTML='<div style="background:#fff;border-radius:16px;padding:32px 28px;width:300px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#e67e22;">ELZER</div><div style="font-size:13px;font-weight:600;margin:12px 0 6px;">'+escapeHtml(CLI.name)+'</div><div style="font-size:12px;color:#888;margin-bottom:16px;">Entrez votre mot de passe</div><input type="password" id="cpwd-inp" placeholder="Mot de passe" style="width:100%;padding:12px;border:1.5px solid #e0e8d8;border-radius:8px;font-size:15px;text-align:center;margin-bottom:10px;outline:none;box-sizing:border-box;"/><button id="cpwd-btn" style="width:100%;padding:12px;background:#2d6a1f;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;">Connexion</button><div id="cpwd-err" style="color:#d32f2f;font-size:12px;margin-top:8px;display:none;">Mot de passe incorrect</div></div>';
   document.body.appendChild(overlay);
   
   function checkPwd(){
@@ -749,7 +757,6 @@ async function loadDevisPrices(){
     var cliNorm=normDevisName(CLI.name);
     // Filtrer par client (nom normalise)
     var mesDevis=data.filter(function(d){ return normDevisName(d.client)===cliNorm; });
-    console.log('[DEVIS] total='+data.length+' pour client "'+CLI.name+'"='+mesDevis.length);
     if(!mesDevis.length) return;
     var today=new Date().toISOString().split('T')[0]; // AAAA-MM-JJ
     // Garder les devis dont la periode couvre aujourd'hui
@@ -1145,7 +1152,7 @@ function gl(){
   });
   return l;
 }
-function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.cuisine+' '+l.unit+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-b">'+l.bar+' '+l.unit+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-a">'+l.perso+' '+l.unit+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+l.name+'</span><span class="rq rq-g">'+l.total+' '+l.unit+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
+function om(){const lines=gl();if(!lines.length){alert('Saisissez au moins une quantité.');return;}const dat=document.getElementById('dd').value;const ds=new Date(dat+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});document.getElementById('ss').textContent='BL #'+getBLNum()+' · '+CLI.name+' · '+ds;let html='';if(mode==='t'){const bc=lines.filter(l=>l.cuisine>0),bb=lines.filter(l=>l.bar>0),bp=lines.filter(l=>l.perso>0);if(bc.length)html+='<div class="rs"><div class="rs-t">CUISINE</div>'+bc.map(l=>'<div class="rl"><span>'+escapeHtml(l.name)+'</span><span class="rq rq-g">'+l.cuisine+' '+escapeHtml(l.unit||'')+'</span></div>').join('')+'</div>';if(bb.length)html+='<div class="rs"><div class="rs-t">BAR</div>'+bb.map(l=>'<div class="rl"><span>'+escapeHtml(l.name)+'</span><span class="rq rq-b">'+l.bar+' '+escapeHtml(l.unit||'')+'</span></div>').join('')+'</div>';if(bp.length)html+='<div class="rs"><div class="rs-t">PERSONNEL</div>'+bp.map(l=>'<div class="rl"><span>'+escapeHtml(l.name)+'</span><span class="rq rq-a">'+l.perso+' '+escapeHtml(l.unit||'')+'</span></div>').join('')+'</div>';}else{html='<div class="rs">'+lines.map(l=>'<div class="rl"><span>'+escapeHtml(l.name)+'</span><span class="rq rq-g">'+l.total+' '+escapeHtml(l.unit||'')+'</span></div>').join('')+'</div>';}document.getElementById('sb').innerHTML=html;document.getElementById('st').textContent=document.getElementById('gt').textContent;document.getElementById('ov').classList.add('on');}
 function cm(){document.getElementById('ov').classList.remove('on');}
 async function co(){
   // Verrou anti-double-submit 1: en memoire (meme onglet)
