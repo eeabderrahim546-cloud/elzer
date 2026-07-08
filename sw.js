@@ -1,5 +1,5 @@
-// Service Worker ELZER v10 - Force refresh
-const CACHE = 'elzer-v10';
+// Service Worker ELZER v11 - Force refresh
+const CACHE = 'elzer-v11';
 const FILES = [
   '/elzer/',
   '/elzer/index.html',
