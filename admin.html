@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://ryfywqcgdvrhtpzfjsns.supabase.co; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';"/>
 <link rel="manifest" href="manifest-admin.json"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -4403,7 +4404,6 @@ function renderFacturationContent(){
         existingFact.mt=String(montantCalcule);
         save('elzer_suivi_factures',SUIVI2);
         if(typeof saveSuivi2ToSupabase==='function'){ try{ saveSuivi2ToSupabase(); }catch(e){} }
-        console.log('[FACT] Montant resynchronise pour '+cli+' '+moisSel.value+': '+montantSuivi+' -> '+montantCalcule);
       }
     } else {
       // PAS encore generee: afficher un apercu SANS attribuer de numero (pas de sauvegarde auto)
